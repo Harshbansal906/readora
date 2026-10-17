@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Log into READORA - Where readers become creators.">
+  <title>READORA | Log In</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/x-icon" href="https://www.bing.com/th/id/OIP.kTjssfQu3vohsl0CrLhGyAHaHa?w=183&h=211&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2">
+</head>
+<body class="auth-page">
+  <div class="auth-ambient-glow"></div>
+
+  <div class="auth-container">
+    <!-- Brand Side -->
+    <div class="auth-brand-side">
+      <h1 class="auth-logo">READORA</h1>
+      <p class="auth-tagline">"Where readers become creators."</p>
+
+      <div class="auth-features">
+        <div class="auth-feature-item">
+          <div class="auth-feature-icon">✦</div>
+          <span>Share short thoughts in aesthetic, Instagram-style cards</span>
+        </div>
+        <div class="auth-feature-item">
+          <div class="auth-feature-icon">✦</div>
+          <span>Publish and read immersive long-form articles</span>
+        </div>
+        <div class="auth-feature-item">
+          <div class="auth-feature-icon">✦</div>
+          <span>Connect with thoughtful readers, writers, and thinkers</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Card -->
+    <div class="auth-card">
+      <h2 class="auth-title">Welcome Back</h2>
+      <p class="auth-subtitle">Log in to your creator sanctuary</p>
+
+      <div id="auth-error" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ff9999; padding: 0.6rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; text-align: center;"></div>
+
+      <form id="login-form" onsubmit="return handleLogin(event)">
+        <div class="form-group">
+          <label for="login-username">Username or Email</label>
+          <input type="text" id="login-username" class="form-input" placeholder="e.g. harsh@readora.app or harshbansal" required>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+            <label for="login-password" style="margin-bottom: 0;">Password</label>
+            <a href="#" style="font-size: 0.8rem; color: #ff6b6b;" onclick="alert('Demo password is: readora123')">Forgot password?</a>
+          </div>
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" id="btn-login-submit" class="btn-auth-primary">Log In to Readora</button>
+        <button type="button" class="btn-auth-guest" onclick="exploreAsGuest()">Explore Feed as Guest ➔</button>
+      </form>
+
+      <div class="auth-footer-links">
+        Don't have an account? <a href="account.html">Create an account</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Auto-detect API Base for file:// or http:// origins
+    const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const identifier = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      const errorBox = document.getElementById('auth-error');
+      const submitBtn = document.getElementById('btn-login-submit');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Logging in...';
+      errorBox.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+
+        const data = await res.json();
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Log In to Readora';
+
+        if (res.ok && data.success) {
+          localStorage.setItem('readora_token', data.token);
+          localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+          window.location.href = 'index.html';
+          return false;
+        } else {
+          errorBox.textContent = data.message || 'Invalid username or password.';
+          errorBox.style.display = 'block';
+          return false;
+        }
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Log In to Readora';
+        errorBox.textContent = 'Network error: Server se connect nahi ho paya. Ensure server (http://localhost:5000) is running.';
+        errorBox.style.display = 'block';
+        return false;
+      }
+    }
+
+    function exploreAsGuest() {
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>

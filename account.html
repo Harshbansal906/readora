@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Create your READORA account - Where readers become creators.">
+  <title>READORA | Create Account</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/x-icon" href="https://www.bing.com/th/id/OIP.kTjssfQu3vohsl0CrLhGyAHaHa?w=183&h=211&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2">
+  <style>
+    /* Clean Instagram/Modern Auth Aesthetic */
+    .ig-auth-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      position: relative;
+      background: radial-gradient(ellipse at center top, #36070d 0%, #110305 50%, #060102 100%);
+    }
+
+    .ig-card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(22, 11, 14, 0.9);
+      border: 1px solid rgba(239, 68, 68, 0.28);
+      border-radius: var(--radius-lg, 14px);
+      padding: 2.5rem 2.25rem;
+      text-align: center;
+      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: all 0.3s ease;
+    }
+
+    .ig-logo {
+      font-family: var(--font-brand, system-ui);
+      font-size: 2.5rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      background: linear-gradient(90deg, #ffffff, #fda4af, #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.25rem;
+    }
+
+    .ig-tagline {
+      font-size: 0.9rem;
+      color: var(--text-dim, #94a3b8);
+      margin-bottom: 1.75rem;
+      line-height: 1.4;
+    }
+
+    .ig-step-header {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 0.4rem;
+    }
+
+    .ig-step-desc {
+      font-size: 0.85rem;
+      color: var(--text-dim, #94a3b8);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .ig-input-group {
+      margin-bottom: 1rem;
+      text-align: left;
+      position: relative;
+    }
+
+    .ig-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .ig-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-sm, 8px);
+      padding: 0.85rem 1rem;
+      color: #ffffff;
+      font-size: 0.92rem;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+
+    .ig-input:focus {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #ef4444;
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+      outline: none;
+    }
+
+    .ig-btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 0.9rem;
+      border-radius: var(--radius-sm, 8px);
+      margin-top: 0.75rem;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 4px 18px rgba(239, 68, 68, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    .ig-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 22px rgba(239, 68, 68, 0.6);
+    }
+
+    .ig-btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* 6-Digit Code Boxes */
+    .ig-otp-row {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .ig-otp-digit {
+      width: 44px;
+      height: 52px;
+      font-size: 1.5rem;
+      font-weight: 800;
+      text-align: center;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: var(--radius-sm, 8px);
+      font-family: monospace;
+      transition: all 0.2s ease;
+    }
+
+    .ig-otp-digit:focus {
+      border-color: #ef4444;
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
+      outline: none;
+    }
+
+    .ig-alert {
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid #ef4444;
+      color: #ff9999;
+      padding: 0.75rem;
+      border-radius: var(--radius-sm, 8px);
+      font-size: 0.85rem;
+      margin-bottom: 1.25rem;
+      text-align: center;
+      display: none;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .ig-success-box {
+      background: rgba(34, 197, 94, 0.18);
+      border: 1px solid #22c55e;
+      color: #86efac;
+      padding: 0.75rem;
+      border-radius: var(--radius-sm, 8px);
+      font-size: 0.85rem;
+      margin-bottom: 1.25rem;
+      text-align: center;
+      display: none;
+    }
+
+    /* Live username status indicator */
+    .username-status {
+      font-size: 0.8rem;
+      margin-top: 0.35rem;
+      min-height: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .status-available {
+      color: #4ade80;
+      font-weight: 600;
+    }
+
+    .status-taken {
+      color: #f87171;
+      font-weight: 600;
+    }
+
+    .status-checking {
+      color: #fbbf24;
+    }
+
+    .ig-bottom-box {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(22, 11, 14, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md, 12px);
+      padding: 1.25rem;
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--text-dim, #94a3b8);
+      margin-top: 1rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="ig-auth-container">
+    
+    <div class="ig-card">
+      <div class="ig-logo">READORA</div>
+      <p class="ig-tagline">"Where readers become creators."</p>
+
+      <!-- Alert / Notice Messages -->
+      <div id="ig-error" class="ig-alert"></div>
+      <div id="ig-success" class="ig-success-box"></div>
+
+      <!-- ================= STEP 1: Enter Gmail / Email ================= -->
+      <div id="step-1">
+        <div class="ig-step-header">Create Your Account</div>
+        <p class="ig-step-desc">Enter your Gmail or email address to receive a verification code.</p>
+
+        <form id="form-step-1" onsubmit="return handleStep1(event)">
+          <div class="ig-input-group">
+            <label for="email" class="ig-label">Email Address</label>
+            <input 
+              type="email" 
+              id="email" 
+              class="ig-input" 
+              placeholder="e.g. yourname@gmail.com" 
+              required 
+              autocomplete="email"
+              autofocus
+            >
+          </div>
+
+          <button type="submit" id="btn-step-1" class="ig-btn-primary">Send Verification Code ➔</button>
+        </form>
+      </div>
+
+      <!-- ================= STEP 2: Enter 6-Digit OTP Code ================= -->
+      <div id="step-2" style="display: none;">
+        <div class="ig-step-header">Verify Your Email</div>
+        <p class="ig-step-desc">
+          Enter the 6-digit confirmation code we sent to <br>
+          <strong id="target-email-text" style="color: #ffffff;"></strong>
+        </p>
+
+        <form id="form-step-2" onsubmit="return handleStep2(event)">
+          <div class="ig-otp-row">
+            <input type="text" maxlength="1" class="ig-otp-digit" id="code-1" inputmode="numeric" required autofocus>
+            <input type="text" maxlength="1" class="ig-otp-digit" id="code-2" inputmode="numeric" required>
+            <input type="text" maxlength="1" class="ig-otp-digit" id="code-3" inputmode="numeric" required>
+            <input type="text" maxlength="1" class="ig-otp-digit" id="code-4" inputmode="numeric" required>
+            <input type="text" maxlength="1" class="ig-otp-digit" id="code-5" inputmode="numeric" required>
+            <input type="text" maxlength="1" class="ig-otp-digit" id="code-6" inputmode="numeric" required>
+          </div>
+
+          <button type="submit" id="btn-step-2" class="ig-btn-primary">Verify Code ➔</button>
+
+          <div style="margin-top: 1.4rem; font-size: 0.85rem; line-height: 1.8;">
+            <a href="#" onclick="resendCode(event)" style="color: #ff6b6b; text-decoration: none; font-weight: 600;">Didn't get the code? Resend</a><br>
+            <a href="#" onclick="goBackToStep1(event)" style="color: var(--text-dim, #94a3b8); text-decoration: none;">Change Email Address</a>
+          </div>
+        </form>
+      </div>
+
+      <!-- ================= STEP 3: Choose Username, Full Name & Password ================= -->
+      <div id="step-3" style="display: none;">
+        <div class="ig-step-header">Choose Your Username</div>
+        <p class="ig-step-desc">Select a unique handle and secure your account.</p>
+
+        <form id="form-step-3" onsubmit="return handleStep3(event)">
+          
+          <div class="ig-input-group">
+            <label for="username" class="ig-label">Username / Handle</label>
+            <input 
+              type="text" 
+              id="username" 
+              class="ig-input" 
+              placeholder="@your_username (e.g. @harshbansal)" 
+              required
+              oninput="handleUsernameInput(this.value)"
+              autocomplete="off"
+            >
+            <div id="username-feedback" class="username-status"></div>
+          </div>
+
+          <div class="ig-input-group">
+            <label for="fullname" class="ig-label">Full Name</label>
+            <input 
+              type="text" 
+              id="fullname" 
+              class="ig-input" 
+              placeholder="e.g. Harsh Bansal" 
+              required
+            >
+          </div>
+
+          <div class="ig-input-group">
+            <label for="password" class="ig-label">Password</label>
+            <input 
+              type="password" 
+              id="password" 
+              class="ig-input" 
+              placeholder="Minimum 6 characters" 
+              required 
+              minlength="6"
+            >
+          </div>
+
+          <div class="ig-input-group">
+            <label for="confirm-password" class="ig-label">Confirm Password</label>
+            <input 
+              type="password" 
+              id="confirm-password" 
+              class="ig-input" 
+              placeholder="Re-enter your password" 
+              required
+            >
+          </div>
+
+          <button type="submit" id="btn-step-3" class="ig-btn-primary">Complete Account Setup 🎉</button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- Login Link Box -->
+    <div class="ig-bottom-box">
+      Already have an account? <a href="practise.html" style="color: #ff6b6b; font-weight: 700; text-decoration: none;">Log in</a>
+    </div>
+
+  </div>
+
+  <script>
+    // Auto-detect API Base: If opened directly via file://, point to http://localhost:5000
+    const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+
+    const state = {
+      email: '',
+      verificationToken: '',
+      isUsernameAvailable: false,
+      checkedUsername: ''
+    };
+
+    let usernameDebounceTimer = null;
+
+    const digits = [
+      document.getElementById('code-1'),
+      document.getElementById('code-2'),
+      document.getElementById('code-3'),
+      document.getElementById('code-4'),
+      document.getElementById('code-5'),
+      document.getElementById('code-6')
+    ];
+
+    // OTP auto-focus handlers & auto navigation
+    digits.forEach((input, i) => {
+      input.addEventListener('input', (e) => {
+        if (e.target.value.length === 1 && i < 5) {
+          digits[i + 1].focus();
+        }
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && i > 0) {
+          digits[i - 1].focus();
+        }
+      });
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text').trim();
+        if (/^\d{6}$/.test(text)) {
+          text.split('').forEach((char, idx) => {
+            if (digits[idx]) digits[idx].value = char;
+          });
+          digits[5].focus();
+        }
+      });
+    });
+
+    function showError(msg) {
+      const err = document.getElementById('ig-error');
+      const succ = document.getElementById('ig-success');
+      succ.style.display = 'none';
+      err.textContent = msg;
+      err.style.display = 'block';
+    }
+
+    function showSuccess(msg) {
+      const err = document.getElementById('ig-error');
+      const succ = document.getElementById('ig-success');
+      err.style.display = 'none';
+      succ.textContent = msg;
+      succ.style.display = 'block';
+    }
+
+    function clearMessages() {
+      document.getElementById('ig-error').style.display = 'none';
+      document.getElementById('ig-success').style.display = 'none';
+    }
+
+    // ================= STEP 1: Enter & Verify Gmail / Email =================
+    async function handleStep1(e) {
+      e.preventDefault();
+      clearMessages();
+
+      const emailInput = document.getElementById('email').value.trim();
+
+      // Basic regex check
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(emailInput)) {
+        showError('Please enter a valid email address (e.g. name@gmail.com).');
+        return false;
+      }
+
+      const btn = document.getElementById('btn-step-1');
+      btn.disabled = true;
+      btn.textContent = 'Verifying & sending code...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: emailInput })
+        });
+
+        const data = await res.json();
+        btn.disabled = false;
+        btn.textContent = 'Send Verification Code ➔';
+
+        if (res.ok && data.success) {
+          state.email = emailInput;
+          document.getElementById('step-1').style.display = 'none';
+          document.getElementById('step-2').style.display = 'block';
+          document.getElementById('target-email-text').textContent = emailInput;
+          digits.forEach(d => d.value = '');
+          digits[0].focus();
+          showSuccess(`A 6-digit confirmation code has been sent to ${emailInput}. Please check your inbox!`);
+          return false;
+        } else {
+          showError(data.message || 'Failed to send verification code.');
+          return false;
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Send Verification Code ➔';
+        showError('Network error: Server se connect nahi ho paya. Kripya check karein ki server (http://localhost:5000) running hai.');
+        return false;
+      }
+    }
+
+    function goBackToStep1(e) {
+      if (e) e.preventDefault();
+      clearMessages();
+      document.getElementById('step-2').style.display = 'none';
+      document.getElementById('step-1').style.display = 'block';
+      document.getElementById('email').focus();
+    }
+
+    async function resendCode(e) {
+      if (e) e.preventDefault();
+      clearMessages();
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: state.email })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showSuccess('✅ A new 6-digit confirmation code has been sent to ' + state.email);
+        } else {
+          showError(data.message || 'Failed to resend code.');
+        }
+      } catch (err) {
+        showError('Error connecting to server.');
+      }
+    }
+
+    // ================= STEP 2: Verify Confirmation Code =================
+    async function handleStep2(e) {
+      e.preventDefault();
+      clearMessages();
+
+      const otp = digits.map(d => d.value).join('');
+      if (otp.length !== 6) {
+        showError('Please enter the full 6-digit code.');
+        return false;
+      }
+
+      const btn = document.getElementById('btn-step-2');
+      btn.disabled = true;
+      btn.textContent = 'Verifying code...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: state.email, otp })
+        });
+
+        const data = await res.json();
+        btn.disabled = false;
+        btn.textContent = 'Verify Code ➔';
+
+        if (res.ok && data.success) {
+          state.verificationToken = data.verificationToken;
+          document.getElementById('step-2').style.display = 'none';
+          document.getElementById('step-3').style.display = 'block';
+          document.getElementById('username').focus();
+          showSuccess('✓ Email verified! Now choose your username.');
+          return false;
+        } else {
+          showError(data.message || 'Invalid or expired verification code.');
+          return false;
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Verify Code ➔';
+        showError('Network error. Please try again.');
+        return false;
+      }
+    }
+
+    // ================= STEP 3: Realtime Username Check & Complete Setup =================
+    function handleUsernameInput(val) {
+      clearTimeout(usernameDebounceTimer);
+      const feedback = document.getElementById('username-feedback');
+      
+      const cleanVal = val.trim();
+      if (!cleanVal) {
+        feedback.innerHTML = '';
+        state.isUsernameAvailable = false;
+        return;
+      }
+
+      feedback.innerHTML = '<span class="status-checking">⏳ Checking availability...</span>';
+      
+      usernameDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/auth/check-username?username=${encodeURIComponent(cleanVal)}`);
+          const data = await res.json();
+
+          if (data.available) {
+            state.isUsernameAvailable = true;
+            state.checkedUsername = data.cleanHandle;
+            feedback.innerHTML = `<span class="status-available">✓ ${data.message}</span>`;
+          } else {
+            state.isUsernameAvailable = false;
+            feedback.innerHTML = `<span class="status-taken">✗ ${data.message}</span>`;
+          }
+        } catch (err) {
+          feedback.innerHTML = '<span class="status-taken">Unable to verify username.</span>';
+        }
+      }, 350);
+    }
+
+    async function handleStep3(e) {
+      e.preventDefault();
+      clearMessages();
+
+      const usernameInput = document.getElementById('username').value.trim();
+      const fullname = document.getElementById('fullname').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+
+      if (!fullname) {
+        showError('Please enter your full name.');
+        return false;
+      }
+
+      if (!usernameInput) {
+        showError('Please choose a username.');
+        return false;
+      }
+
+      // Check username validity first
+      try {
+        const checkRes = await fetch(`${API_BASE}/api/auth/check-username?username=${encodeURIComponent(usernameInput)}`);
+        const checkData = await checkRes.json();
+        if (!checkData.available) {
+          showError(checkData.message || `Username "${usernameInput}" is already taken. Please choose another username.`);
+          document.getElementById('username').focus();
+          return false;
+        }
+      } catch (err) {
+        showError('Error validating username. Please try again.');
+        return false;
+      }
+
+      if (password.length < 6) {
+        showError('Password must be at least 6 characters long.');
+        return false;
+      }
+
+      if (password !== confirmPassword) {
+        showError('Passwords do not match. Please re-enter.');
+        return false;
+      }
+
+      const btn = document.getElementById('btn-step-3');
+      btn.disabled = true;
+      btn.textContent = 'Setting Up Your Sanctuary...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/complete-signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: fullname,
+            email: state.email,
+            handle: usernameInput,
+            password: password,
+            verificationToken: state.verificationToken
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          localStorage.setItem('readora_token', data.token);
+          localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+          showSuccess(`🎉 Welcome to Readora, ${fullname}! Redirecting...`);
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 1000);
+          return false;
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Complete Account Setup 🎉';
+          showError(data.message || 'Failed to complete registration.');
+          return false;
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Complete Account Setup 🎉';
+        showError('Network error. Please try again.');
+        return false;
+      }
+    }
+  </script>
+</body>
+</html>
