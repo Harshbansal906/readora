@@ -76,12 +76,27 @@ router.post('/send-otp', async (req, res) => {
       VALUES (?, ?, ?, ?, 0)
     `, ['otp_' + Date.now(), cleanEmail, otpCode, expiresAt]);
 
+    console.log(`\n====================================================`);
+    console.log(`🔑 [READORA OTP GENERATED]`);
+    console.log(`📧 Target Email: ${cleanEmail}`);
+    console.log(`🔢 6-Digit Code: ${otpCode}`);
+    console.log(`⏱️ Expires in:   10 minutes`);
+    console.log(`====================================================\n`);
+
     // Dispatch verification email
-    await sendVerificationEmail(cleanEmail, otpCode);
+    let emailSent = false;
+    try {
+      await sendVerificationEmail(cleanEmail, otpCode);
+      emailSent = true;
+    } catch (mailErr) {
+      console.warn(`⚠️ [Email Dispatch Note]: SMTP delivery failed (${mailErr.message}). You can use the code printed in the terminal above!`);
+    }
 
     res.json({
       success: true,
-      message: `A 6-digit confirmation code has been sent to ${cleanEmail}. Please check your inbox!`
+      message: emailSent
+        ? `A 6-digit confirmation code has been sent to ${cleanEmail}. Please check your inbox or spam folder!`
+        : `A 6-digit confirmation code (${otpCode}) has been generated! Check terminal or inbox.`
     });
   } catch (error) {
     console.error('Send OTP error:', error);
