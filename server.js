@@ -20,6 +20,17 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// SECURITY: never serve the database, server code, config or secrets as static files
+app.use((req, res, next) => {
+  const p = decodeURIComponent(req.path).toLowerCase();
+  const blockedExt = /\.(db|sqlite|sqlite3|env|json|md|yaml|yml|log|lock)$/;
+  const blockedPath = /^\/(server\.js|procfile|license|\.git|node_modules|db|routes|middleware|utils)(\/|$|\.)/;
+  if (blockedExt.test(p) || blockedPath.test(p)) {
+    return res.status(404).send('Not found');
+  }
+  next();
+});
+
 // Serve Static Frontend Assets (HTML, CSS, JS, Images)
 app.use(express.static(path.join(__dirname)));
 
@@ -44,6 +55,11 @@ app.get('/login', (req, res) => {
 
 app.get('/signup', (req, res) => {
   res.sendFile(path.join(__dirname, 'account.html'));
+});
+
+// Unknown API routes should return JSON, not the home page
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: 'API route not found.' });
 });
 
 // Fallback all other client-side routes to index.html
