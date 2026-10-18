@@ -1177,3 +1177,220 @@ input, textarea, select {
     display: none;
   }
 }
+/* ==========================================================================
+   CREATOR PROFILE PAGE & FOLLOWING FEED
+   ========================================================================== */
+
+.feed-view,
+.profile-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.author-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.author-link:hover {
+  color: inherit;
+}
+
+.author-link:hover .author-name,
+.author-link:hover .creator-name {
+  color: #ff9999;
+}
+
+.profile-back {
+  align-self: flex-start;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.profile-back:hover {
+  color: #ffffff;
+}
+
+.profile-hero {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-card);
+}
+
+.profile-hero-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.profile-avatar-lg {
+  flex-shrink: 0;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444, #7f1d1d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-brand);
+  font-weight: 800;
+  font-size: 2rem;
+  color: #ffffff;
+  border: 3px solid rgba(239, 68, 68, 0.5);
+  box-shadow: var(--shadow-glow);
+}
+
+.profile-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-name {
+  font-family: var(--font-brand);
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.profile-handle {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  margin-bottom: 0.6rem;
+}
+
+.profile-bio {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.profile-joined {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.profile-actions {
+  flex-shrink: 0;
+}
+
+.btn-profile-primary,
+.btn-profile-secondary {
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding: 0.55rem 1.35rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.btn-profile-primary {
+  background: var(--crimson-gradient);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3);
+}
+
+.btn-profile-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5);
+}
+
+.btn-profile-primary.is-following,
+.btn-profile-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-glass);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.btn-profile-primary.is-following:hover,
+.btn-profile-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: none;
+}
+
+.profile-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+}
+
+.profile-stat {
+  text-align: center;
+}
+
+.profile-stat-num {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.profile-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-message {
+  text-align: center;
+  padding: 3.5rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  color: var(--text-dim);
+}
+
+.profile-message h3 {
+  color: #ffffff;
+  font-size: 1.25rem;
+  margin-bottom: 0.35rem;
+}
+
+@media (max-width: 600px) {
+  .profile-hero-top {
+    flex-wrap: wrap;
+  }
+  .profile-actions {
+    width: 100%;
+  }
+  .btn-profile-primary,
+  .btn-profile-secondary {
+    width: 100%;
+  }
+  .profile-hero {
+    padding: 1.25rem;
+  }
+  .profile-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.25rem;
+    padding: 0.85rem 0.5rem;
+  }
+  .profile-stat-label {
+    font-size: 0.6rem;
+    letter-spacing: 0;
+  }
+}
+
+/* Stop the long row of filter tabs from stretching the page wider than the window */
+.center-feed,
+.feed-view,
+.profile-view {
+  min-width: 0;
+}
+
+.feed-filter-bar {
+  scrollbar-width: thin;
+}

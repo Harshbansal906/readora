@@ -44,7 +44,7 @@
     <!-- Left Navigation Sidebar -->
     <aside class="left-sidebar">
       <nav class="sidebar-nav-menu">
-        <a href="index.html" class="sidebar-item active">
+        <a href="#/" id="nav-home-btn" class="sidebar-item active">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
           <span>Home Feed</span>
         </a>
@@ -78,6 +78,11 @@
 
     <!-- Center Feed Area -->
     <section class="center-feed">
+
+      <!-- Creator profile page (filled in by app.js) -->
+      <div id="profile-view" class="profile-view" style="display: none;"></div>
+
+      <div id="feed-view" class="feed-view">
       
       <!-- Instagram-style Thought Creator Composer -->
       <div class="thought-composer-card">
@@ -128,6 +133,7 @@
       <!-- Feed Category Filter Tabs -->
       <div class="feed-filter-bar">
         <button class="feed-tab active" data-filter="all">🌟 All Stream</button>
+        <button class="feed-tab" data-filter="following">👥 Following</button>
         <button class="feed-tab" data-filter="thoughts">💭 Thoughts Only</button>
         <button class="feed-tab" data-filter="articles">📖 Articles & Reads</button>
         <button class="feed-tab" data-filter="saved">🔖 Saved Bookmarks</button>
@@ -140,6 +146,7 @@
       <div class="posts-stream" id="posts-stream">
         <!-- Injected dynamically via app.js -->
       </div>
+      </div><!-- /feed-view -->
     </section>
 
     <!-- Right Sidebar (Trending & Creators) -->
@@ -255,7 +262,30 @@
         </div>
       </div>
 
+      <button id="btn-view-profile" class="btn-auth-primary" style="margin-top: 0; margin-bottom: 0.5rem;">View My Profile Page</button>
       <button id="btn-logout" class="btn-auth-guest" style="width: 100%; border: none; cursor: pointer;">Log Out / Switch Account</button>
+    </div>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div id="edit-profile-modal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 480px;">
+      <button class="modal-close-btn" aria-label="Close modal">✕</button>
+      <h2 class="modal-header-title">Edit Profile</h2>
+
+      <div id="edit-profile-error" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ff9999; padding: 0.6rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; text-align: center;"></div>
+
+      <form id="edit-profile-form">
+        <div class="form-group">
+          <label for="edit-profile-name">Name</label>
+          <input type="text" id="edit-profile-name" class="form-input" maxlength="50" placeholder="Your name" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-profile-bio">Bio</label>
+          <textarea id="edit-profile-bio" class="form-input" maxlength="200" style="min-height: 100px; resize: vertical;" placeholder="Tell readers a little about yourself (max 200 characters)"></textarea>
+        </div>
+        <button type="submit" id="btn-save-profile" class="btn-auth-primary">Save Changes</button>
+      </form>
     </div>
   </div>
 
