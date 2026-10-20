@@ -6,6 +6,26 @@
 
 const DEFAULT_POSTS = [];
 
+// Escape text before putting it into HTML, so nobody can inject scripts through a post, name or bio
+function esc(value) {
+  return String(value === undefined || value === null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Only allow normal web links for images
+function safeUrl(url) {
+  const u = String(url || '').trim();
+  return /^https?:\/\//i.test(u) ? u : '';
+}
+
+function profileLink(handle) {
+  return '#/u/' + encodeURIComponent(handle || '');
+}
+
 class ReadoraApp {
   constructor() {
     this.token = localStorage.getItem('readora_token') || null;
@@ -16,10 +36,29 @@ class ReadoraApp {
     this.activeSearchQuery = '';
     this.isBackendAvailable = false;
 
+    // New: following feed + profile pages
+    this.followingIds = null;
+    this.profile = null;
+    this.profileFilter = 'all';
+    this.profileReq = 0;
+    this.route = { name: 'home' };
+    this.openComments = new Set();
+
     this.initDOM();
     this.bindEvents();
-    this.syncWithBackend();
+    this.syncPromise = this.syncWithBackend();
     this.render();
+    this.handleRoute();
+  }
+
+  get apiBase() {
+    return window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+  }
+
+  authHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    return headers;
   }
 
   loadLocalPosts() {
@@ -33,7 +72,9 @@ class ReadoraApp {
   }
 
   saveLocalPosts() {
-    localStorage.setItem('readora_posts', JSON.stringify(this.posts));
+    try {
+      localStorage.setItem('readora_posts', JSON.stringify(this.posts));
+    } catch (e) {}
   }
 
   loadUser() {
@@ -47,13 +88,10 @@ class ReadoraApp {
   }
 
   async syncWithBackend() {
-    const apiBase = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+    const apiBase = this.apiBase;
 
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
-      }
+      const headers = this.authHeaders();
 
       // 1. Fetch live posts
       const res = await fetch(`${apiBase}/api/posts`, { headers });
@@ -63,7 +101,7 @@ class ReadoraApp {
           this.posts = data.posts;
           this.isBackendAvailable = true;
           this.saveLocalPosts();
-          this.render();
+          this.refresh();
         }
       }
 
@@ -126,18 +164,23 @@ class ReadoraApp {
       return;
     }
     listEl.innerHTML = topics.map(t => `
-      <div class="trending-topic-item" style="cursor: pointer;" onclick="if(window.readora){ window.readora.setTopicFilter('${t.name}'); }">
+      <div class="trending-topic-item" data-topic="${esc(t.name)}" style="cursor: pointer;">
         <div>
           <div class="topic-category">Topic</div>
-          <div class="topic-name">#${t.name}</div>
+          <div class="topic-name">#${esc(t.name)}</div>
         </div>
-        <div class="topic-posts-count">${t.count} ${t.count === 1 ? 'post' : 'posts'}</div>
+        <div class="topic-posts-count">${esc(t.count)} ${t.count === 1 ? 'post' : 'posts'}</div>
       </div>
     `).join('');
+
+    listEl.querySelectorAll('[data-topic]').forEach(el => {
+      el.addEventListener('click', () => this.setTopicFilter(el.dataset.topic));
+    });
   }
 
   setTopicFilter(topicName) {
     if (this.searchInput) {
+      if (this.isProfileActive()) location.hash = '#/';
       this.searchInput.value = topicName;
       this.activeSearchQuery = topicName.toLowerCase();
       this.render();
@@ -154,18 +197,22 @@ class ReadoraApp {
     }
     listEl.innerHTML = creators.map(c => `
       <div class="creator-item">
-        <div class="creator-left">
-          <div class="author-avatar" style="width: 34px; height: 34px; font-size: 0.8rem;">${c.avatar}</div>
+        <a class="creator-left author-link" href="${profileLink(c.handle)}">
+          <div class="author-avatar" style="width: 34px; height: 34px; font-size: 0.8rem;">${esc(c.avatar)}</div>
           <div>
-            <div class="creator-name">${c.name}</div>
-            <div class="creator-handle">${c.handle} • ${c.followers} ${c.followers === 1 ? 'follower' : 'followers'}</div>
+            <div class="creator-name">${esc(c.name)}</div>
+            <div class="creator-handle">${esc(c.handle)} • ${esc(c.followers)} ${c.followers === 1 ? 'follower' : 'followers'}</div>
           </div>
-        </div>
-        <button class="btn-follow ${c.isFollowing ? 'following' : ''}" onclick="if(window.readora){ window.readora.toggleFollow('${c.id}'); }" style="${c.isFollowing ? 'background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: #fff;' : ''}">
+        </a>
+        <button class="btn-follow ${c.isFollowing ? 'following' : ''}" data-follow-id="${esc(c.id)}" style="${c.isFollowing ? 'background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: #fff;' : ''}">
           ${c.isFollowing ? 'Following' : 'Follow'}
         </button>
       </div>
     `).join('');
+
+    listEl.querySelectorAll('[data-follow-id]').forEach(btn => {
+      btn.addEventListener('click', () => this.toggleFollow(btn.dataset.followId));
+    });
   }
 
   async toggleFollow(creatorId) {
@@ -174,19 +221,18 @@ class ReadoraApp {
       setTimeout(() => { window.location.href = 'practise.html'; }, 1000);
       return;
     }
-    const apiBase = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
     try {
-      const res = await fetch(`${apiBase}/api/posts/follow/${creatorId}`, {
+      const res = await fetch(`${this.apiBase}/api/posts/follow/${encodeURIComponent(creatorId)}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.token}`
-        }
+        headers: this.authHeaders()
       });
       const data = await res.json();
       if (res.ok && data.success) {
         this.showToast(data.message);
-        this.syncWithBackend();
+        await this.syncWithBackend();
+        if (this.currentFilter === 'following') await this.loadFollowing();
+        if (this.isProfileActive() && this.profile) await this.loadProfile(this.profile.handle, true);
+        this.refresh();
       } else {
         this.showToast(data.message || 'Could not update follow status.');
       }
@@ -195,19 +241,279 @@ class ReadoraApp {
     }
   }
 
+  // ---------- Following feed ----------
+
+  async loadFollowing() {
+    if (!this.token) {
+      this.followingIds = new Set();
+      this.showToast('Log in to see posts from creators you follow.');
+      this.render();
+      return;
+    }
+    try {
+      const res = await fetch(`${this.apiBase}/api/posts?feed=following`, { headers: this.authHeaders() });
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.posts)) {
+        this.followingIds = new Set(data.posts.map(p => p.id));
+        // Make sure brand-new posts from people you follow are in the local list too
+        data.posts.forEach(p => {
+          if (!this.posts.find(x => x.id === p.id)) this.posts.unshift(p);
+        });
+        this.saveLocalPosts();
+      } else {
+        this.followingIds = new Set();
+        this.showToast(data.message || 'Could not load your Following feed.');
+      }
+    } catch (e) {
+      this.followingIds = new Set();
+      this.showToast('Network error while loading your Following feed.');
+    }
+    this.render();
+  }
+
+  // ---------- Pages: feed <-> creator profile (hash routing) ----------
+
+  isProfileActive() {
+    return this.route && this.route.name === 'profile';
+  }
+
+  handleRoute() {
+    // Close any open pop-ups when the page changes
+    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+
+    const m = /^#\/u\/(.+)$/.exec(window.location.hash || '');
+    if (m) {
+      let handle = m[1];
+      try { handle = decodeURIComponent(handle); } catch (e) {}
+      this.route = { name: 'profile', handle };
+      this.showProfileView(handle);
+    } else {
+      this.route = { name: 'home' };
+      this.showFeedView();
+    }
+  }
+
+  setNavActive() {
+    const home = document.getElementById('nav-home-btn');
+    const mine = document.getElementById('nav-profile-btn');
+    const isMine = this.isProfileActive() && this.currentUser && this.currentUser.handle &&
+      this.route.handle.replace(/^@/, '').toLowerCase() === this.currentUser.handle.replace(/^@/, '').toLowerCase();
+    if (home) home.classList.toggle('active', !this.isProfileActive());
+    if (mine) mine.classList.toggle('active', !!isMine);
+  }
+
+  showFeedView() {
+    const feed = document.getElementById('feed-view');
+    const prof = document.getElementById('profile-view');
+    if (feed) feed.style.display = '';
+    if (prof) prof.style.display = 'none';
+    document.title = 'READORA | Where readers become creators';
+    this.setNavActive();
+    this.render();
+  }
+
+  showProfileView(handle) {
+    const feed = document.getElementById('feed-view');
+    const prof = document.getElementById('profile-view');
+    if (feed) feed.style.display = 'none';
+    if (prof) prof.style.display = 'flex';
+    this.setNavActive();
+    window.scrollTo({ top: 0 });
+    this.profileFilter = 'all';
+    this.loadProfile(handle);
+  }
+
+  async loadProfile(handle, silent = false) {
+    const reqId = ++this.profileReq;
+    const view = document.getElementById('profile-view');
+    if (!view) return;
+    if (!silent) view.innerHTML = '<div class="profile-message">Loading profile…</div>';
+
+    await this.syncPromise;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/posts/user/${encodeURIComponent(handle)}`, { headers: this.authHeaders() });
+      const data = await res.json();
+      if (reqId !== this.profileReq) return; // user already went somewhere else
+
+      if (res.ok && data.success && data.profile) {
+        this.profile = data.profile;
+        document.title = `${data.profile.name} (${data.profile.handle}) | READORA`;
+        this.renderProfile();
+      } else {
+        this.profile = null;
+        view.innerHTML = `
+          <a class="profile-back" href="#/">← Back to feed</a>
+          <div class="profile-message">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔍</div>
+            <h3>Creator not found</h3>
+            <p>We couldn't find anyone called ${esc(handle)}.</p>
+          </div>`;
+      }
+    } catch (e) {
+      if (reqId !== this.profileReq) return;
+      view.innerHTML = `
+        <a class="profile-back" href="#/">← Back to feed</a>
+        <div class="profile-message"><h3>Could not load this profile</h3><p>Please check your connection and try again.</p></div>`;
+    }
+  }
+
+  renderProfile() {
+    const view = document.getElementById('profile-view');
+    const p = this.profile;
+    if (!view || !p) return;
+
+    const isMe = !!p.isMe || (this.currentUser && this.currentUser.id === p.id);
+    let joined = '';
+    if (p.joinedAt) {
+      const d = new Date(String(p.joinedAt).replace(' ', 'T') + 'Z');
+      if (!isNaN(d.getTime())) joined = 'Joined ' + d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    const stat = (num, label, color) => `
+      <div class="profile-stat">
+        <div class="profile-stat-num" style="${color ? 'color:' + color : ''}">${esc(num)}</div>
+        <div class="profile-stat-label">${label}</div>
+      </div>`;
+
+    const action = isMe
+      ? `<button class="btn-profile-secondary" id="btn-edit-profile">✎ Edit Profile</button>`
+      : `<button class="btn-profile-primary ${p.isFollowing ? 'is-following' : ''}" id="btn-profile-follow">${p.isFollowing ? 'Following' : 'Follow'}</button>`;
+
+    view.innerHTML = `
+      <a class="profile-back" href="#/">← Back to feed</a>
+      <div class="profile-hero">
+        <div class="profile-hero-top">
+          <div class="profile-avatar-lg">${esc(p.avatar)}</div>
+          <div class="profile-hero-info">
+            <h1 class="profile-name">${esc(p.name)}</h1>
+            <div class="profile-handle">${esc(p.handle)}</div>
+            <p class="profile-bio">${esc(p.bio || 'Reader and creator on Readora.')}</p>
+            ${joined ? `<div class="profile-joined">${esc(joined)}</div>` : ''}
+          </div>
+          <div class="profile-actions">${action}</div>
+        </div>
+        <div class="profile-stats">
+          ${stat(p.stats.thoughts, 'Thoughts')}
+          ${stat(p.stats.articles, 'Articles')}
+          ${stat(p.stats.followers, 'Followers', '#ef4444')}
+          ${stat(p.stats.following, 'Following', '#fda4af')}
+        </div>
+      </div>
+
+      <div class="feed-filter-bar profile-tabs">
+        <button class="feed-tab ${this.profileFilter === 'all' ? 'active' : ''}" data-pfilter="all">🌟 All Posts</button>
+        <button class="feed-tab ${this.profileFilter === 'thought' ? 'active' : ''}" data-pfilter="thought">💭 Thoughts</button>
+        <button class="feed-tab ${this.profileFilter === 'article' ? 'active' : ''}" data-pfilter="article">📖 Articles</button>
+      </div>
+
+      <div class="posts-stream" id="profile-posts"></div>
+    `;
+
+    const editBtn = document.getElementById('btn-edit-profile');
+    if (editBtn) editBtn.addEventListener('click', () => this.openEditProfile());
+    const followBtn = document.getElementById('btn-profile-follow');
+    if (followBtn) followBtn.addEventListener('click', () => this.toggleFollow(p.id));
+
+    view.querySelectorAll('[data-pfilter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.profileFilter = btn.dataset.pfilter;
+        view.querySelectorAll('[data-pfilter]').forEach(b => b.classList.toggle('active', b === btn));
+        this.renderProfilePosts();
+      });
+    });
+
+    this.renderProfilePosts();
+  }
+
+  renderProfilePosts() {
+    const box = document.getElementById('profile-posts');
+    if (!box || !this.profile) return;
+
+    const list = this.posts.filter(post => {
+      if (post.author_id !== this.profile.id) return false;
+      if (this.profileFilter !== 'all' && post.type !== this.profileFilter) return false;
+      return true;
+    });
+
+    if (list.length === 0) {
+      const who = this.profile.isMe ? 'You haven\'t' : `${esc(this.profile.name)} hasn't`;
+      box.innerHTML = `
+        <div class="profile-message">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✍️</div>
+          <h3>Nothing here yet</h3>
+          <p>${who} published any ${this.profileFilter === 'all' ? 'posts' : this.profileFilter + 's'} yet.</p>
+        </div>`;
+      return;
+    }
+
+    box.innerHTML = list.map(post => this.renderPostCard(post)).join('');
+    this.attachCardEventListeners(box);
+  }
+
+  // ---------- Edit profile ----------
+
+  openEditProfile() {
+    if (!this.currentUser) return;
+    const nameEl = document.getElementById('edit-profile-name');
+    const bioEl = document.getElementById('edit-profile-bio');
+    const errEl = document.getElementById('edit-profile-error');
+    if (nameEl) nameEl.value = this.currentUser.name || '';
+    if (bioEl) bioEl.value = this.currentUser.bio || '';
+    if (errEl) errEl.style.display = 'none';
+    this.openModal(this.editProfileModal);
+  }
+
+  async submitEditProfile() {
+    const name = document.getElementById('edit-profile-name').value.trim();
+    const bio = document.getElementById('edit-profile-bio').value.trim();
+    const errEl = document.getElementById('edit-profile-error');
+    const btn = document.getElementById('btn-save-profile');
+    const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
+
+    errEl.style.display = 'none';
+    if (!name) return showErr('Please enter your name.');
+    if (name.length > 50) return showErr('Name must be 50 characters or fewer.');
+    if (bio.length > 200) return showErr('Bio must be 200 characters or fewer.');
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    try {
+      const res = await fetch(`${this.apiBase}/api/auth/profile`, {
+        method: 'PUT',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ name, bio })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        this.currentUser = Object.assign({}, this.currentUser, data.user);
+        localStorage.setItem('readora_current_user', JSON.stringify(this.currentUser));
+        this.editProfileModal.classList.remove('active');
+        this.updateUserUI();
+        await this.syncWithBackend();
+        if (this.isProfileActive() && this.profile) await this.loadProfile(this.profile.handle, true);
+        this.showToast('✅ Profile updated!');
+      } else {
+        showErr(data.message || 'Could not update your profile.');
+      }
+    } catch (e) {
+      showErr('Network error. Please try again.');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  }
+
+  // ---------- Header / user UI ----------
+
   updateUserUI() {
     const isAuth = !!this.currentUser;
-    const avatarEls = document.querySelectorAll('.author-avatar, .user-avatar-sm');
+    const avatarEls = document.querySelectorAll('.user-avatar-sm, .thought-composer-card .author-avatar');
     const nameEl = document.querySelector('.user-name-sm');
     const userBadge = document.getElementById('user-profile-badge');
 
     if (isAuth && this.currentUser) {
       const initials = this.currentUser.avatar || (this.currentUser.name ? this.currentUser.name.substring(0, 2).toUpperCase() : 'CR');
-      avatarEls.forEach(el => {
-        if (!el.closest('.thought-card') && !el.closest('.creator-item')) {
-          el.textContent = initials;
-        }
-      });
+      avatarEls.forEach(el => { el.textContent = initials; });
       if (nameEl) nameEl.textContent = this.currentUser.name ? this.currentUser.name.split(' ')[0] : 'Creator';
       if (userBadge) userBadge.title = `Logged in as ${this.currentUser.name}`;
 
@@ -228,14 +534,11 @@ class ReadoraApp {
       const modalFollowing = document.getElementById('profile-modal-following');
       if (modalFollowing) modalFollowing.textContent = this.currentUser.stats ? this.currentUser.stats.following : 0;
     } else {
-      avatarEls.forEach(el => {
-        if (!el.closest('.thought-card') && !el.closest('.creator-item')) {
-          el.textContent = '👤';
-        }
-      });
+      avatarEls.forEach(el => { el.textContent = '👤'; });
       if (nameEl) nameEl.textContent = 'Guest';
       if (userBadge) userBadge.title = 'Click to log in or register';
     }
+    this.setNavActive();
   }
 
   logout() {
@@ -247,8 +550,8 @@ class ReadoraApp {
   initDOM() {
     this.postsContainer = document.getElementById('posts-stream');
     this.searchInput = document.getElementById('search-input');
-    this.filterTabs = document.querySelectorAll('.feed-tab');
-    
+    this.filterTabs = document.querySelectorAll('#feed-view .feed-tab');
+
     // Quick Thought Composer
     this.thoughtInput = document.getElementById('quick-thought-text');
     this.publishThoughtBtn = document.getElementById('btn-publish-thought');
@@ -259,19 +562,35 @@ class ReadoraApp {
     this.writeArticleModal = document.getElementById('write-article-modal');
     this.readArticleModal = document.getElementById('read-article-modal');
     this.profileModal = document.getElementById('profile-modal');
-    
+    this.editProfileModal = document.getElementById('edit-profile-modal');
+
     // Action Triggers
     this.btnOpenWriteArticle = document.getElementById('btn-open-write-article');
     this.btnWriteLongArticle = document.getElementById('btn-write-long-article');
     this.userBadge = document.getElementById('user-profile-badge');
     this.profileSidebarBtn = document.getElementById('nav-profile-btn');
     this.btnLogout = document.getElementById('btn-logout');
-    
-    // Form inside Article Modal
+    this.btnViewProfile = document.getElementById('btn-view-profile');
+
+    // Forms
     this.articleForm = document.getElementById('publish-article-form');
+    this.editProfileForm = document.getElementById('edit-profile-form');
     this.toastEl = document.getElementById('toast');
-    
+
     this.updateUserUI();
+  }
+
+  goToMyProfile() {
+    if (!this.currentUser || !this.currentUser.handle) {
+      this.showToast('Please log in to see your profile.');
+      setTimeout(() => { window.location.href = 'practise.html'; }, 1000);
+      return;
+    }
+    if (window.location.hash === profileLink(this.currentUser.handle)) {
+      this.handleRoute();
+    } else {
+      window.location.hash = profileLink(this.currentUser.handle);
+    }
   }
 
   bindEvents() {
@@ -295,17 +614,25 @@ class ReadoraApp {
         this.filterTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         this.currentFilter = tab.dataset.filter;
-        this.render();
+        if (this.currentFilter === 'following') {
+          this.loadFollowing();
+        } else {
+          this.render();
+        }
       });
     });
 
     // Search filter
     if (this.searchInput) {
       this.searchInput.addEventListener('input', (e) => {
+        if (this.isProfileActive()) window.location.hash = '#/';
         this.activeSearchQuery = e.target.value.toLowerCase().trim();
         this.render();
       });
     }
+
+    // Page changes (feed <-> profile)
+    window.addEventListener('hashchange', () => this.handleRoute());
 
     // Modals Open/Close
     if (this.btnOpenWriteArticle) {
@@ -320,7 +647,14 @@ class ReadoraApp {
     if (this.profileSidebarBtn) {
       this.profileSidebarBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        this.openModal(this.profileModal);
+        this.goToMyProfile();
+      });
+    }
+    if (this.btnViewProfile) {
+      this.btnViewProfile.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.profileModal.classList.remove('active');
+        this.goToMyProfile();
       });
     }
 
@@ -339,6 +673,14 @@ class ReadoraApp {
       });
     }
 
+    // Edit Profile Form Submit
+    if (this.editProfileForm) {
+      this.editProfileForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.submitEditProfile();
+      });
+    }
+
     // Global Modal Close on Overlay Click or X
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
       overlay.addEventListener('click', (e) => {
@@ -349,7 +691,16 @@ class ReadoraApp {
     });
   }
 
+  requireLogin(message) {
+    if (this.currentUser) return true;
+    this.showToast(message || 'Please log in first!');
+    setTimeout(() => { window.location.href = 'practise.html'; }, 1200);
+    return false;
+  }
+
   async handleCreateThought() {
+    if (!this.requireLogin('Please log in to share a thought!')) return;
+
     const text = this.thoughtInput.value.trim();
     if (!text) {
       this.showToast('Please write something before publishing!');
@@ -370,6 +721,7 @@ class ReadoraApp {
     let newThought = {
       id: 'post_' + Date.now(),
       type: 'thought',
+      author_id: this.currentUser.id,
       author: this.currentUser.name,
       handle: this.currentUser.handle,
       avatar: this.currentUser.avatar,
@@ -386,12 +738,9 @@ class ReadoraApp {
 
     if (window.location.origin.startsWith('http')) {
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-        
         const res = await fetch('/api/posts/thought', {
           method: 'POST',
-          headers,
+          headers: this.authHeaders(),
           body: JSON.stringify(payload)
         });
 
@@ -407,11 +756,13 @@ class ReadoraApp {
     this.posts.unshift(newThought);
     this.saveLocalPosts();
     this.thoughtInput.value = '';
-    this.render();
+    this.refresh();
     this.showToast('✨ Thought published to Readora!');
   }
 
   async handleCreateArticle() {
+    if (!this.requireLogin('Please log in to publish an article!')) return;
+
     const title = document.getElementById('article-title-input').value.trim();
     const subtitle = document.getElementById('article-subtitle-input').value.trim();
     const category = document.getElementById('article-category-input').value;
@@ -440,6 +791,7 @@ class ReadoraApp {
     let newArticle = {
       id: 'article_' + Date.now(),
       type: 'article',
+      author_id: this.currentUser.id,
       author: this.currentUser.name,
       handle: this.currentUser.handle,
       avatar: this.currentUser.avatar,
@@ -460,12 +812,9 @@ class ReadoraApp {
 
     if (window.location.origin.startsWith('http')) {
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-        
         const res = await fetch('/api/posts/article', {
           method: 'POST',
-          headers,
+          headers: this.authHeaders(),
           body: JSON.stringify(payload)
         });
 
@@ -480,7 +829,7 @@ class ReadoraApp {
     this.saveLocalPosts();
     this.articleForm.reset();
     this.writeArticleModal.classList.remove('active');
-    this.render();
+    this.refresh();
     this.showToast('📖 Article published successfully!');
   }
 
@@ -496,13 +845,11 @@ class ReadoraApp {
       post.likedByUser = true;
     }
     this.saveLocalPosts();
-    this.render();
+    this.refresh();
 
     if (window.location.origin.startsWith('http')) {
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-        await fetch(`/api/posts/${postId}/like`, { method: 'POST', headers });
+        await fetch(`/api/posts/${postId}/like`, { method: 'POST', headers: this.authHeaders() });
       } catch (e) {}
     }
   }
@@ -521,25 +868,26 @@ class ReadoraApp {
       this.showToast('🔖 Saved to your bookmarks!');
     }
     this.saveLocalPosts();
-    this.render();
+    this.refresh();
 
     if (window.location.origin.startsWith('http')) {
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-        await fetch(`/api/posts/${postId}/bookmark`, { method: 'POST', headers });
+        await fetch(`/api/posts/${postId}/bookmark`, { method: 'POST', headers: this.authHeaders() });
       } catch (e) {}
     }
   }
 
-  toggleComments(postId) {
-    const drawer = document.getElementById(`comments-${postId}`);
-    if (drawer) {
-      drawer.style.display = drawer.style.display === 'none' ? 'block' : 'none';
-    }
+  toggleComments(postId, drawer) {
+    if (!drawer) return;
+    const show = drawer.style.display === 'none';
+    drawer.style.display = show ? 'block' : 'none';
+    if (show) this.openComments.add(postId);
+    else this.openComments.delete(postId);
   }
 
   async addComment(postId, inputEl) {
+    if (!this.requireLogin('Please log in to comment!')) return;
+
     const text = inputEl.value.trim();
     if (!text) return;
 
@@ -550,17 +898,16 @@ class ReadoraApp {
         author: this.currentUser.name,
         text: text
       });
+      this.openComments.add(postId);
       this.saveLocalPosts();
       inputEl.value = '';
-      this.render();
+      this.refresh();
 
       if (window.location.origin.startsWith('http')) {
         try {
-          const headers = { 'Content-Type': 'application/json' };
-          if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
           await fetch(`/api/posts/${postId}/comment`, {
             method: 'POST',
-            headers,
+            headers: this.authHeaders(),
             body: JSON.stringify({ text, authorName: this.currentUser.name })
           });
         } catch (e) {}
@@ -589,25 +936,27 @@ class ReadoraApp {
     const contentBox = document.getElementById('read-article-container');
     if (!contentBox) return;
 
+    const cover = safeUrl(post.coverImage);
+
     contentBox.innerHTML = `
       <div style="margin-bottom: 1.5rem;">
-        <span class="card-tag" style="margin-bottom: 0.5rem; display: inline-block;">${post.category}</span>
-        <h1 style="font-family: var(--font-brand); font-size: 2rem; color: #fff; line-height: 1.25; margin-bottom: 0.5rem;">${post.title}</h1>
-        ${post.subtitle ? `<p style="font-size: 1.1rem; color: var(--text-dim); margin-bottom: 1rem;">${post.subtitle}</p>` : ''}
-        
-        <div style="display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 1rem;">
-          <div class="author-avatar">${post.avatar}</div>
+        <span class="card-tag" style="margin-bottom: 0.5rem; display: inline-block;">${esc(post.category)}</span>
+        <h1 style="font-family: var(--font-brand); font-size: 2rem; color: #fff; line-height: 1.25; margin-bottom: 0.5rem;">${esc(post.title)}</h1>
+        ${post.subtitle ? `<p style="font-size: 1.1rem; color: var(--text-dim); margin-bottom: 1rem;">${esc(post.subtitle)}</p>` : ''}
+
+        <a class="author-link" href="${profileLink(post.handle)}" style="display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 1rem;">
+          <div class="author-avatar">${esc(post.avatar)}</div>
           <div>
-            <div style="font-weight: 700; color: #fff;">${post.author}</div>
-            <div style="font-size: 0.8rem; color: var(--text-dim);">${post.timestamp} • ${post.readTime}</div>
+            <div class="author-name" style="font-weight: 700; color: #fff;">${esc(post.author)}</div>
+            <div style="font-size: 0.8rem; color: var(--text-dim);">${esc(post.timestamp)} • ${esc(post.readTime)}</div>
           </div>
-        </div>
+        </a>
       </div>
 
-      ${post.coverImage ? `<img src="${post.coverImage}" alt="Cover" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 1.5rem;" />` : ''}
+      ${cover ? `<img src="${esc(cover)}" alt="Cover" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 1.5rem;" />` : ''}
 
       <div style="font-family: var(--font-serif); font-size: 1.1rem; line-height: 1.8; color: var(--text-muted); white-space: pre-line;">
-        ${post.fullContent || post.excerpt}
+        ${esc(post.fullContent || post.excerpt)}
       </div>
     `;
 
@@ -629,6 +978,12 @@ class ReadoraApp {
     }, 3000);
   }
 
+  // Re-draw whichever lists are currently on screen
+  refresh() {
+    this.render();
+    if (this.isProfileActive()) this.renderProfilePosts();
+  }
+
   render() {
     if (!this.postsContainer) return;
 
@@ -636,8 +991,9 @@ class ReadoraApp {
       if (this.currentFilter === 'thoughts' && post.type !== 'thought') return false;
       if (this.currentFilter === 'articles' && post.type !== 'article') return false;
       if (this.currentFilter === 'saved' && !post.bookmarkedByUser) return false;
+      if (this.currentFilter === 'following' && !(this.followingIds && this.followingIds.has(post.id))) return false;
       if (['tech', 'philosophy', 'creative', 'stories'].includes(this.currentFilter.toLowerCase())) {
-        if (post.category.toLowerCase() !== this.currentFilter.toLowerCase()) return false;
+        if ((post.category || '').toLowerCase() !== this.currentFilter.toLowerCase()) return false;
       }
 
       if (this.activeSearchQuery) {
@@ -652,25 +1008,32 @@ class ReadoraApp {
     });
 
     if (filtered.length === 0) {
+      let icon = '✍️';
+      let title = 'No posts found';
+      let text = 'Try selecting a different filter or be the first to share your thoughts!';
+      if (this.currentFilter === 'following') {
+        icon = '👥';
+        title = this.token ? 'Your Following feed is empty' : 'Log in to see your Following feed';
+        text = this.token
+          ? 'Follow creators from the Featured Creators list or from their profile pages, and their posts will show up here.'
+          : 'Posts from the creators you follow will appear here once you log in.';
+      } else if (this.currentFilter === 'saved') {
+        icon = '🔖';
+        title = 'No saved posts yet';
+        text = 'Tap the bookmark on any post to keep it here.';
+      }
       this.postsContainer.innerHTML = `
         <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg);">
-          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✍️</div>
-          <h3 style="color: #fff; font-size: 1.25rem; margin-bottom: 0.35rem;">No posts found</h3>
-          <p style="color: var(--text-dim); font-size: 0.9rem;">Try selecting a different filter or be the first to share your thoughts!</p>
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${icon}</div>
+          <h3 style="color: #fff; font-size: 1.25rem; margin-bottom: 0.35rem;">${title}</h3>
+          <p style="color: var(--text-dim); font-size: 0.9rem;">${text}</p>
         </div>
       `;
       return;
     }
 
-    this.postsContainer.innerHTML = filtered.map(post => {
-      if (post.type === 'thought') {
-        return this.renderThoughtCard(post);
-      } else {
-        return this.renderArticleCard(post);
-      }
-    }).join('');
-
-    this.attachCardEventListeners();
+    this.postsContainer.innerHTML = filtered.map(post => this.renderPostCard(post)).join('');
+    this.attachCardEventListeners(this.postsContainer);
   }
 
   async deletePost(postId) {
@@ -678,9 +1041,7 @@ class ReadoraApp {
 
     if (window.location.origin.startsWith('http')) {
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-        const res = await fetch(`/api/posts/${postId}`, { method: 'DELETE', headers });
+        const res = await fetch(`/api/posts/${postId}`, { method: 'DELETE', headers: this.authHeaders() });
         const data = await res.json();
 
         if (!res.ok) {
@@ -694,8 +1055,9 @@ class ReadoraApp {
 
     this.posts = this.posts.filter(p => p.id !== postId);
     this.saveLocalPosts();
-    this.render();
+    this.refresh();
     this.showToast('🗑️ Post deleted successfully!');
+    if (this.isProfileActive() && this.profile) this.loadProfile(this.profile.handle, true);
   }
 
   isPostAuthor(post) {
@@ -705,181 +1067,166 @@ class ReadoraApp {
            this.currentUser.id === 'usr_harsh';
   }
 
-  renderThoughtCard(post) {
+  // ---------- Post cards ----------
+
+  renderPostCard(post) {
+    return post.type === 'thought' ? this.renderThoughtCard(post) : this.renderArticleCard(post);
+  }
+
+  renderCardHeader(post, metaExtra, deleteTitle) {
     const isOwner = this.isPostAuthor(post);
+    const authorBlock = `
+      <div class="author-avatar">${esc(post.avatar || 'CR')}</div>
+      <div>
+        <div class="author-name">${esc(post.author)}</div>
+        <div class="post-meta">${esc(post.handle)} • ${esc(post.timestamp || 'Recently')}${metaExtra}</div>
+      </div>`;
     return `
-      <article class="thought-card" data-id="${post.id}">
-        <div class="card-header">
-          <div class="card-author-info">
-            <div class="author-avatar">${post.avatar || 'CR'}</div>
-            <div>
-              <div class="author-name">${post.author}</div>
-              <div class="post-meta">${post.handle} • ${post.timestamp || 'Recently'}</div>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span class="card-tag">${post.category}</span>
-            ${isOwner ? `
-              <button class="btn-delete-post" data-id="${post.id}" title="Delete Thought" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              </button>
-            ` : ''}
-          </div>
+      <div class="card-header">
+        ${post.handle
+          ? `<a class="card-author-info author-link" href="${profileLink(post.handle)}">${authorBlock}</a>`
+          : `<div class="card-author-info">${authorBlock}</div>`}
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="card-tag">${esc(post.category)}</span>
+          ${isOwner ? `
+            <button class="btn-delete-post" data-id="${esc(post.id)}" title="${deleteTitle}" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          ` : ''}
         </div>
+      </div>`;
+  }
 
-        <div class="thought-canvas ${post.theme || 'theme-crimson'}">
-          <div class="thought-quote-icon">“</div>
-          <p class="thought-text">${post.content}</p>
-          <div class="thought-author-signature">— ${post.author}</div>
-        </div>
+  renderActionBar(post) {
+    const id = esc(post.id);
+    return `
+      <div class="card-actions-bar">
+        <div class="action-buttons-group">
+          <button class="card-action-btn btn-like ${post.likedByUser ? 'liked' : ''}" data-id="${id}" title="Like">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.likedByUser ? '#ef4444' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <span>${esc(post.likes)}</span>
+          </button>
 
-        <div class="card-actions-bar">
-          <div class="action-buttons-group">
-            <button class="card-action-btn btn-like ${post.likedByUser ? 'liked' : ''}" data-id="${post.id}" title="Like">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.likedByUser ? '#ef4444' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-              <span>${post.likes}</span>
-            </button>
+          <button class="card-action-btn btn-comment-toggle" data-id="${id}" title="Comments">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span>${post.comments ? post.comments.length : 0}</span>
+          </button>
 
-            <button class="card-action-btn btn-comment-toggle" data-id="${post.id}" title="Comments">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-              <span>${post.comments ? post.comments.length : 0}</span>
-            </button>
-
-            <button class="card-action-btn btn-share" data-id="${post.id}" title="Share Post">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            </button>
-          </div>
-
-          <button class="card-action-btn btn-bookmark ${post.bookmarkedByUser ? 'bookmarked' : ''}" data-id="${post.id}" title="Save">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.bookmarkedByUser ? '#f59e0b' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+          <button class="card-action-btn btn-share" data-id="${id}" title="Share Post">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
           </button>
         </div>
 
-        <div class="comments-drawer" id="comments-${post.id}" style="display: none;">
-          <div class="comments-list">
-            ${(post.comments || []).map(c => `
-              <div class="comment-item">
-                <span class="comment-author">${c.author}:</span>
-                <span class="comment-body">${c.text}</span>
-              </div>
-            `).join('')}
-          </div>
-          <div class="comment-input-row">
-            <input type="text" placeholder="Add a comment..." class="input-comment" data-id="${post.id}">
-            <button class="btn-submit-comment" data-id="${post.id}">Post</button>
-          </div>
+        <button class="card-action-btn btn-bookmark ${post.bookmarkedByUser ? 'bookmarked' : ''}" data-id="${id}" title="Save">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.bookmarkedByUser ? '#f59e0b' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+        </button>
+      </div>`;
+  }
+
+  renderCommentsDrawer(post) {
+    const id = esc(post.id);
+    return `
+      <div class="comments-drawer" style="display: ${this.openComments.has(post.id) ? 'block' : 'none'};">
+        <div class="comments-list">
+          ${(post.comments || []).map(c => `
+            <div class="comment-item">
+              <span class="comment-author">${esc(c.author)}:</span>
+              <span class="comment-body">${esc(c.text)}</span>
+            </div>
+          `).join('')}
         </div>
+        <div class="comment-input-row">
+          <input type="text" placeholder="Add a comment..." class="input-comment" data-id="${id}">
+          <button class="btn-submit-comment" data-id="${id}">Post</button>
+        </div>
+      </div>`;
+  }
+
+  renderThoughtCard(post) {
+    return `
+      <article class="thought-card" data-id="${esc(post.id)}">
+        ${this.renderCardHeader(post, '', 'Delete Thought')}
+
+        <div class="thought-canvas ${esc(post.theme || 'theme-crimson')}">
+          <div class="thought-quote-icon">“</div>
+          <p class="thought-text">${esc(post.content)}</p>
+          <div class="thought-author-signature">— ${esc(post.author)}</div>
+        </div>
+
+        ${this.renderActionBar(post)}
+        ${this.renderCommentsDrawer(post)}
       </article>
     `;
   }
 
   renderArticleCard(post) {
-    const isOwner = this.isPostAuthor(post);
+    const cover = safeUrl(post.coverImage);
     return `
-      <article class="thought-card" data-id="${post.id}">
-        <div class="card-header">
-          <div class="card-author-info">
-            <div class="author-avatar">${post.avatar || 'CR'}</div>
-            <div>
-              <div class="author-name">${post.author}</div>
-              <div class="post-meta">${post.handle} • ${post.timestamp || 'Recently'} • ${post.readTime || '3 min read'}</div>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span class="card-tag">${post.category}</span>
-            ${isOwner ? `
-              <button class="btn-delete-post" data-id="${post.id}" title="Delete Article" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              </button>
-            ` : ''}
-          </div>
-        </div>
+      <article class="thought-card" data-id="${esc(post.id)}">
+        ${this.renderCardHeader(post, ' • ' + esc(post.readTime || '3 min read'), 'Delete Article')}
 
         <div class="article-content-body">
-          ${post.coverImage ? `<img src="${post.coverImage}" class="article-card-cover" alt="Article Cover" />` : ''}
-          <h2 class="article-title">${post.title}</h2>
-          <p class="article-excerpt">${post.excerpt}</p>
-          <div class="read-more-btn btn-read-article" data-id="${post.id}">
+          ${cover ? `<img src="${esc(cover)}" class="article-card-cover" alt="Article Cover" />` : ''}
+          <h2 class="article-title">${esc(post.title)}</h2>
+          <p class="article-excerpt">${esc(post.excerpt)}</p>
+          <div class="read-more-btn btn-read-article" data-id="${esc(post.id)}">
             Read Full Article ➔
           </div>
         </div>
 
-        <div class="card-actions-bar">
-          <div class="action-buttons-group">
-            <button class="card-action-btn btn-like ${post.likedByUser ? 'liked' : ''}" data-id="${post.id}" title="Like">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.likedByUser ? '#ef4444' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-              <span>${post.likes}</span>
-            </button>
-
-            <button class="card-action-btn btn-comment-toggle" data-id="${post.id}" title="Comments">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-              <span>${post.comments ? post.comments.length : 0}</span>
-            </button>
-
-            <button class="card-action-btn btn-share" data-id="${post.id}" title="Share Post">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            </button>
-          </div>
-
-          <button class="card-action-btn btn-bookmark ${post.bookmarkedByUser ? 'bookmarked' : ''}" data-id="${post.id}" title="Save">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.bookmarkedByUser ? '#f59e0b' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-          </button>
-        </div>
-
-        <div class="comments-drawer" id="comments-${post.id}" style="display: none;">
-          <div class="comments-list">
-            ${(post.comments || []).map(c => `
-              <div class="comment-item">
-                <span class="comment-author">${c.author}:</span>
-                <span class="comment-body">${c.text}</span>
-              </div>
-            `).join('')}
-          </div>
-          <div class="comment-input-row">
-            <input type="text" placeholder="Add a comment..." class="input-comment" data-id="${post.id}">
-            <button class="btn-submit-comment" data-id="${post.id}">Post</button>
-          </div>
-        </div>
+        ${this.renderActionBar(post)}
+        ${this.renderCommentsDrawer(post)}
       </article>
     `;
   }
 
-  attachCardEventListeners() {
-    document.querySelectorAll('.btn-like').forEach(btn => {
+  // Buttons are wired inside the given list only, so the feed and a profile list never interfere
+  attachCardEventListeners(root) {
+    root = root || document;
+
+    root.querySelectorAll('.btn-like').forEach(btn => {
       btn.addEventListener('click', () => this.toggleLike(btn.dataset.id));
     });
 
-    document.querySelectorAll('.btn-bookmark').forEach(btn => {
+    root.querySelectorAll('.btn-bookmark').forEach(btn => {
       btn.addEventListener('click', () => this.toggleBookmark(btn.dataset.id));
     });
 
-    document.querySelectorAll('.btn-delete-post').forEach(btn => {
+    root.querySelectorAll('.btn-delete-post').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.deletePost(btn.dataset.id);
       });
     });
 
-    document.querySelectorAll('.btn-comment-toggle').forEach(btn => {
-      btn.addEventListener('click', () => this.toggleComments(btn.dataset.id));
-    });
-
-    document.querySelectorAll('.btn-submit-comment').forEach(btn => {
+    root.querySelectorAll('.btn-comment-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        const input = document.querySelector(`.input-comment[data-id="${id}"]`);
-        if (input) this.addComment(id, input);
+        const drawer = btn.closest('.thought-card').querySelector('.comments-drawer');
+        this.toggleComments(btn.dataset.id, drawer);
       });
     });
 
-    document.querySelectorAll('.btn-share').forEach(btn => {
+    root.querySelectorAll('.btn-submit-comment').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = btn.closest('.comments-drawer').querySelector('.input-comment');
+        if (input) this.addComment(btn.dataset.id, input);
+      });
+    });
+
+    root.querySelectorAll('.input-comment').forEach(input => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') this.addComment(input.dataset.id, input);
+      });
+    });
+
+    root.querySelectorAll('.btn-share').forEach(btn => {
       btn.addEventListener('click', () => {
         const post = this.posts.find(p => p.id === btn.dataset.id);
         if (post) this.sharePost(post);
       });
     });
 
-    document.querySelectorAll('.btn-read-article').forEach(btn => {
+    root.querySelectorAll('.btn-read-article').forEach(btn => {
       btn.addEventListener('click', () => this.openFullArticle(btn.dataset.id));
     });
   }
@@ -888,3 +1235,365 @@ class ReadoraApp {
 document.addEventListener('DOMContentLoaded', () => {
   window.readora = new ReadoraApp();
 });
+
+
+/* ═══════════════════════════════════════════════════════════
+   READORA × Gemini AI — Frontend Module
+   Handles: Writing Assistant, Auto-Summarize, Category Suggester,
+            Chat Bot, Semantic Search
+═══════════════════════════════════════════════════════════ */
+
+class ReadoraAI {
+  constructor() {
+    this.chatHistory = [];
+    this.chatOpen = false;
+    this.isTyping = false;
+    this._bindAll();
+    window.readoraAI = this;
+  }
+
+  get apiBase() {
+    return window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+  }
+
+  // ── Internal: call an AI endpoint ──────────────────────────────────
+  async _aiCall(endpoint, body) {
+    const res = await fetch(`${this.apiBase}/api/ai/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'AI request failed');
+    return data;
+  }
+
+  // ── Shared: show/hide status text ──────────────────────────────────
+  _setStatus(el, msg, isError = false) {
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = msg ? 'flex' : 'none';
+    el.style.color = isError ? '#f87171' : '#fbbf24';
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 1. AI WRITING ASSISTANT — Thought Composer
+  // ─────────────────────────────────────────────────────────────────
+  async improveThought() {
+    const input = document.getElementById('quick-thought-text');
+    const btn = document.getElementById('btn-ai-improve-thought');
+    const status = document.getElementById('ai-thought-status');
+    if (!input || !input.value.trim()) {
+      this._setStatus(status, '⚠️ Write something first!', true);
+      return;
+    }
+    btn.disabled = true;
+    this._setStatus(status, '✨ AI is improving your thought...');
+    try {
+      const data = await this._aiCall('improve', { text: input.value, type: 'thought' });
+      input.value = data.improved;
+      this._setStatus(status, '✅ Improved! Feel free to edit further.');
+      setTimeout(() => this._setStatus(status, ''), 4000);
+    } catch (e) {
+      this._setStatus(status, '❌ ' + e.message, true);
+      setTimeout(() => this._setStatus(status, ''), 5000);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 1b. AI WRITING ASSISTANT — Article Modal
+  // ─────────────────────────────────────────────────────────────────
+  async improveArticle() {
+    const body = document.getElementById('article-body-input');
+    const btn = document.getElementById('btn-ai-improve-article');
+    const status = document.getElementById('ai-article-status');
+    if (!body || !body.value.trim()) {
+      this._setStatus(status, '⚠️ Write some content first!', true);
+      return;
+    }
+    btn.disabled = true;
+    this._setStatus(status, '✨ Improving your article...');
+    try {
+      const data = await this._aiCall('improve', { text: body.value, type: 'article' });
+      body.value = data.improved;
+      this._setStatus(status, '✅ Article improved!');
+      setTimeout(() => this._setStatus(status, ''), 4000);
+    } catch (e) {
+      this._setStatus(status, '❌ ' + e.message, true);
+      setTimeout(() => this._setStatus(status, ''), 5000);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 2. AUTO-SUMMARIZE — Article Modal → fills subtitle
+  // ─────────────────────────────────────────────────────────────────
+  async summarizeArticle() {
+    const body = document.getElementById('article-body-input');
+    const title = document.getElementById('article-title-input');
+    const subtitle = document.getElementById('article-subtitle-input');
+    const btn = document.getElementById('btn-ai-summarize-article');
+    const status = document.getElementById('ai-article-status');
+    if (!body || !body.value.trim()) {
+      this._setStatus(status, '⚠️ Write some article content first!', true);
+      return;
+    }
+    btn.disabled = true;
+    this._setStatus(status, '📝 Generating subtitle...');
+    try {
+      const data = await this._aiCall('summarize', {
+        content: body.value,
+        title: title ? title.value : ''
+      });
+      if (subtitle) subtitle.value = data.summary;
+      this._setStatus(status, '✅ Subtitle generated!');
+      setTimeout(() => this._setStatus(status, ''), 4000);
+    } catch (e) {
+      this._setStatus(status, '❌ ' + e.message, true);
+      setTimeout(() => this._setStatus(status, ''), 5000);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 3. CATEGORY SUGGESTER — Thought
+  // ─────────────────────────────────────────────────────────────────
+  async suggestCategoryThought() {
+    const input = document.getElementById('quick-thought-text');
+    const select = document.getElementById('composer-category');
+    const btn = document.getElementById('btn-ai-category-thought');
+    const status = document.getElementById('ai-thought-status');
+    if (!input || !input.value.trim()) {
+      this._setStatus(status, '⚠️ Write something first!', true);
+      return;
+    }
+    btn.disabled = true;
+    this._setStatus(status, '💡 Analyzing your thought...');
+    try {
+      const data = await this._aiCall('suggest-category', { text: input.value });
+      if (select) {
+        // Try to find and select the suggested option
+        for (const opt of select.options) {
+          if (opt.value.toLowerCase() === data.category.toLowerCase()) {
+            select.value = opt.value;
+            break;
+          }
+        }
+      }
+      this._setStatus(status, `💡 Suggested: ${data.category} — ${data.reason}`);
+      setTimeout(() => this._setStatus(status, ''), 5000);
+    } catch (e) {
+      this._setStatus(status, '❌ ' + e.message, true);
+      setTimeout(() => this._setStatus(status, ''), 5000);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 3b. CATEGORY SUGGESTER — Article
+  // ─────────────────────────────────────────────────────────────────
+  async suggestCategoryArticle() {
+    const body = document.getElementById('article-body-input');
+    const title = document.getElementById('article-title-input');
+    const select = document.getElementById('article-category-input');
+    const btn = document.getElementById('btn-ai-category-article');
+    const status = document.getElementById('ai-article-status');
+    const text = (title ? title.value + ' ' : '') + (body ? body.value : '');
+    if (!text.trim()) {
+      this._setStatus(status, '⚠️ Write some content first!', true);
+      return;
+    }
+    btn.disabled = true;
+    this._setStatus(status, '💡 Analyzing content...');
+    try {
+      const data = await this._aiCall('suggest-category', { text });
+      if (select) {
+        for (const opt of select.options) {
+          if (opt.value.toLowerCase() === data.category.toLowerCase()) {
+            select.value = opt.value;
+            break;
+          }
+        }
+      }
+      this._setStatus(status, `💡 Suggested: ${data.category} — ${data.reason}`);
+      setTimeout(() => this._setStatus(status, ''), 5000);
+    } catch (e) {
+      this._setStatus(status, '❌ ' + e.message, true);
+      setTimeout(() => this._setStatus(status, ''), 5000);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 4. AI CHAT BOT
+  // ─────────────────────────────────────────────────────────────────
+  toggleChat() {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    this.chatOpen = !this.chatOpen;
+    panel.style.display = this.chatOpen ? 'flex' : 'none';
+    if (this.chatOpen) {
+      const input = document.getElementById('ai-chat-input');
+      if (input) setTimeout(() => input.focus(), 100);
+    }
+  }
+
+  _appendChatMessage(role, text) {
+    const container = document.getElementById('ai-chat-messages');
+    if (!container) return;
+    const div = document.createElement('div');
+    div.className = `ai-msg ai-msg-${role}`;
+    div.innerHTML = `<span>${this._escapeHtml(text)}</span>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  _showTyping() {
+    const container = document.getElementById('ai-chat-messages');
+    if (!container) return null;
+    const div = document.createElement('div');
+    div.className = 'ai-msg ai-msg-bot ai-msg-typing';
+    div.id = 'ai-typing-indicator';
+    div.innerHTML = '<span></span><span></span><span></span>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  _removeTyping() {
+    const el = document.getElementById('ai-typing-indicator');
+    if (el) el.remove();
+  }
+
+  _escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/\n/g, '<br>');
+  }
+
+  async sendChat() {
+    if (this.isTyping) return;
+    const input = document.getElementById('ai-chat-input');
+    const sendBtn = document.querySelector('.ai-send-btn');
+    if (!input) return;
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = '';
+    this._appendChatMessage('user', message);
+    this.chatHistory.push({ role: 'user', text: message });
+
+    this.isTyping = true;
+    if (sendBtn) sendBtn.disabled = true;
+    this._showTyping();
+
+    try {
+      const data = await this._aiCall('chat', {
+        message,
+        history: this.chatHistory.slice(-6)
+      });
+      this._removeTyping();
+      this._appendChatMessage('bot', data.reply);
+      this.chatHistory.push({ role: 'bot', text: data.reply });
+    } catch (e) {
+      this._removeTyping();
+      this._appendChatMessage('bot', '⚠️ Sorry, I had trouble responding. Please try again!');
+    } finally {
+      this.isTyping = false;
+      if (sendBtn) sendBtn.disabled = false;
+      if (input) input.focus();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 5. SEMANTIC SEARCH — Intercepts the search input
+  //    Runs only when user stops typing (debounced)
+  // ─────────────────────────────────────────────────────────────────
+  _debounceSemanticSearch() {
+    clearTimeout(this._semanticTimer);
+    this._semanticTimer = setTimeout(() => this._runSemanticSearch(), 800);
+  }
+
+  async _runSemanticSearch() {
+    // Only kick in if the search bar has a meaningful query
+    const searchInput = document.getElementById('search-input');
+    if (!searchInput) return;
+    const query = searchInput.value.trim();
+    if (!query || query.length < 4) return;
+
+    // Get the currently rendered app posts
+    const app = window.readora;
+    if (!app || !app.posts || app.posts.length === 0) return;
+
+    try {
+      const postPayload = app.posts.slice(0, 30).map(p => ({
+        id: p.id,
+        title: p.title || '',
+        content: (p.content || '').substring(0, 200),
+        category: p.category || '',
+        author: p.author || ''
+      }));
+
+      const data = await this._aiCall('semantic-search', { query, posts: postPayload });
+      if (!data.rankedIds || data.aiUnavailable) return;
+
+      // Re-order app.posts according to Gemini's ranking
+      const idOrder = data.rankedIds;
+      const postMap = new Map(app.posts.map(p => [p.id, p]));
+      const reordered = [];
+      idOrder.forEach(id => { if (postMap.has(id)) reordered.push(postMap.get(id)); });
+      // Add any posts AI didn't mention (safety net)
+      app.posts.forEach(p => { if (!reordered.find(r => r.id === p.id)) reordered.push(p); });
+
+      app.posts = reordered;
+      app.render();
+    } catch (_) {
+      // Silently fail — normal keyword search still works
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Bind all AI buttons and events
+  // ─────────────────────────────────────────────────────────────────
+  _bindAll() {
+    document.addEventListener('DOMContentLoaded', () => {
+      // Thought composer AI buttons
+      const btnImproveThought = document.getElementById('btn-ai-improve-thought');
+      if (btnImproveThought) btnImproveThought.addEventListener('click', () => this.improveThought());
+
+      const btnCategoryThought = document.getElementById('btn-ai-category-thought');
+      if (btnCategoryThought) btnCategoryThought.addEventListener('click', () => this.suggestCategoryThought());
+
+      // Article modal AI buttons
+      const btnImproveArticle = document.getElementById('btn-ai-improve-article');
+      if (btnImproveArticle) btnImproveArticle.addEventListener('click', () => this.improveArticle());
+
+      const btnSummarizeArticle = document.getElementById('btn-ai-summarize-article');
+      if (btnSummarizeArticle) btnSummarizeArticle.addEventListener('click', () => this.summarizeArticle());
+
+      const btnCategoryArticle = document.getElementById('btn-ai-category-article');
+      if (btnCategoryArticle) btnCategoryArticle.addEventListener('click', () => this.suggestCategoryArticle());
+
+      // Semantic search: debounce on search input
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => this._debounceSemanticSearch());
+      }
+
+      console.log('🤖 Readora AI: All features initialized!');
+    });
+  }
+}
+
+// Initialize AI module
+const _readoraAI = new ReadoraAI();

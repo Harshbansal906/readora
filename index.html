@@ -44,7 +44,7 @@
     <!-- Left Navigation Sidebar -->
     <aside class="left-sidebar">
       <nav class="sidebar-nav-menu">
-        <a href="index.html" class="sidebar-item active">
+        <a href="#/" id="nav-home-btn" class="sidebar-item active">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
           <span>Home Feed</span>
         </a>
@@ -78,6 +78,11 @@
 
     <!-- Center Feed Area -->
     <section class="center-feed">
+
+      <!-- Creator profile page (filled in by app.js) -->
+      <div id="profile-view" class="profile-view" style="display: none;"></div>
+
+      <div id="feed-view" class="feed-view">
       
       <!-- Instagram-style Thought Creator Composer -->
       <div class="thought-composer-card">
@@ -85,6 +90,7 @@
           <div class="author-avatar">HB</div>
           <textarea id="quick-thought-text" class="composer-input" placeholder="Share a thought, quote, poetry, or epiphany with the world..."></textarea>
         </div>
+        <div id="ai-thought-status" class="ai-status-text" style="display:none; padding: 0.4rem 0.5rem;"></div>
 
         <!-- Gradient Aesthetic Card Theme Picker -->
         <div style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
@@ -117,6 +123,16 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
               <span>Write Long Article Instead</span>
             </button>
+            <!-- AI Writing Assistant button for thought composer -->
+            <button id="btn-ai-improve-thought" class="composer-chip-btn ai-chip-btn" title="Let AI improve your thought">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span>✨ Improve with AI</span>
+            </button>
+            <!-- AI Category Suggester for thought -->
+            <button id="btn-ai-category-thought" class="composer-chip-btn ai-chip-btn" title="AI will suggest the best category">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              <span>💡 Suggest Category</span>
+            </button>
           </div>
 
           <button id="btn-publish-thought" class="composer-btn-publish">
@@ -128,6 +144,7 @@
       <!-- Feed Category Filter Tabs -->
       <div class="feed-filter-bar">
         <button class="feed-tab active" data-filter="all">🌟 All Stream</button>
+        <button class="feed-tab" data-filter="following">👥 Following</button>
         <button class="feed-tab" data-filter="thoughts">💭 Thoughts Only</button>
         <button class="feed-tab" data-filter="articles">📖 Articles & Reads</button>
         <button class="feed-tab" data-filter="saved">🔖 Saved Bookmarks</button>
@@ -140,6 +157,7 @@
       <div class="posts-stream" id="posts-stream">
         <!-- Injected dynamically via app.js -->
       </div>
+      </div><!-- /feed-view -->
     </section>
 
     <!-- Right Sidebar (Trending & Creators) -->
@@ -209,6 +227,23 @@
           <textarea id="article-body-input" class="form-input" style="min-height: 200px; resize: vertical;" placeholder="Write your full article here..." required></textarea>
         </div>
 
+        <!-- AI Toolbar for Article Modal -->
+        <div class="ai-article-toolbar">
+          <button type="button" id="btn-ai-improve-article" class="ai-action-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            ✨ Improve Writing
+          </button>
+          <button type="button" id="btn-ai-summarize-article" class="ai-action-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+            📝 Auto-Generate Subtitle
+          </button>
+          <button type="button" id="btn-ai-category-article" class="ai-action-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            💡 Suggest Category
+          </button>
+          <span id="ai-article-status" class="ai-status-text" style="display:none;"></span>
+        </div>
+
         <button type="submit" class="btn-auth-primary" style="margin-top: 1rem;">Publish to Readora</button>
       </form>
     </div>
@@ -255,12 +290,71 @@
         </div>
       </div>
 
+      <button id="btn-view-profile" class="btn-auth-primary" style="margin-top: 0; margin-bottom: 0.5rem;">View My Profile Page</button>
       <button id="btn-logout" class="btn-auth-guest" style="width: 100%; border: none; cursor: pointer;">Log Out / Switch Account</button>
+    </div>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div id="edit-profile-modal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 480px;">
+      <button class="modal-close-btn" aria-label="Close modal">✕</button>
+      <h2 class="modal-header-title">Edit Profile</h2>
+
+      <div id="edit-profile-error" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ff9999; padding: 0.6rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; text-align: center;"></div>
+
+      <form id="edit-profile-form">
+        <div class="form-group">
+          <label for="edit-profile-name">Name</label>
+          <input type="text" id="edit-profile-name" class="form-input" maxlength="50" placeholder="Your name" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-profile-bio">Bio</label>
+          <textarea id="edit-profile-bio" class="form-input" maxlength="200" style="min-height: 100px; resize: vertical;" placeholder="Tell readers a little about yourself (max 200 characters)"></textarea>
+        </div>
+        <button type="submit" id="btn-save-profile" class="btn-auth-primary">Save Changes</button>
+      </form>
     </div>
   </div>
 
   <!-- Interactive Toast Notification -->
   <div id="toast" class="toast">Action completed successfully!</div>
+
+  <!-- ═══════════════════════════════════════════════════
+       AI CHAT BOT WIDGET
+  ═══════════════════════════════════════════════════ -->
+  <div id="ai-chat-fab" title="Chat with Readora AI" onclick="window.readoraAI && window.readoraAI.toggleChat()">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    <span class="ai-fab-label">Readora AI</span>
+    <span id="ai-chat-badge" class="ai-chat-badge" style="display:none;"></span>
+  </div>
+
+  <div id="ai-chat-panel" class="ai-chat-panel" style="display:none;">
+    <div class="ai-chat-header">
+      <div style="display:flex;align-items:center;gap:0.6rem;">
+        <div class="ai-avatar-dot">✨</div>
+        <div>
+          <div style="font-weight:700;font-size:0.95rem;color:#fff;">Readora AI</div>
+          <div style="font-size:0.72rem;color:#fda4af;">Powered by Gemini · Always ready</div>
+        </div>
+      </div>
+      <button onclick="window.readoraAI && window.readoraAI.toggleChat()" class="ai-chat-close">✕</button>
+    </div>
+
+    <div id="ai-chat-messages" class="ai-chat-messages">
+      <div class="ai-msg ai-msg-bot">
+        <span>👋 Hi! I'm your Readora AI assistant. I can help you find topics, improve your writing, or just chat about ideas. What's on your mind?</span>
+      </div>
+    </div>
+
+    <div class="ai-chat-input-row">
+      <input type="text" id="ai-chat-input" placeholder="Ask me anything..." maxlength="400"
+             onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); window.readoraAI && window.readoraAI.sendChat(); }">
+      <button onclick="window.readoraAI && window.readoraAI.sendChat()" class="ai-send-btn" title="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
