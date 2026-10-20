@@ -7,6 +7,8 @@ const { db } = require('../db/database');
 const { authMiddleware, JWT_SECRET } = require('../middleware/authMiddleware');
 const { sendVerificationEmail } = require('../utils/mailer');
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+
 // Helper function to verify if an email has a real, active mail server (MX records)
 async function isEmailDomainValid(email) {
   // 1. Strict RFC 5322 Syntax Regex
@@ -34,6 +36,24 @@ async function isEmailDomainValid(email) {
   }
 }
 
+// Simple in-memory limiter for wrong OTP guesses (max 5 tries per key per 10 minutes)
+const otpAttempts = new Map();
+function tooManyAttempts(key) {
+  const now = Date.now();
+  const entry = otpAttempts.get(key);
+  if (!entry || now > entry.resetAt) return false;
+  return entry.count >= 5;
+}
+function recordFailedAttempt(key) {
+  const now = Date.now();
+  const entry = otpAttempts.get(key);
+  if (!entry || now > entry.resetAt) {
+    otpAttempts.set(key, { count: 1, resetAt: now + 10 * 60 * 1000 });
+  } else {
+    entry.count += 1;
+  }
+}
+
 // 1. POST /api/auth/send-otp - Step 1: Check Real Email Validity, Duplicates & Send Code
 router.post('/send-otp', async (req, res) => {
   try {
@@ -57,9 +77,9 @@ router.post('/send-otp', async (req, res) => {
     // Check if Email already exists in database
     const existingEmail = await db.getAsync(`SELECT id FROM users WHERE LOWER(email) = ?`, [cleanEmail]);
     if (existingEmail) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'An account with this email already exists. Please log in instead.' 
+      return res.status(400).json({
+        success: false,
+        message: 'An account with this email already exists. Please log in instead.'
       });
     }
 
@@ -76,27 +96,27 @@ router.post('/send-otp', async (req, res) => {
       VALUES (?, ?, ?, ?, 0)
     `, ['otp_' + Date.now(), cleanEmail, otpCode, expiresAt]);
 
-    console.log(`\n====================================================`);
-    console.log(`🔑 [READORA OTP GENERATED]`);
-    console.log(`📧 Target Email: ${cleanEmail}`);
-    console.log(`🔢 6-Digit Code: ${otpCode}`);
-    console.log(`⏱️ Expires in:   10 minutes`);
-    console.log(`====================================================\n`);
-
     // Dispatch verification email
-    let emailSent = false;
     try {
-      await sendVerificationEmail(cleanEmail, otpCode);
-      emailSent = true;
+      await sendVerificationEmail(cleanEmail, otpCode, 'verify');
     } catch (mailErr) {
-      console.warn(`⚠️ [Email Dispatch Note]: SMTP delivery failed (${mailErr.message}). You can use the code printed in the terminal above!`);
+      console.error('Send OTP email error:', mailErr.message);
+      if (IS_PROD) {
+        return res.status(500).json({ success: false, message: 'Could not send the verification email. Please try again later.' });
+      }
+      // Development fallback: show the code in the server terminal so you can keep testing
+      console.log('=====================================================');
+      console.log(`DEV MODE - OTP for ${cleanEmail} is: ${otpCode}`);
+      console.log('=====================================================');
+      return res.json({
+        success: true,
+        message: `Email could not be sent (${mailErr.message}) DEV MODE: your code is printed in the server terminal window.`
+      });
     }
 
     res.json({
       success: true,
-      message: emailSent
-        ? `A 6-digit confirmation code has been sent to ${cleanEmail}. Please check your inbox or spam folder!`
-        : `A 6-digit confirmation code (${otpCode}) has been generated! Check terminal or inbox.`
+      message: `A 6-digit confirmation code has been sent to ${cleanEmail}. Please check your inbox (and spam folder)!`
     });
   } catch (error) {
     console.error('Send OTP error:', error);
@@ -158,12 +178,19 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and verification code are required.' });
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+
+    if (tooManyAttempts(cleanEmail)) {
+      return res.status(429).json({ success: false, message: 'Too many wrong attempts. Please request a new code in a few minutes.' });
+    }
+
     const otpRecord = await db.getAsync(
       `SELECT * FROM otps WHERE LOWER(email) = ? AND otp_code = ? AND verified = 0`,
-      [email.toLowerCase().trim(), otp.trim()]
+      [cleanEmail, String(otp).trim()]
     );
 
     if (!otpRecord) {
+      recordFailedAttempt(cleanEmail);
       return res.status(400).json({ success: false, message: 'Invalid verification code. Please check and try again.' });
     }
 
@@ -173,9 +200,10 @@ router.post('/verify-otp', async (req, res) => {
 
     // Mark verified
     await db.runAsync(`UPDATE otps SET verified = 1 WHERE id = ?`, [otpRecord.id]);
+    otpAttempts.delete(cleanEmail);
 
     const verificationToken = jwt.sign(
-      { email: email.toLowerCase().trim(), isVerified: true },
+      { email: cleanEmail, isVerified: true },
       JWT_SECRET,
       { expiresIn: '15m' }
     );
@@ -191,7 +219,7 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
-// 3. POST /api/auth/complete-signup - Step 3: Set Password and Create Creator Account
+// 4. POST /api/auth/complete-signup - Step 3: Set Password and Create Creator Account
 router.post('/complete-signup', async (req, res) => {
   try {
     const { name, email, password, verificationToken, handle, bio } = req.body;
@@ -215,7 +243,7 @@ router.post('/complete-signup', async (req, res) => {
     }
 
     let cleanHandle = handle ? (handle.startsWith('@') ? handle.toLowerCase().trim() : '@' + handle.toLowerCase().trim()) : '@' + name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    
+
     // Check if handle is already taken
     const existingHandle = await db.getAsync(`SELECT id FROM users WHERE LOWER(handle) = ?`, [cleanHandle]);
     if (existingHandle) {
@@ -259,6 +287,112 @@ router.post('/complete-signup', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------
+// FORGOT PASSWORD (new)
+// Reset codes are stored in the existing "otps" table with the
+// email prefixed by "reset:" so they never mix with signup codes.
+// ---------------------------------------------------------------
+
+// POST /api/auth/forgot-password - Step 1: email a 6-digit reset code
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, message: 'Please enter the email address of your account.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const genericMsg = `If an account exists for ${cleanEmail}, a 6-digit reset code has been sent. Please check your inbox (and spam folder).`;
+
+    const user = await db.getAsync(`SELECT id FROM users WHERE LOWER(email) = ?`, [cleanEmail]);
+    if (!user) {
+      // Same response as success so nobody can probe which emails are registered
+      return res.json({ success: true, message: genericMsg });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    const resetKey = 'reset:' + cleanEmail;
+
+    await db.runAsync(`DELETE FROM otps WHERE LOWER(email) = ?`, [resetKey]);
+    await db.runAsync(`
+      INSERT INTO otps (id, email, otp_code, expires_at, verified)
+      VALUES (?, ?, ?, ?, 0)
+    `, ['rst_' + Date.now(), resetKey, otpCode, expiresAt]);
+
+    try {
+      await sendVerificationEmail(cleanEmail, otpCode, 'reset');
+    } catch (mailErr) {
+      console.error('Forgot password email error:', mailErr.message);
+      if (IS_PROD) {
+        return res.status(500).json({ success: false, message: 'Could not send the reset email. Please try again later.' });
+      }
+      console.log('=====================================================');
+      console.log(`DEV MODE - PASSWORD RESET code for ${cleanEmail} is: ${otpCode}`);
+      console.log('=====================================================');
+      return res.json({
+        success: true,
+        message: `Email could not be sent (${mailErr.message}) DEV MODE: your reset code is printed in the server terminal window.`
+      });
+    }
+
+    res.json({ success: true, message: genericMsg });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process request.' });
+  }
+});
+
+// POST /api/auth/reset-password - Step 2: code + new password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, reset code and new password are required.' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const resetKey = 'reset:' + cleanEmail;
+
+    if (tooManyAttempts(resetKey)) {
+      return res.status(429).json({ success: false, message: 'Too many wrong attempts. Please request a new code in a few minutes.' });
+    }
+
+    const record = await db.getAsync(
+      `SELECT * FROM otps WHERE LOWER(email) = ? AND otp_code = ? AND verified = 0`,
+      [resetKey, String(otp).trim()]
+    );
+
+    if (!record) {
+      recordFailedAttempt(resetKey);
+      return res.status(400).json({ success: false, message: 'Invalid reset code. Please check and try again.' });
+    }
+    if (Date.now() > record.expires_at) {
+      return res.status(400).json({ success: false, message: 'Reset code has expired. Please request a new one.' });
+    }
+
+    const user = await db.getAsync(`SELECT id FROM users WHERE LOWER(email) = ?`, [cleanEmail]);
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Account not found.' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.runAsync(`UPDATE users SET password_hash = ? WHERE id = ?`, [passwordHash, user.id]);
+    await db.runAsync(`DELETE FROM otps WHERE LOWER(email) = ?`, [resetKey]);
+    otpAttempts.delete(resetKey);
+
+    res.json({ success: true, message: 'Password updated successfully! You can now log in with your new password.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password.' });
+  }
+});
+
 // Legacy POST /api/auth/signup - Direct Signup with built-in auto-safety
 router.post('/signup', async (req, res) => {
   try {
@@ -270,7 +404,7 @@ router.post('/signup', async (req, res) => {
 
     // Check if email or handle already exists
     const existingUser = await db.getAsync(
-      `SELECT * FROM users WHERE email = ? OR handle = ?`, 
+      `SELECT * FROM users WHERE email = ? OR handle = ?`,
       [email.toLowerCase(), handle ? handle.toLowerCase() : '']
     );
 
@@ -407,12 +541,23 @@ router.put('/profile', authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name cannot be empty.' });
     }
 
+    if (name.trim().length > 50) {
+      return res.status(400).json({ success: false, message: 'Name must be 50 characters or fewer.' });
+    }
+    if (bio && bio.trim().length > 200) {
+      return res.status(400).json({ success: false, message: 'Bio must be 200 characters or fewer.' });
+    }
+
     const cleanAvatar = avatar || name.trim().substring(0, 2).toUpperCase();
 
     await db.runAsync(
       `UPDATE users SET name = ?, bio = ?, avatar = ? WHERE id = ?`,
       [name.trim(), bio ? bio.trim() : '', cleanAvatar, userId]
     );
+
+    // Keep older posts and comments in sync with the new name/avatar
+    await db.runAsync(`UPDATE posts SET author_name = ?, author_avatar = ? WHERE author_id = ?`, [name.trim(), cleanAvatar, userId]);
+    await db.runAsync(`UPDATE comments SET author_name = ? WHERE user_id = ?`, [name.trim(), userId]);
 
     const updatedUser = await db.getAsync(
       `SELECT id, name, email, handle, avatar, bio, created_at FROM users WHERE id = ?`,

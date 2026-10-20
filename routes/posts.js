@@ -3,14 +3,117 @@ const router = express.Router();
 const { db } = require('../db/database');
 const { optionalAuthMiddleware, authMiddleware } = require('../middleware/authMiddleware');
 
+const DEFAULT_COVER = 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop';
+
+// "5 min ago", "3 h ago", "2 d ago" ... from SQLite's UTC timestamp ("YYYY-MM-DD HH:MM:SS")
+function timeAgo(createdAt) {
+  if (!createdAt) return 'Recently';
+  const d = new Date(String(createdAt).replace(' ', 'T') + (String(createdAt).includes('Z') ? '' : 'Z'));
+  if (isNaN(d.getTime())) return 'Recently';
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (sec < 60) return 'Just now';
+  if (sec < 3600) return Math.floor(sec / 60) + ' min ago';
+  if (sec < 86400) return Math.floor(sec / 3600) + ' h ago';
+  if (sec < 86400 * 7) return Math.floor(sec / 86400) + ' d ago';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Turns raw rows of the posts table into the shape the frontend uses.
+// Comments / likes / bookmarks are fetched in a few batched queries (not 3 queries per post),
+// which keeps the feed fast even when the database is hosted online.
+async function formatPosts(rawPosts, currentUserId) {
+  if (!rawPosts || rawPosts.length === 0) return [];
+
+  const commentsByPost = {};
+  const likedSet = new Set();
+  const bookmarkedSet = new Set();
+  const ids = rawPosts.map((p) => p.id);
+
+  for (let i = 0; i < ids.length; i += 200) {
+    const part = ids.slice(i, i + 200);
+    const marks = part.map(() => '?').join(',');
+
+    const comments = await db.allAsync(
+      `SELECT id, post_id, author_name as author, text, created_at FROM comments WHERE post_id IN (${marks}) ORDER BY created_at ASC`,
+      part
+    );
+    (comments || []).forEach((c) => {
+      (commentsByPost[c.post_id] = commentsByPost[c.post_id] || []).push({
+        id: c.id,
+        author: c.author,
+        text: c.text,
+        created_at: c.created_at
+      });
+    });
+
+    if (currentUserId) {
+      const likes = await db.allAsync(`SELECT post_id FROM likes WHERE user_id = ? AND post_id IN (${marks})`, [currentUserId, ...part]);
+      (likes || []).forEach((l) => likedSet.add(l.post_id));
+      const marksB = await db.allAsync(`SELECT post_id FROM bookmarks WHERE user_id = ? AND post_id IN (${marks})`, [currentUserId, ...part]);
+      (marksB || []).forEach((b) => bookmarkedSet.add(b.post_id));
+    }
+  }
+
+  return rawPosts.map((post) => ({
+    id: post.id,
+    type: post.type,
+    author_id: post.author_id,
+    author: post.author_name,
+    handle: post.author_handle,
+    avatar: post.author_avatar,
+    title: post.title,
+    subtitle: post.subtitle,
+    content: post.content,
+    excerpt: post.type === 'article' && post.content.length > 160 ? post.content.substring(0, 160) + '...' : post.content,
+    fullContent: post.content,
+    theme: post.theme || 'theme-crimson',
+    category: post.category || 'General',
+    coverImage: post.cover_image,
+    readTime: post.read_time || '3 min read',
+    likes: post.likes_count || 0,
+    likedByUser: likedSet.has(post.id),
+    bookmarks: post.bookmarks_count || 0,
+    bookmarkedByUser: bookmarkedSet.has(post.id),
+    timestamp: timeAgo(post.created_at),
+    comments: commentsByPost[post.id] || []
+  }));
+}
+
+// Who is writing? Logged-in users always use their CURRENT name/handle/avatar from the database
+// (so a renamed profile is respected immediately), guests fall back to what the request says.
+async function resolveAuthor(req, body) {
+  if (req.user) {
+    const u = await db.getAsync(`SELECT id, name, handle, avatar FROM users WHERE id = ?`, [req.user.id]);
+    if (u) {
+      return { id: u.id, name: u.name, handle: u.handle, avatar: u.avatar || (u.name || 'CR').substring(0, 2).toUpperCase() };
+    }
+    return { id: req.user.id, name: req.user.name, handle: req.user.handle, avatar: req.user.avatar };
+  }
+  return {
+    id: 'usr_guest_' + Date.now(),
+    name: body.authorName || 'Harsh Bansal',
+    handle: body.authorHandle || '@harshbansal',
+    avatar: body.authorAvatar || 'HB'
+  };
+}
+
 // GET /api/posts - Get all posts with comments and interaction states
+// Optional: ?feed=following  -> only posts from creators the logged-in user follows
 router.get('/', optionalAuthMiddleware, async (req, res) => {
   try {
-    const { type, category, search, savedOnly } = req.query;
+    const { type, category, search, savedOnly, feed } = req.query;
     const currentUserId = req.user ? req.user.id : null;
 
     let query = `SELECT * FROM posts WHERE 1=1`;
     const params = [];
+
+    if (feed === 'following') {
+      if (!currentUserId) {
+        return res.status(401).json({ success: false, message: 'Please log in to see posts from creators you follow.' });
+      }
+      query += ` AND author_id IN (SELECT following_id FROM follows WHERE follower_id = ?)`;
+      params.push(currentUserId);
+    }
 
     if (type && type !== 'all') {
       query += ` AND type = ?`;
@@ -36,50 +139,7 @@ router.get('/', optionalAuthMiddleware, async (req, res) => {
     query += ` ORDER BY created_at DESC`;
 
     const rawPosts = await db.allAsync(query, params);
-
-    // Attach comments, likes, and bookmarks per post
-    const posts = await Promise.all(rawPosts.map(async (post) => {
-      // Fetch comments
-      const comments = await db.allAsync(
-        `SELECT id, author_name as author, text, created_at FROM comments WHERE post_id = ? ORDER BY created_at ASC`,
-        [post.id]
-      );
-
-      // Check if current user liked/bookmarked
-      let likedByUser = false;
-      let bookmarkedByUser = false;
-
-      if (currentUserId) {
-        const likeRow = await db.getAsync(`SELECT id FROM likes WHERE user_id = ? AND post_id = ?`, [currentUserId, post.id]);
-        likedByUser = !!likeRow;
-
-        const bookmarkRow = await db.getAsync(`SELECT id FROM bookmarks WHERE user_id = ? AND post_id = ?`, [currentUserId, post.id]);
-        bookmarkedByUser = !!bookmarkRow;
-      }
-
-      return {
-        id: post.id,
-        type: post.type,
-        author: post.author_name,
-        handle: post.author_handle,
-        avatar: post.author_avatar,
-        title: post.title,
-        subtitle: post.subtitle,
-        content: post.content,
-        excerpt: post.type === 'article' && post.content.length > 160 ? post.content.substring(0, 160) + '...' : post.content,
-        fullContent: post.content,
-        theme: post.theme || 'theme-crimson',
-        category: post.category || 'General',
-        coverImage: post.cover_image,
-        readTime: post.read_time || '3 min read',
-        likes: post.likes_count || 0,
-        likedByUser,
-        bookmarks: post.bookmarks_count || 0,
-        bookmarkedByUser,
-        timestamp: 'Recently',
-        comments: comments || []
-      };
-    }));
+    const posts = await formatPosts(rawPosts, currentUserId);
 
     res.json({ success: true, count: posts.length, posts });
   } catch (error) {
@@ -88,30 +148,81 @@ router.get('/', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/posts/user/:handle - Public creator profile (no email is ever returned)
+router.get('/user/:handle', optionalAuthMiddleware, async (req, res) => {
+  try {
+    let handle = String(req.params.handle || '').trim().toLowerCase();
+    if (!handle) {
+      return res.status(400).json({ success: false, message: 'Username is required.' });
+    }
+    if (!handle.startsWith('@')) handle = '@' + handle;
+
+    const user = await db.getAsync(
+      `SELECT id, name, handle, avatar, bio, created_at FROM users WHERE LOWER(handle) = ?`,
+      [handle]
+    );
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Creator not found.' });
+    }
+
+    const thoughts = await db.getAsync(`SELECT COUNT(*) as count FROM posts WHERE author_id = ? AND type = 'thought'`, [user.id]);
+    const articles = await db.getAsync(`SELECT COUNT(*) as count FROM posts WHERE author_id = ? AND type = 'article'`, [user.id]);
+    const followers = await db.getAsync(`SELECT COUNT(*) as count FROM follows WHERE following_id = ?`, [user.id]);
+    const following = await db.getAsync(`SELECT COUNT(*) as count FROM follows WHERE follower_id = ?`, [user.id]);
+
+    const currentUserId = req.user ? req.user.id : null;
+    let isFollowing = false;
+    if (currentUserId && currentUserId !== user.id) {
+      const f = await db.getAsync(`SELECT id FROM follows WHERE follower_id = ? AND following_id = ?`, [currentUserId, user.id]);
+      isFollowing = !!f;
+    }
+
+    res.json({
+      success: true,
+      profile: {
+        id: user.id,
+        name: user.name,
+        handle: user.handle,
+        avatar: user.avatar || (user.name || 'CR').substring(0, 2).toUpperCase(),
+        bio: user.bio || '',
+        joinedAt: user.created_at,
+        isMe: !!currentUserId && currentUserId === user.id,
+        isFollowing,
+        stats: {
+          thoughts: thoughts ? thoughts.count : 0,
+          articles: articles ? articles.count : 0,
+          followers: followers ? followers.count : 0,
+          following: following ? following.count : 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Fetch profile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load profile.' });
+  }
+});
+
 // POST /api/posts/thought - Create a new thought card
 router.post('/thought', optionalAuthMiddleware, async (req, res) => {
   try {
-    const { content, theme, category, authorName, authorHandle, authorAvatar } = req.body;
+    const { content, theme, category } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ success: false, message: 'Thought content is required.' });
     }
 
     const postId = 'thought_' + Date.now();
-    const author_id = req.user ? req.user.id : 'usr_guest_' + Date.now();
-    const author_name = req.user ? req.user.name : (authorName || 'Harsh Bansal');
-    const author_handle = req.user ? req.user.handle : (authorHandle || '@harshbansal');
-    const author_avatar = req.user ? req.user.avatar : (authorAvatar || 'HB');
+    const author = await resolveAuthor(req, req.body);
 
     await db.runAsync(`
       INSERT INTO posts (id, type, author_id, author_name, author_handle, author_avatar, content, theme, category, likes_count, bookmarks_count)
       VALUES (?, 'thought', ?, ?, ?, ?, ?, ?, ?, 0, 0)
     `, [
       postId,
-      author_id,
-      author_name,
-      author_handle,
-      author_avatar,
+      author.id,
+      author.name,
+      author.handle,
+      author.avatar,
       content.trim(),
       theme || 'theme-crimson',
       category || 'General'
@@ -120,9 +231,10 @@ router.post('/thought', optionalAuthMiddleware, async (req, res) => {
     const newPost = {
       id: postId,
       type: 'thought',
-      author: author_name,
-      handle: author_handle,
-      avatar: author_avatar,
+      author_id: author.id,
+      author: author.name,
+      handle: author.handle,
+      avatar: author.avatar,
       content: content.trim(),
       theme: theme || 'theme-crimson',
       category: category || 'General',
@@ -144,17 +256,14 @@ router.post('/thought', optionalAuthMiddleware, async (req, res) => {
 // POST /api/posts/article - Publish long-form article
 router.post('/article', optionalAuthMiddleware, async (req, res) => {
   try {
-    const { title, subtitle, content, category, coverImage, authorName, authorHandle, authorAvatar } = req.body;
+    const { title, subtitle, content, category, coverImage } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ success: false, message: 'Title and content are required.' });
     }
 
     const postId = 'article_' + Date.now();
-    const author_id = req.user ? req.user.id : 'usr_guest_' + Date.now();
-    const author_name = req.user ? req.user.name : (authorName || 'Harsh Bansal');
-    const author_handle = req.user ? req.user.handle : (authorHandle || '@harshbansal');
-    const author_avatar = req.user ? req.user.avatar : (authorAvatar || 'HB');
+    const author = await resolveAuthor(req, req.body);
 
     const words = content.split(/\s+/).length;
     const readTime = `${Math.max(1, Math.ceil(words / 180))} min read`;
@@ -164,30 +273,31 @@ router.post('/article', optionalAuthMiddleware, async (req, res) => {
       VALUES (?, 'article', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
     `, [
       postId,
-      author_id,
-      author_name,
-      author_handle,
-      author_avatar,
+      author.id,
+      author.name,
+      author.handle,
+      author.avatar,
       title.trim(),
       subtitle ? subtitle.trim() : '',
       content.trim(),
       category || 'Tech',
-      coverImage || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop',
+      coverImage || DEFAULT_COVER,
       readTime
     ]);
 
     const newPost = {
       id: postId,
       type: 'article',
-      author: author_name,
-      handle: author_handle,
-      avatar: author_avatar,
+      author_id: author.id,
+      author: author.name,
+      handle: author.handle,
+      avatar: author.avatar,
       title: title.trim(),
       subtitle: subtitle ? subtitle.trim() : '',
       excerpt: content.length > 160 ? content.substring(0, 160) + '...' : content,
       fullContent: content.trim(),
       category: category || 'Tech',
-      coverImage: coverImage || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop',
+      coverImage: coverImage || DEFAULT_COVER,
       readTime,
       likes: 0,
       likedByUser: false,
@@ -280,8 +390,12 @@ router.post('/:id/comment', optionalAuthMiddleware, async (req, res) => {
     }
 
     const commentId = 'cmt_' + Date.now();
-    const author_name = req.user ? req.user.name : (authorName || 'Harsh Bansal');
+    let author_name = authorName || 'Harsh Bansal';
     const user_id = req.user ? req.user.id : null;
+    if (req.user) {
+      const u = await db.getAsync(`SELECT name FROM users WHERE id = ?`, [req.user.id]);
+      author_name = u ? u.name : req.user.name;
+    }
 
     await db.runAsync(`
       INSERT INTO comments (id, post_id, user_id, author_name, text)
@@ -329,11 +443,11 @@ router.get('/community-stats', async (req, res) => {
 router.get('/trending-topics', async (req, res) => {
   try {
     const topics = await db.allAsync(`
-      SELECT category as name, COUNT(*) as count 
-      FROM posts 
+      SELECT category as name, COUNT(*) as count
+      FROM posts
       WHERE category IS NOT NULL AND category != ''
-      GROUP BY category 
-      ORDER BY count DESC 
+      GROUP BY category
+      ORDER BY count DESC
       LIMIT 6
     `);
 
@@ -473,7 +587,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     await db.runAsync(`
-      UPDATE posts 
+      UPDATE posts
       SET title = ?, subtitle = ?, content = ?, category = ?, theme = ?, cover_image = ?, read_time = ?
       WHERE id = ?
     `, [updatedTitle, updatedSubtitle, content.trim(), updatedCategory, updatedTheme, updatedCover, readTime, postId]);
