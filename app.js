@@ -398,8 +398,8 @@ class ReadoraApp {
         <div class="profile-stats">
           ${stat(p.stats.thoughts, 'Thoughts')}
           ${stat(p.stats.articles, 'Articles')}
-          ${stat(p.stats.followers, 'Followers', '#ef4444')}
-          ${stat(p.stats.following, 'Following', '#fda4af')}
+          ${stat(p.stats.followers, 'Followers', '#6366f1')}
+          ${stat(p.stats.following, 'Following', '#a5b4fc')}
         </div>
       </div>
 
