@@ -159,24 +159,27 @@ class ReadoraApp {
   }
 
   renderTrendingTopics(topics) {
-    const listEl = document.getElementById('trending-topics-list');
-    if (!listEl) return;
-    if (!topics || topics.length === 0) {
-      listEl.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.5rem 0; text-align: center;">Trending topics will appear here as publications are shared.</div>';
-      return;
-    }
-    listEl.innerHTML = topics.map(t => `
-      <div class="trending-topic-item" data-topic="${esc(t.name)}" style="cursor: pointer;">
-        <div>
-          <div class="topic-category">Topic</div>
-          <div class="topic-name">#${esc(t.name)}</div>
+    this.cachedTopics = topics;
+    ['trending-topics-list', 'explore-topics-list'].forEach(id => {
+      const listEl = document.getElementById(id);
+      if (!listEl) return;
+      if (!topics || topics.length === 0) {
+        listEl.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.5rem 0; text-align: center;">Trending topics will appear here as publications are shared.</div>';
+        return;
+      }
+      listEl.innerHTML = topics.map(t => `
+        <div class="trending-topic-item" data-topic="${esc(t.name)}" style="cursor: pointer;">
+          <div>
+            <div class="topic-category">Topic</div>
+            <div class="topic-name">#${esc(t.name)}</div>
+          </div>
+          <div class="topic-posts-count">${esc(t.count)} ${t.count === 1 ? 'post' : 'posts'}</div>
         </div>
-        <div class="topic-posts-count">${esc(t.count)} ${t.count === 1 ? 'post' : 'posts'}</div>
-      </div>
-    `).join('');
+      `).join('');
 
-    listEl.querySelectorAll('[data-topic]').forEach(el => {
-      el.addEventListener('click', () => this.setTopicFilter(el.dataset.topic));
+      listEl.querySelectorAll('[data-topic]').forEach(el => {
+        el.addEventListener('click', () => this.setTopicFilter(el.dataset.topic));
+      });
     });
   }
 
@@ -191,30 +194,46 @@ class ReadoraApp {
   }
 
   renderFeaturedCreators(creators) {
-    const listEl = document.getElementById('featured-creators-list');
-    if (!listEl) return;
-    if (!creators || creators.length === 0) {
-      listEl.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.5rem 0; text-align: center;">New creators will be highlighted here.</div>';
+    this.cachedCreators = creators;
+    ['featured-creators-list', 'explore-creators-list'].forEach(id => {
+      const listEl = document.getElementById(id);
+      if (!listEl) return;
+      if (!creators || creators.length === 0) {
+        listEl.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.5rem 0; text-align: center;">New creators will be highlighted here.</div>';
+        return;
+      }
+      listEl.innerHTML = creators.map(c => `
+        <div class="creator-item">
+          <a class="creator-left author-link" href="${profileLink(c.handle)}">
+            <div class="author-avatar" style="width: 34px; height: 34px; font-size: 0.8rem;">${esc(c.avatar)}</div>
+            <div>
+              <div class="creator-name">${esc(c.name)}</div>
+              <div class="creator-handle">${esc(c.handle)} • ${esc(c.followers)} ${c.followers === 1 ? 'follower' : 'followers'}</div>
+            </div>
+          </a>
+          <button class="btn-follow ${c.isFollowing ? 'following' : ''}" data-follow-id="${esc(c.id)}" style="${c.isFollowing ? 'background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: #fff;' : ''}">
+            ${c.isFollowing ? 'Following' : 'Follow'}
+          </button>
+        </div>
+      `).join('');
+
+      listEl.querySelectorAll('[data-follow-id]').forEach(btn => {
+        btn.addEventListener('click', () => this.toggleFollow(btn.dataset.followId));
+      });
+    });
+  }
+
+  filterExploreContent(query) {
+    if (!query) {
+      if (this.cachedTopics) this.renderTrendingTopics(this.cachedTopics);
+      if (this.cachedCreators) this.renderFeaturedCreators(this.cachedCreators);
       return;
     }
-    listEl.innerHTML = creators.map(c => `
-      <div class="creator-item">
-        <a class="creator-left author-link" href="${profileLink(c.handle)}">
-          <div class="author-avatar" style="width: 34px; height: 34px; font-size: 0.8rem;">${esc(c.avatar)}</div>
-          <div>
-            <div class="creator-name">${esc(c.name)}</div>
-            <div class="creator-handle">${esc(c.handle)} • ${esc(c.followers)} ${c.followers === 1 ? 'follower' : 'followers'}</div>
-          </div>
-        </a>
-        <button class="btn-follow ${c.isFollowing ? 'following' : ''}" data-follow-id="${esc(c.id)}" style="${c.isFollowing ? 'background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: #fff;' : ''}">
-          ${c.isFollowing ? 'Following' : 'Follow'}
-        </button>
-      </div>
-    `).join('');
-
-    listEl.querySelectorAll('[data-follow-id]').forEach(btn => {
-      btn.addEventListener('click', () => this.toggleFollow(btn.dataset.followId));
-    });
+    const q = query.toLowerCase();
+    const filteredTopics = (this.cachedTopics || []).filter(t => t.name.toLowerCase().includes(q));
+    const filteredCreators = (this.cachedCreators || []).filter(c => (c.name || '').toLowerCase().includes(q) || (c.handle || '').toLowerCase().includes(q));
+    this.renderTrendingTopics(filteredTopics);
+    this.renderFeaturedCreators(filteredCreators);
   }
 
   async toggleFollow(creatorId) {
@@ -283,12 +302,19 @@ class ReadoraApp {
     // Close any open pop-ups when the page changes
     document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
 
-    const m = /^#\/u\/(.+)$/.exec(window.location.hash || '');
+    const hash = window.location.hash || '';
+    const m = /^#\/u\/(.+)$/.exec(hash);
     if (m) {
       let handle = m[1];
       try { handle = decodeURIComponent(handle); } catch (e) {}
       this.route = { name: 'profile', handle };
       this.showProfileView(handle);
+    } else if (hash === '#/explore') {
+      this.route = { name: 'explore' };
+      this.showExploreView();
+    } else if (hash === '#/saved') {
+      this.route = { name: 'saved' };
+      this.showSavedView();
     } else {
       this.route = { name: 'home' };
       this.showFeedView();
@@ -296,19 +322,40 @@ class ReadoraApp {
   }
 
   setNavActive() {
+    const isProfile = this.isProfileActive();
+    const isExplore = this.route && this.route.name === 'explore';
+    const isSaved = this.currentFilter === 'saved' && !isProfile && !isExplore;
+    const isHome = !isProfile && !isExplore && !isSaved;
+
     const home = document.getElementById('nav-home-btn');
+    const explore = document.getElementById('nav-explore-btn');
+    const saved = document.getElementById('nav-saved-btn');
     const mine = document.getElementById('nav-profile-btn');
-    const isMine = this.isProfileActive() && this.currentUser && this.currentUser.handle &&
-      this.route.handle.replace(/^@/, '').toLowerCase() === this.currentUser.handle.replace(/^@/, '').toLowerCase();
-    if (home) home.classList.toggle('active', !this.isProfileActive());
+
+    const mobHome = document.getElementById('mob-nav-home');
+    const mobExplore = document.getElementById('mob-nav-explore');
+    const mobProfile = document.getElementById('mob-nav-profile');
+
+    const isMine = isProfile && this.currentUser && this.currentUser.handle &&
+      this.route.handle && this.route.handle.replace(/^@/, '').toLowerCase() === this.currentUser.handle.replace(/^@/, '').toLowerCase();
+
+    if (home) home.classList.toggle('active', isHome);
+    if (explore) explore.classList.toggle('active', isExplore);
+    if (saved) saved.classList.toggle('active', isSaved);
     if (mine) mine.classList.toggle('active', !!isMine);
+
+    if (mobHome) mobHome.classList.toggle('active', isHome);
+    if (mobExplore) mobExplore.classList.toggle('active', isExplore);
+    if (mobProfile) mobProfile.classList.toggle('active', isProfile);
   }
 
   showFeedView() {
     const feed = document.getElementById('feed-view');
     const prof = document.getElementById('profile-view');
+    const exp = document.getElementById('explore-view');
     if (feed) feed.style.display = '';
     if (prof) prof.style.display = 'none';
+    if (exp) exp.style.display = 'none';
     document.title = 'READORA | Where readers become creators';
     this.setNavActive();
     this.render();
@@ -317,12 +364,36 @@ class ReadoraApp {
   showProfileView(handle) {
     const feed = document.getElementById('feed-view');
     const prof = document.getElementById('profile-view');
+    const exp = document.getElementById('explore-view');
     if (feed) feed.style.display = 'none';
     if (prof) prof.style.display = 'flex';
+    if (exp) exp.style.display = 'none';
     this.setNavActive();
     window.scrollTo({ top: 0 });
     this.profileFilter = 'all';
     this.loadProfile(handle);
+  }
+
+  showExploreView() {
+    const feed = document.getElementById('feed-view');
+    const prof = document.getElementById('profile-view');
+    const exp = document.getElementById('explore-view');
+    if (feed) feed.style.display = 'none';
+    if (prof) prof.style.display = 'none';
+    if (exp) exp.style.display = 'flex';
+    document.title = 'Explore & Discover | READORA';
+    this.setNavActive();
+    window.scrollTo({ top: 0 });
+    if (this.cachedTopics) this.renderTrendingTopics(this.cachedTopics);
+    if (this.cachedCreators) this.renderFeaturedCreators(this.cachedCreators);
+  }
+
+  showSavedView() {
+    window.location.hash = '#/';
+    setTimeout(() => {
+      const tab = document.querySelector('.feed-tab[data-filter="saved"]');
+      if (tab) tab.click();
+    }, 50);
   }
 
   async loadProfile(handle, silent = false) {
@@ -513,11 +584,17 @@ class ReadoraApp {
     const nameEl = document.querySelector('.user-name-sm');
     const userBadge = document.getElementById('user-profile-badge');
 
+    const authText = document.getElementById('nav-auth-text');
+    const authBtn = document.getElementById('nav-auth-btn');
+
     if (isAuth && this.currentUser) {
       const initials = this.currentUser.avatar || (this.currentUser.name ? this.currentUser.name.substring(0, 2).toUpperCase() : 'CR');
       avatarEls.forEach(el => { el.textContent = initials; });
       if (nameEl) nameEl.textContent = this.currentUser.name ? this.currentUser.name.split(' ')[0] : 'Creator';
       if (userBadge) userBadge.title = `Logged in as ${this.currentUser.name}`;
+
+      if (authText) authText.textContent = 'Log Out';
+      if (authBtn) authBtn.title = 'Log Out of Readora';
 
       const modalAvatar = document.getElementById('profile-modal-avatar');
       if (modalAvatar) modalAvatar.textContent = initials;
@@ -539,6 +616,8 @@ class ReadoraApp {
       avatarEls.forEach(el => { el.textContent = '👤'; });
       if (nameEl) nameEl.textContent = 'Guest';
       if (userBadge) userBadge.title = 'Click to log in or register';
+      if (authText) authText.textContent = 'Log In / Sign Up';
+      if (authBtn) authBtn.title = 'Log In or Create an Account';
     }
     this.setNavActive();
   }
@@ -637,6 +716,110 @@ class ReadoraApp {
   }
 
   bindEvents() {
+    // Character counters for quick thought and photo caption
+    if (this.thoughtInput) {
+      const counterEl = document.getElementById('thought-char-count');
+      this.thoughtInput.addEventListener('input', () => {
+        const len = this.thoughtInput.value.length;
+        if (counterEl) {
+          counterEl.textContent = `${len} / 280`;
+          counterEl.classList.toggle('warning', len > 220 && len <= 280);
+          counterEl.classList.toggle('limit', len > 280);
+        }
+      });
+    }
+
+    if (this.photoCaptionInput) {
+      const counterEl = document.getElementById('photo-char-count');
+      this.photoCaptionInput.addEventListener('input', () => {
+        const len = this.photoCaptionInput.value.length;
+        if (counterEl) {
+          counterEl.textContent = `${len} / 280`;
+          counterEl.classList.toggle('warning', len > 220 && len <= 280);
+          counterEl.classList.toggle('limit', len > 280);
+        }
+      });
+    }
+
+    // Sidebar Navigation items
+    const navWriteBtn = document.getElementById('nav-write-btn');
+    if (navWriteBtn) {
+      navWriteBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.openModal(this.writeArticleModal);
+      });
+    }
+
+    const navNotifsBtn = document.getElementById('nav-notifs-btn');
+    if (navNotifsBtn) {
+      navNotifsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.openModal(this.notificationsModal);
+        this.loadNotifications();
+      });
+    }
+
+    const navSavedBtn = document.getElementById('nav-saved-btn');
+    if (navSavedBtn) {
+      navSavedBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showSavedView();
+      });
+    }
+
+    const navSettingsBtn = document.getElementById('nav-settings-btn');
+    if (navSettingsBtn) {
+      navSettingsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!this.requireLogin('Please log in to edit your profile!')) return;
+        this.openEditProfile();
+      });
+    }
+
+    const navAuthBtn = document.getElementById('nav-auth-btn');
+    if (navAuthBtn) {
+      navAuthBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (this.currentUser) {
+          this.logout();
+        } else {
+          window.location.href = 'practise.html';
+        }
+      });
+    }
+
+    // Mobile Bottom Navigation
+    const mobCreate = document.getElementById('mob-nav-create');
+    if (mobCreate) {
+      mobCreate.addEventListener('click', () => {
+        this.openModal(this.writeArticleModal);
+      });
+    }
+
+    const mobNotifs = document.getElementById('mob-nav-notifs');
+    if (mobNotifs) {
+      mobNotifs.addEventListener('click', () => {
+        this.openModal(this.notificationsModal);
+        this.loadNotifications();
+      });
+    }
+
+    const mobProfile = document.getElementById('mob-nav-profile');
+    if (mobProfile) {
+      mobProfile.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.goToMyProfile();
+      });
+    }
+
+    // Explore View Search
+    const exploreSearchInput = document.getElementById('explore-search-input');
+    if (exploreSearchInput) {
+      exploreSearchInput.addEventListener('input', (e) => {
+        this.filterExploreContent(e.target.value.trim());
+      });
+    }
+
     // Theme toggle button
     if (this.themeToggleBtn) {
       this.themeToggleBtn.addEventListener('click', () => this.toggleTheme());
@@ -834,28 +1017,45 @@ class ReadoraApp {
       comments: []
     };
 
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch('/api/posts/thought', {
-          method: 'POST',
-          headers: this.authHeaders(),
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.post) newThought = data.post;
-        }
-      } catch (e) {
-        console.log('Offline post save');
-      }
+    const publishBtn = this.publishThoughtBtn;
+    if (publishBtn) {
+      publishBtn.disabled = true;
+      publishBtn.style.opacity = '0.7';
+      publishBtn.innerHTML = '<span>Publishing...</span>';
     }
 
-    this.posts.unshift(newThought);
-    this.saveLocalPosts();
-    this.thoughtInput.value = '';
-    this.refresh();
-    this.showToast('✨ Thought published to Readora!');
+    try {
+      if (window.location.origin.startsWith('http')) {
+        try {
+          const res = await fetch('/api/posts/thought', {
+            method: 'POST',
+            headers: this.authHeaders(),
+            body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.post) newThought = data.post;
+          }
+        } catch (e) {
+          console.log('Offline post save');
+        }
+      }
+
+      this.posts.unshift(newThought);
+      this.saveLocalPosts();
+      this.thoughtInput.value = '';
+      const charCounter = document.getElementById('thought-char-count');
+      if (charCounter) charCounter.textContent = '0 / 280';
+      this.refresh();
+      this.showToast('✨ Thought published to Readora!');
+    } finally {
+      if (publishBtn) {
+        publishBtn.disabled = false;
+        publishBtn.style.opacity = '1';
+        publishBtn.innerHTML = '<span>Share Thought</span>';
+      }
+    }
   }
 
   async handleCreateArticle() {
@@ -908,27 +1108,42 @@ class ReadoraApp {
       comments: []
     };
 
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch('/api/posts/article', {
-          method: 'POST',
-          headers: this.authHeaders(),
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.post) newArticle = data.post;
-        }
-      } catch (e) {}
+    const submitBtn = this.articleForm ? this.articleForm.querySelector('button[type="submit"]') : null;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = '0.7';
+      submitBtn.textContent = 'Publishing to Readora...';
     }
 
-    this.posts.unshift(newArticle);
-    this.saveLocalPosts();
-    this.articleForm.reset();
-    this.writeArticleModal.classList.remove('active');
-    this.refresh();
-    this.showToast('📖 Article published successfully!');
+    try {
+      if (window.location.origin.startsWith('http')) {
+        try {
+          const res = await fetch('/api/posts/article', {
+            method: 'POST',
+            headers: this.authHeaders(),
+            body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.post) newArticle = data.post;
+          }
+        } catch (e) {}
+      }
+
+      this.posts.unshift(newArticle);
+      this.saveLocalPosts();
+      this.articleForm.reset();
+      this.writeArticleModal.classList.remove('active');
+      this.refresh();
+      this.showToast('📖 Article published successfully!');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.textContent = 'Publish to Readora';
+      }
+    }
   }
 
   async handleCreateImagePost() {
@@ -970,29 +1185,46 @@ class ReadoraApp {
       comments: []
     };
 
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch('/api/posts/image', {
-          method: 'POST',
-          headers: this.authHeaders(),
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.post) newImagePost = data.post;
-        }
-      } catch (e) {
-        console.log('Offline image post save');
-      }
+    const photoBtn = this.btnPublishPhoto;
+    if (photoBtn) {
+      photoBtn.disabled = true;
+      photoBtn.style.opacity = '0.7';
+      photoBtn.innerHTML = '<span>Publishing...</span>';
     }
 
-    this.posts.unshift(newImagePost);
-    this.saveLocalPosts();
-    if (this.photoUrlInput) this.photoUrlInput.value = '';
-    if (this.photoCaptionInput) this.photoCaptionInput.value = '';
-    if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'none';
-    this.refresh();
-    this.showToast('📸 Photo post shared to Readora!');
+    try {
+      if (window.location.origin.startsWith('http')) {
+        try {
+          const res = await fetch('/api/posts/image', {
+            method: 'POST',
+            headers: this.authHeaders(),
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.post) newImagePost = data.post;
+          }
+        } catch (e) {
+          console.log('Offline image post save');
+        }
+      }
+
+      this.posts.unshift(newImagePost);
+      this.saveLocalPosts();
+      if (this.photoUrlInput) this.photoUrlInput.value = '';
+      if (this.photoCaptionInput) this.photoCaptionInput.value = '';
+      if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'none';
+      const photoCounter = document.getElementById('photo-char-count');
+      if (photoCounter) photoCounter.textContent = '0 / 280';
+      this.refresh();
+      this.showToast('📸 Photo post shared to Readora!');
+    } finally {
+      if (photoBtn) {
+        photoBtn.disabled = false;
+        photoBtn.style.opacity = '1';
+        photoBtn.innerHTML = '<span>Share Photo</span>';
+      }
+    }
   }
 
   async loadNotifications() {
@@ -1002,15 +1234,20 @@ class ReadoraApp {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          const badge = document.getElementById('notif-badge');
-          if (badge) {
+          const badges = [
+            document.getElementById('notif-badge'),
+            document.getElementById('nav-notif-badge'),
+            document.getElementById('mob-notif-badge')
+          ];
+          badges.forEach(badge => {
+            if (!badge) return;
             if (data.unreadCount > 0) {
               badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
-              badge.style.display = 'flex';
+              badge.style.display = 'inline-flex';
             } else {
               badge.style.display = 'none';
             }
-          }
+          });
           this.notifications = data.notifications || [];
           this.renderNotificationsList();
         }
@@ -1397,7 +1634,7 @@ class ReadoraApp {
         ${this.renderCardHeader(post, '', 'Delete Photo')}
 
         <div class="photo-post-media">
-          ${cover ? `<img src="${esc(cover)}" class="photo-card-img" alt="Photo" loading="lazy" />` : ''}
+          ${cover ? `<img src="${esc(cover)}" class="photo-card-img" alt="Photo" loading="lazy" onerror="this.onerror=null; this.style.display='none';" />` : ''}
         </div>
         ${post.content ? `<div class="photo-post-caption"><span class="photo-caption-author">${esc(post.author)}</span> ${esc(post.content)}</div>` : ''}
 
@@ -1422,7 +1659,7 @@ class ReadoraApp {
         ${this.renderCardHeader(post, '', 'Delete Article')}
 
         <div class="article-content-body">
-          ${cover ? `<img src="${esc(cover)}" class="article-card-cover" alt="Article Cover" loading="lazy" />` : ''}
+          ${cover ? `<img src="${esc(cover)}" class="article-card-cover" alt="Article Cover" loading="lazy" onerror="this.onerror=null; this.style.display='none';" />` : ''}
           <h2 class="article-title">${esc(post.title)}</h2>
           ${post.subtitle ? `<div class="article-subtitle" style="font-size: 0.95rem; color: var(--text-dim); margin-bottom: 0.75rem; font-style: italic;">${esc(post.subtitle)}</div>` : ''}
           <p class="article-excerpt">${esc(post.excerpt)}</p>
