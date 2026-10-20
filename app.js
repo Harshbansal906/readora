@@ -146,6 +146,8 @@ class ReadoraApp {
             this.currentUser = meData.user;
             localStorage.setItem('readora_current_user', JSON.stringify(this.currentUser));
             this.updateUserUI();
+            this.initTheme();
+            this.loadNotifications();
           }
         }
       } else {
@@ -558,25 +560,40 @@ class ReadoraApp {
     this.composerCategory = document.getElementById('composer-category');
     this.themePills = document.querySelectorAll('.theme-pill');
 
+    // Photo Composer
+    this.btnPublishPhoto = document.getElementById('btn-publish-photo');
+    this.photoUrlInput = document.getElementById('photo-url-input');
+    this.photoCaptionInput = document.getElementById('photo-caption-input');
+    this.photoCategory = document.getElementById('photo-category');
+    this.photoPreviewBox = document.getElementById('photo-preview-box');
+    this.photoPreviewImg = document.getElementById('photo-preview-img');
+    this.composerTypeBtns = document.querySelectorAll('.composer-type-btn');
+    this.composerSections = document.querySelectorAll('.composer-section');
+
     // Modals
     this.writeArticleModal = document.getElementById('write-article-modal');
     this.readArticleModal = document.getElementById('read-article-modal');
     this.profileModal = document.getElementById('profile-modal');
     this.editProfileModal = document.getElementById('edit-profile-modal');
+    this.notificationsModal = document.getElementById('notifications-modal');
 
-    // Action Triggers
+    // Action Triggers & Nav
     this.btnOpenWriteArticle = document.getElementById('btn-open-write-article');
     this.btnWriteLongArticle = document.getElementById('btn-write-long-article');
     this.userBadge = document.getElementById('user-profile-badge');
     this.profileSidebarBtn = document.getElementById('nav-profile-btn');
     this.btnLogout = document.getElementById('btn-logout');
     this.btnViewProfile = document.getElementById('btn-view-profile');
+    this.themeToggleBtn = document.getElementById('theme-toggle-btn');
+    this.notifBtn = document.getElementById('btn-notifications');
+    this.btnMarkAllRead = document.getElementById('btn-mark-all-read');
 
     // Forms
     this.articleForm = document.getElementById('publish-article-form');
     this.editProfileForm = document.getElementById('edit-profile-form');
     this.toastEl = document.getElementById('toast');
 
+    this.initTheme();
     this.updateUserUI();
   }
 
@@ -593,7 +610,88 @@ class ReadoraApp {
     }
   }
 
+  initTheme() {
+    const saved = localStorage.getItem('readora_theme');
+    // If user is logged in, default to bright unless they explicitly chose dark
+    if (saved === 'bright' || (!saved && this.currentUser)) {
+      document.body.classList.add('theme-bright');
+      this.updateThemeButton(true);
+    } else {
+      document.body.classList.remove('theme-bright');
+      this.updateThemeButton(false);
+    }
+  }
+
+  toggleTheme() {
+    const isBright = document.body.classList.toggle('theme-bright');
+    localStorage.setItem('readora_theme', isBright ? 'bright' : 'dark');
+    this.updateThemeButton(isBright);
+    this.showToast(isBright ? '☀️ Bright Mode Enabled' : '🌙 Dark Mode Enabled');
+  }
+
+  updateThemeButton(isBright) {
+    if (!this.themeToggleBtn) return;
+    this.themeToggleBtn.innerHTML = isBright
+      ? `<span class="theme-icon">🌙</span><span class="theme-text">Dark</span>`
+      : `<span class="theme-icon">☀️</span><span class="theme-text">Bright</span>`;
+  }
+
   bindEvents() {
+    // Theme toggle button
+    if (this.themeToggleBtn) {
+      this.themeToggleBtn.addEventListener('click', () => this.toggleTheme());
+    }
+
+    // Notifications modal & mark all read
+    if (this.notifBtn) {
+      this.notifBtn.addEventListener('click', () => {
+        this.openModal(this.notificationsModal);
+        this.loadNotifications();
+      });
+    }
+    if (this.btnMarkAllRead) {
+      this.btnMarkAllRead.addEventListener('click', () => this.markAllNotificationsRead());
+    }
+
+    // Composer Mode Tabs (Thought | Photo | Article)
+    if (this.composerTypeBtns) {
+      this.composerTypeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mode = btn.dataset.mode;
+          if (mode === 'article') {
+            this.openModal(this.writeArticleModal);
+            return;
+          }
+          this.composerTypeBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          if (this.composerSections) {
+            this.composerSections.forEach(sec => sec.classList.remove('active'));
+          }
+          const targetSec = document.getElementById(`composer-sec-${mode}`);
+          if (targetSec) targetSec.classList.add('active');
+        });
+      });
+    }
+
+    // Photo URL live preview
+    if (this.photoUrlInput) {
+      this.photoUrlInput.addEventListener('input', () => {
+        const url = this.photoUrlInput.value.trim();
+        if (url && /^https?:\/\//i.test(url)) {
+          if (this.photoPreviewImg) this.photoPreviewImg.src = url;
+          if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'block';
+        } else {
+          if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'none';
+        }
+      });
+    }
+
+    // Photo Post Publish
+    if (this.btnPublishPhoto) {
+      this.btnPublishPhoto.addEventListener('click', () => this.handleCreateImagePost());
+    }
+
     // Quick thought publication
     if (this.publishThoughtBtn) {
       this.publishThoughtBtn.addEventListener('click', () => this.handleCreateThought());
@@ -833,6 +931,136 @@ class ReadoraApp {
     this.showToast('📖 Article published successfully!');
   }
 
+  async handleCreateImagePost() {
+    if (!this.requireLogin('Please log in to share a photo post!')) return;
+
+    const imageUrl = (this.photoUrlInput ? this.photoUrlInput.value : '').trim();
+    const caption = (this.photoCaptionInput ? this.photoCaptionInput.value : '').trim();
+    const category = this.photoCategory ? this.photoCategory.value : 'Visual';
+
+    if (!imageUrl) {
+      this.showToast('Please paste a valid Image URL!');
+      return;
+    }
+
+    const payload = {
+      imageUrl,
+      caption,
+      category,
+      authorName: this.currentUser.name,
+      authorHandle: this.currentUser.handle,
+      authorAvatar: this.currentUser.avatar
+    };
+
+    let newImagePost = {
+      id: 'image_' + Date.now(),
+      type: 'image',
+      author_id: this.currentUser.id,
+      author: this.currentUser.name,
+      handle: this.currentUser.handle,
+      avatar: this.currentUser.avatar,
+      timestamp: 'Just now',
+      content: caption,
+      coverImage: imageUrl,
+      category: category,
+      likes: 0,
+      likedByUser: false,
+      bookmarks: 0,
+      bookmarkedByUser: false,
+      comments: []
+    };
+
+    if (window.location.origin.startsWith('http')) {
+      try {
+        const res = await fetch('/api/posts/image', {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.post) newImagePost = data.post;
+        }
+      } catch (e) {
+        console.log('Offline image post save');
+      }
+    }
+
+    this.posts.unshift(newImagePost);
+    this.saveLocalPosts();
+    if (this.photoUrlInput) this.photoUrlInput.value = '';
+    if (this.photoCaptionInput) this.photoCaptionInput.value = '';
+    if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'none';
+    this.refresh();
+    this.showToast('📸 Photo post shared to Readora!');
+  }
+
+  async loadNotifications() {
+    if (!this.token) return;
+    try {
+      const res = await fetch('/api/posts/notifications/list', { headers: this.authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          const badge = document.getElementById('notif-badge');
+          if (badge) {
+            if (data.unreadCount > 0) {
+              badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
+              badge.style.display = 'flex';
+            } else {
+              badge.style.display = 'none';
+            }
+          }
+          this.notifications = data.notifications || [];
+          this.renderNotificationsList();
+        }
+      }
+    } catch (e) {
+      console.log('Error fetching notifications:', e);
+    }
+  }
+
+  renderNotificationsList() {
+    const container = document.getElementById('notifications-list');
+    if (!container) return;
+    if (!this.notifications || this.notifications.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding: 2.5rem 1rem; color: var(--text-dim); font-size: 0.9rem;">
+          No notifications yet. When people like, comment, or follow you, they will appear here!
+        </div>`;
+      return;
+    }
+    container.innerHTML = this.notifications.map(n => {
+      let icon = '🔔';
+      if (n.type === 'like') icon = '❤️';
+      else if (n.type === 'comment') icon = '💬';
+      else if (n.type === 'follow') icon = '👥';
+
+      return `
+        <div class="notif-item ${n.is_read ? '' : 'unread'}">
+          <div class="notif-icon-circle">${icon}</div>
+          <div class="notif-text">
+            <strong>${esc(n.actor_name)}</strong> ${esc(n.message.replace(n.actor_name, '').trim())}
+            <div class="notif-time">${esc(n.created_at ? new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Recently')}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async markAllNotificationsRead() {
+    if (!this.token) return;
+    try {
+      await fetch('/api/posts/notifications/read-all', { method: 'POST', headers: this.authHeaders() });
+      const badge = document.getElementById('notif-badge');
+      if (badge) badge.style.display = 'none';
+      if (this.notifications) {
+        this.notifications.forEach(n => n.is_read = 1);
+        this.renderNotificationsList();
+      }
+    } catch (e) {}
+  }
+
   async toggleLike(postId) {
     const post = this.posts.find(p => p.id === postId);
     if (!post) return;
@@ -990,6 +1218,7 @@ class ReadoraApp {
     let filtered = this.posts.filter(post => {
       if (this.currentFilter === 'thoughts' && post.type !== 'thought') return false;
       if (this.currentFilter === 'articles' && post.type !== 'article') return false;
+      if (this.currentFilter === 'images' && post.type !== 'image') return false;
       if (this.currentFilter === 'saved' && !post.bookmarkedByUser) return false;
       if (this.currentFilter === 'following' && !(this.followingIds && this.followingIds.has(post.id))) return false;
       if (['tech', 'philosophy', 'creative', 'stories'].includes(this.currentFilter.toLowerCase())) {
@@ -1070,7 +1299,9 @@ class ReadoraApp {
   // ---------- Post cards ----------
 
   renderPostCard(post) {
-    return post.type === 'thought' ? this.renderThoughtCard(post) : this.renderArticleCard(post);
+    if (post.type === 'thought') return this.renderThoughtCard(post);
+    if (post.type === 'image') return this.renderImageCard(post);
+    return this.renderArticleCard(post);
   }
 
   renderCardHeader(post, metaExtra, deleteTitle) {
@@ -1159,15 +1390,41 @@ class ReadoraApp {
     `;
   }
 
-  renderArticleCard(post) {
+  renderImageCard(post) {
     const cover = safeUrl(post.coverImage);
     return `
       <article class="thought-card" data-id="${esc(post.id)}">
-        ${this.renderCardHeader(post, ' • ' + esc(post.readTime || '3 min read'), 'Delete Article')}
+        ${this.renderCardHeader(post, '', 'Delete Photo')}
+
+        <div class="photo-post-media">
+          ${cover ? `<img src="${esc(cover)}" class="photo-card-img" alt="Photo" loading="lazy" />` : ''}
+        </div>
+        ${post.content ? `<div class="photo-post-caption"><span class="photo-caption-author">${esc(post.author)}</span> ${esc(post.content)}</div>` : ''}
+
+        ${this.renderActionBar(post)}
+        ${this.renderCommentsDrawer(post)}
+      </article>
+    `;
+  }
+
+  renderArticleCard(post) {
+    const cover = safeUrl(post.coverImage);
+    return `
+      <article class="thought-card article-card" data-id="${esc(post.id)}">
+        <div style="padding: 0 0 0.5rem 0;">
+          <div class="article-badge-row">
+            <span>📖 In-Depth Read</span>
+            <span>•</span>
+            <span>${esc(post.readTime || '3 min read')}</span>
+          </div>
+        </div>
+
+        ${this.renderCardHeader(post, '', 'Delete Article')}
 
         <div class="article-content-body">
-          ${cover ? `<img src="${esc(cover)}" class="article-card-cover" alt="Article Cover" />` : ''}
+          ${cover ? `<img src="${esc(cover)}" class="article-card-cover" alt="Article Cover" loading="lazy" />` : ''}
           <h2 class="article-title">${esc(post.title)}</h2>
+          ${post.subtitle ? `<div class="article-subtitle" style="font-size: 0.95rem; color: var(--text-dim); margin-bottom: 0.75rem; font-style: italic;">${esc(post.subtitle)}</div>` : ''}
           <p class="article-excerpt">${esc(post.excerpt)}</p>
           <div class="read-more-btn btn-read-article" data-id="${esc(post.id)}">
             Read Full Article ➔
@@ -1319,6 +1576,32 @@ class ReadoraAI {
       const data = await this._aiCall('improve', { text: body.value, type: 'article' });
       body.value = data.improved;
       this._setStatus(status, '✅ Article improved!');
+      setTimeout(() => this._setStatus(status, ''), 4000);
+    } catch (e) {
+      this._setStatus(status, '❌ ' + e.message, true);
+      setTimeout(() => this._setStatus(status, ''), 5000);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 1c. AI CAPTION ASSISTANT — Photo Post
+  // ─────────────────────────────────────────────────────────────────
+  async improvePhotoCaption() {
+    const input = document.getElementById('photo-caption-input');
+    const btn = document.getElementById('btn-ai-improve-photo');
+    const status = document.getElementById('ai-photo-status');
+    if (!input || !input.value.trim()) {
+      this._setStatus(status, '⚠️ Write a rough caption first!', true);
+      return;
+    }
+    btn.disabled = true;
+    this._setStatus(status, '✨ AI is polishing your caption...');
+    try {
+      const data = await this._aiCall('improve', { text: input.value, type: 'thought' });
+      input.value = data.improved;
+      this._setStatus(status, '✅ Caption improved!');
       setTimeout(() => this._setStatus(status, ''), 4000);
     } catch (e) {
       this._setStatus(status, '❌ ' + e.message, true);
@@ -1573,6 +1856,10 @@ class ReadoraAI {
 
       const btnCategoryThought = document.getElementById('btn-ai-category-thought');
       if (btnCategoryThought) btnCategoryThought.addEventListener('click', () => this.suggestCategoryThought());
+
+      // Photo composer AI caption button
+      const btnImprovePhoto = document.getElementById('btn-ai-improve-photo');
+      if (btnImprovePhoto) btnImprovePhoto.addEventListener('click', () => this.improvePhotoCaption());
 
       // Article modal AI buttons
       const btnImproveArticle = document.getElementById('btn-ai-improve-article');

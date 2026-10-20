@@ -140,6 +140,22 @@ async function initDB() {
       )
     `);
 
+    // 8. Notifications Table (Likes, Comments, Follows)
+    await db.runAsync(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,          -- Recipient of the notification
+        actor_id TEXT NOT NULL,         -- Who triggered it
+        actor_name TEXT NOT NULL,
+        actor_avatar TEXT,
+        type TEXT NOT NULL,             -- 'like', 'comment', 'follow'
+        post_id TEXT,                   -- Associated post (if any)
+        message TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Seed clean initial data if database is brand new
     const adminUser = await db.getAsync(`SELECT id FROM users WHERE id = 'usr_harsh'`);
     if (!adminUser) {

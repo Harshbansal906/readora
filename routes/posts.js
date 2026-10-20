@@ -314,6 +314,57 @@ router.post('/article', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/posts/image - Publish photo/image social post (Instagram style)
+router.post('/image', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const { caption, imageUrl, category } = req.body;
+
+    if (!imageUrl || !imageUrl.trim()) {
+      return res.status(400).json({ success: false, message: 'Image URL is required.' });
+    }
+
+    const postId = 'image_' + Date.now();
+    const author = await resolveAuthor(req, req.body);
+
+    await db.runAsync(`
+      INSERT INTO posts (id, type, author_id, author_name, author_handle, author_avatar, content, cover_image, category, likes_count, bookmarks_count)
+      VALUES (?, 'image', ?, ?, ?, ?, ?, ?, ?, 0, 0)
+    `, [
+      postId,
+      author.id,
+      author.name,
+      author.handle,
+      author.avatar,
+      (caption || '').trim(),
+      imageUrl.trim(),
+      category || 'Visual'
+    ]);
+
+    const newPost = {
+      id: postId,
+      type: 'image',
+      author_id: author.id,
+      author: author.name,
+      handle: author.handle,
+      avatar: author.avatar,
+      content: (caption || '').trim(),
+      coverImage: imageUrl.trim(),
+      category: category || 'Visual',
+      likes: 0,
+      likedByUser: false,
+      bookmarks: 0,
+      bookmarkedByUser: false,
+      timestamp: 'Just now',
+      comments: []
+    };
+
+    res.status(201).json({ success: true, message: 'Photo post shared successfully!', post: newPost });
+  } catch (error) {
+    console.error('Create image post error:', error);
+    res.status(500).json({ success: false, message: 'Failed to share photo post.' });
+  }
+});
+
 // POST /api/posts/:id/like - Toggle Like
 router.post('/:id/like', optionalAuthMiddleware, async (req, res) => {
   try {
@@ -335,6 +386,23 @@ router.post('/:id/like', optionalAuthMiddleware, async (req, res) => {
     } else {
       await db.runAsync(`INSERT INTO likes (id, user_id, post_id) VALUES (?, ?, ?)`, ['like_' + Date.now(), userId, postId]);
       await db.runAsync(`UPDATE posts SET likes_count = likes_count + 1 WHERE id = ?`, [postId]);
+      
+      // Notify post author if different user
+      if (req.user && post.author_id && post.author_id !== req.user.id) {
+        await db.runAsync(`
+          INSERT INTO notifications (id, user_id, actor_id, actor_name, actor_avatar, type, post_id, message)
+          VALUES (?, ?, ?, ?, ?, 'like', ?, ?)
+        `, [
+          'notif_' + Date.now(),
+          post.author_id,
+          req.user.id,
+          req.user.name,
+          req.user.avatar || 'CR',
+          postId,
+          `${req.user.name} liked your ${post.type || 'post'}`
+        ]).catch(() => {});
+      }
+
       const updated = await db.getAsync(`SELECT likes_count FROM posts WHERE id = ?`, [postId]);
       return res.json({ success: true, liked: true, likes: updated ? updated.likes_count : 1 });
     }
@@ -401,6 +469,22 @@ router.post('/:id/comment', optionalAuthMiddleware, async (req, res) => {
       INSERT INTO comments (id, post_id, user_id, author_name, text)
       VALUES (?, ?, ?, ?, ?)
     `, [commentId, postId, user_id, author_name, text.trim()]);
+
+    // Notify post author if different user
+    if (post.author_id && (!user_id || post.author_id !== user_id)) {
+      await db.runAsync(`
+        INSERT INTO notifications (id, user_id, actor_id, actor_name, actor_avatar, type, post_id, message)
+        VALUES (?, ?, ?, ?, ?, 'comment', ?, ?)
+      `, [
+        'notif_' + Date.now(),
+        post.author_id,
+        user_id || 'guest',
+        author_name,
+        (author_name || 'CR').substring(0, 2).toUpperCase(),
+        postId,
+        `${author_name} commented on your ${post.type || 'post'}`
+      ]).catch(() => {});
+    }
 
     res.status(201).json({
       success: true,
@@ -537,6 +621,20 @@ router.post('/follow/:userId', authMiddleware, async (req, res) => {
         `INSERT INTO follows (id, follower_id, following_id) VALUES (?, ?, ?)`,
         ['fol_' + Date.now(), followerId, targetUserId]
       );
+      
+      // Notify target user
+      await db.runAsync(`
+        INSERT INTO notifications (id, user_id, actor_id, actor_name, actor_avatar, type, message)
+        VALUES (?, ?, ?, ?, ?, 'follow', ?)
+      `, [
+        'notif_' + Date.now(),
+        targetUserId,
+        followerId,
+        req.user.name,
+        req.user.avatar || 'CR',
+        `${req.user.name} started following you`
+      ]).catch(() => {});
+
       const followerCount = await db.getAsync(`SELECT COUNT(*) as count FROM follows WHERE following_id = ?`, [targetUserId]);
       return res.json({
         success: true,
@@ -638,6 +736,46 @@ router.delete('/:id', optionalAuthMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Delete post error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete post.' });
+  }
+});
+
+// GET /api/posts/notifications - Fetch user notifications
+router.get('/notifications/list', authMiddleware, async (req, res) => {
+  try {
+    const list = await db.allAsync(`
+      SELECT * FROM notifications
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 30
+    `, [req.user.id]);
+
+    const unreadCountRow = await db.getAsync(`
+      SELECT COUNT(*) as count FROM notifications
+      WHERE user_id = ? AND is_read = 0
+    `, [req.user.id]);
+
+    res.json({
+      success: true,
+      unreadCount: unreadCountRow ? unreadCountRow.count : 0,
+      notifications: list || []
+    });
+  } catch (error) {
+    console.error('Fetch notifications error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch notifications.' });
+  }
+});
+
+// POST /api/posts/notifications/read-all - Mark all notifications as read
+router.post('/notifications/read-all', authMiddleware, async (req, res) => {
+  try {
+    await db.runAsync(`
+      UPDATE notifications SET is_read = 1 WHERE user_id = ?
+    `, [req.user.id]);
+
+    res.json({ success: true, message: 'Notifications marked as read.' });
+  } catch (error) {
+    console.error('Mark notifications read error:', error);
+    res.status(500).json({ success: false, message: 'Failed to mark notifications.' });
   }
 });
 
