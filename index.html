@@ -175,28 +175,18 @@
           </div>
           <div id="ai-thought-status" class="ai-status-text" style="display:none; padding: 0.4rem 0.5rem;"></div>
 
-          <!-- Gradient Card Theme Picker -->
-          <div style="margin-top: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="font-size: 0.8rem; color: var(--text-dim);">Card Theme:</span>
-              <div class="theme-picker-row" style="margin-bottom: 0;">
-                <div class="theme-pill theme-crimson selected" data-theme="theme-crimson" title="Royal Indigo"></div>
-                <div class="theme-pill theme-midnight" data-theme="theme-midnight" title="Midnight Cosmos"></div>
-                <div class="theme-pill theme-amber" data-theme="theme-amber" title="Amber Glow"></div>
-                <div class="theme-pill theme-emerald" data-theme="theme-emerald" title="Emerald Mystic"></div>
-                <div class="theme-pill theme-classic" data-theme="theme-classic" title="Classic Minimal"></div>
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="font-size: 0.8rem; color: var(--text-dim);">Topic:</span>
-              <select id="composer-category" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-glass); color: inherit; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
+          <!-- Clean Topic Selector -->
+          <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+              <span style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600;">Topic:</span>
+              <select id="composer-category" style="background: var(--bg-card); border: 1px solid var(--border-input); color: var(--text-primary); padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.825rem; font-weight: 600;">
                 <option value="General">General</option>
-                <option value="Tech">Tech & Code</option>
-                <option value="Philosophy">Philosophy</option>
-                <option value="Creative">Poetry & Art</option>
-                <option value="Life">Life Lessons</option>
-                <option value="Books">Books & Literature</option>
+                <option value="Technology">Technology</option>
+                <option value="Programming">Programming</option>
+                <option value="Artificial Intelligence">Artificial Intelligence</option>
+                <option value="Productivity">Productivity</option>
+                <option value="Career">Career</option>
+                <option value="Science">Science</option>
               </select>
             </div>
           </div>
@@ -240,11 +230,11 @@
 
           <div class="composer-toolbar" style="margin-top: 0.85rem;">
             <div class="composer-options">
-              <select id="photo-category" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-glass); color: inherit; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
+              <select id="photo-category" style="background: var(--bg-card); border: 1px solid var(--border-input); color: var(--text-primary); padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.825rem; font-weight: 600;">
                 <option value="Visual">Photography</option>
+                <option value="Technology">Technology</option>
                 <option value="Art">Creative Art</option>
-                <option value="Travel">Travel & Life</option>
-                <option value="Design">Design & Aesthetics</option>
+                <option value="Science">Science</option>
               </select>
               <button id="btn-ai-improve-photo" class="composer-chip-btn ai-chip-btn" title="Let AI polish your caption">
                 <span>✨ AI Caption</span>
@@ -273,14 +263,14 @@
 
       <!-- Feed Category Filter Tabs (Articles prominent!) -->
       <div class="feed-filter-bar">
-        <button class="feed-tab active" data-filter="all">🌟 All Stream</button>
-        <button class="feed-tab" data-filter="articles">📖 Articles & Reads</button>
-        <button class="feed-tab" data-filter="thoughts">💭 Thoughts Only</button>
-        <button class="feed-tab" data-filter="images">📸 Photos Only</button>
+        <button class="feed-tab active" data-filter="all">🌟 All Feed</button>
+        <button class="feed-tab" data-filter="articles">📖 Articles</button>
+        <button class="feed-tab" data-filter="thoughts">💭 Thoughts</button>
+        <button class="feed-tab" data-filter="images">📸 Photos</button>
         <button class="feed-tab" data-filter="following">👥 Following</button>
-        <button class="feed-tab" data-filter="saved">🔖 Saved Bookmarks</button>
-        <button class="feed-tab" data-filter="tech">🚀 Tech</button>
-        <button class="feed-tab" data-filter="philosophy">💡 Philosophy</button>
+        <button class="feed-tab" data-filter="tech">🚀 Technology</button>
+        <button class="feed-tab" data-filter="productivity">💡 Productivity</button>
+        <button class="feed-tab" data-filter="saved">🔖 Saved</button>
       </div>
 
       <!-- Dynamic Post Feed -->
@@ -338,12 +328,14 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
           <div class="form-group">
             <label>Category</label>
-            <select id="article-category-input" class="form-input" style="background: #170d10;">
-              <option value="Tech">Tech & Engineering</option>
-              <option value="Productivity">Productivity & Mindset</option>
-              <option value="Philosophy">Philosophy</option>
-              <option value="Design">Design & Architecture</option>
-              <option value="Story">Storytelling</option>
+            <select id="article-category-input" class="form-input">
+              <option value="Technology">Technology</option>
+              <option value="Programming">Programming</option>
+              <option value="Artificial Intelligence">Artificial Intelligence</option>
+              <option value="Productivity">Productivity</option>
+              <option value="Career">Career</option>
+              <option value="Science">Science</option>
+              <option value="General">General</option>
             </select>
           </div>
           <div class="form-group">

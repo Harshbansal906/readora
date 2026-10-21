@@ -691,28 +691,28 @@ class ReadoraApp {
 
   initTheme() {
     const saved = localStorage.getItem('readora_theme');
-    // If user is logged in, default to bright unless they explicitly chose dark
-    if (saved === 'bright' || (!saved && this.currentUser)) {
-      document.body.classList.add('theme-bright');
+    // Light theme is the default design system
+    if (saved === 'dark') {
+      document.body.classList.add('theme-dark');
       this.updateThemeButton(true);
     } else {
-      document.body.classList.remove('theme-bright');
+      document.body.classList.remove('theme-dark');
       this.updateThemeButton(false);
     }
   }
 
   toggleTheme() {
-    const isBright = document.body.classList.toggle('theme-bright');
-    localStorage.setItem('readora_theme', isBright ? 'bright' : 'dark');
-    this.updateThemeButton(isBright);
-    this.showToast(isBright ? '☀️ Bright Mode Enabled' : '🌙 Dark Mode Enabled');
+    const isDark = document.body.classList.toggle('theme-dark');
+    localStorage.setItem('readora_theme', isDark ? 'dark' : 'light');
+    this.updateThemeButton(isDark);
+    this.showToast(isDark ? '🌙 Dark Mode Enabled' : '☀️ Light Mode Enabled');
   }
 
-  updateThemeButton(isBright) {
+  updateThemeButton(isDark) {
     if (!this.themeToggleBtn) return;
-    this.themeToggleBtn.innerHTML = isBright
-      ? `<span class="theme-icon">🌙</span><span class="theme-text">Dark</span>`
-      : `<span class="theme-icon">☀️</span><span class="theme-text">Bright</span>`;
+    this.themeToggleBtn.innerHTML = isDark
+      ? `<span class="theme-icon">☀️</span><span class="theme-text">Light</span>`
+      : `<span class="theme-icon">🌙</span><span class="theme-text">Dark</span>`;
   }
 
   bindEvents() {
@@ -1541,10 +1541,23 @@ class ReadoraApp {
     return this.renderArticleCard(post);
   }
 
+  getCategoryClass(category) {
+    const c = String(category || '').toLowerCase();
+    if (c.includes('tech')) return 'card-tag-tech';
+    if (c.includes('code') || c.includes('program')) return 'card-tag-code';
+    if (c.includes('ai') || c.includes('intelligence')) return 'card-tag-ai';
+    if (c.includes('product') || c.includes('life')) return 'card-tag-productivity';
+    if (c.includes('career') || c.includes('job')) return 'card-tag-career';
+    if (c.includes('science') || c.includes('philo')) return 'card-tag-science';
+    return 'card-tag-general';
+  }
+
   renderCardHeader(post, metaExtra, deleteTitle) {
     const isOwner = this.isPostAuthor(post);
+    const catClass = this.getCategoryClass(post.category);
+    const initials = post.avatar || (post.author ? post.author.substring(0, 2).toUpperCase() : 'CR');
     const authorBlock = `
-      <div class="author-avatar">${esc(post.avatar || 'CR')}</div>
+      <div class="author-avatar">${esc(initials)}</div>
       <div>
         <div class="author-name">${esc(post.author)}</div>
         <div class="post-meta">${esc(post.handle)} • ${esc(post.timestamp || 'Recently')}${metaExtra}</div>
@@ -1555,9 +1568,9 @@ class ReadoraApp {
           ? `<a class="card-author-info author-link" href="${profileLink(post.handle)}">${authorBlock}</a>`
           : `<div class="card-author-info">${authorBlock}</div>`}
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span class="card-tag">${esc(post.category)}</span>
+          <span class="card-tag ${catClass}">${esc(post.category || 'General')}</span>
           ${isOwner ? `
-            <button class="btn-delete-post" data-id="${esc(post.id)}" title="${deleteTitle}" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
+            <button class="btn-delete-post" data-id="${esc(post.id)}" title="${deleteTitle}" style="background: transparent; border: 1px solid var(--border-default); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
           ` : ''}
@@ -1615,10 +1628,8 @@ class ReadoraApp {
       <article class="thought-card" data-id="${esc(post.id)}">
         ${this.renderCardHeader(post, '', 'Delete Thought')}
 
-        <div class="thought-canvas ${esc(post.theme || 'theme-crimson')}">
-          <div class="thought-quote-icon">“</div>
+        <div class="thought-canvas">
           <p class="thought-text">${esc(post.content)}</p>
-          <div class="thought-author-signature">— ${esc(post.author)}</div>
         </div>
 
         ${this.renderActionBar(post)}
