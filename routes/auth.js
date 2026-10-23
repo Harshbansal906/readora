@@ -26,6 +26,7 @@ async function isEmailDomainValid(email) {
   // 3. Known trusted mail services (instant pass)
   const trusted = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'proton.me', 'protonmail.com', 'zoho.com', 'aol.com', 'live.com', 'msn.com', 'rediffmail.com', 'yandex.com'];
   if (trusted.includes(domain)) return true;
+  if (!IS_PROD && (domain.endsWith('.test') || domain === 'readora.app' || domain === 'localhost' || domain === 'example.org')) return true;
 
   // 4. Live DNS MX (Mail Exchange) lookup for custom domains
   try {

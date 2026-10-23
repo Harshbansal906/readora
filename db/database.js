@@ -156,6 +156,52 @@ async function initDB() {
       )
     `);
 
+    // 9. Drafts Table for Article Publishing
+    await db.runAsync(`
+      CREATE TABLE IF NOT EXISTS drafts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT,
+        subtitle TEXT,
+        content TEXT,
+        category TEXT DEFAULT 'General',
+        cover_image TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id)
+      )
+    `);
+
+    // 10. Article Views Table (Deduplicated view tracking)
+    await db.runAsync(`
+      CREATE TABLE IF NOT EXISTS article_views (
+        id TEXT PRIMARY KEY,
+        post_id TEXT NOT NULL,
+        viewer_key TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(post_id, viewer_key)
+      )
+    `);
+
+    // Add views_count column to posts if not exists
+    try {
+      await db.runAsync(`ALTER TABLE posts ADD COLUMN views_count INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+
+    // High Performance Database Indexes
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_users_handle ON users(handle)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_likes_post ON likes(post_id)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_follows_pair ON follows(follower_id, following_id)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC)`);
+    await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_article_views_post ON article_views(post_id)`);
+
     // Seed clean initial data if database is brand new
     const adminUser = await db.getAsync(`SELECT id FROM users WHERE id = 'usr_harsh'`);
     if (!adminUser) {

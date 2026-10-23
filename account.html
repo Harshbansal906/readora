@@ -8,66 +8,104 @@
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/x-icon" href="https://www.bing.com/th/id/OIP.kTjssfQu3vohsl0CrLhGyAHaHa?w=183&h=211&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2">
   <style>
-    /* Clean Instagram/Modern Auth Aesthetic */
+    /* Clean Instagram/Threads Style Light Auth Aesthetic */
+    :root {
+      --bg-page: #f4f7fb;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f8fafc;
+      --border-color: #e6ebf2;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #64748b;
+      --accent-primary: #2f6df6;
+      --accent-hover: #2459d6;
+      --accent-tint: #e8f0ff;
+      --accent-gradient: linear-gradient(135deg, #3b7bff 0%, #2f6df6 100%);
+      --accent-gradient-hover: linear-gradient(135deg, #2f6df6 0%, #2459d6 100%);
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-brand: 'Plus Jakarta Sans', var(--font-ui);
+      --font-reading: 'Lora', Georgia, serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg-page);
+      font-family: var(--font-ui);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
     .ig-auth-container {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 1.5rem;
+      padding: 2rem 1.5rem;
       position: relative;
-      background: radial-gradient(ellipse at center top, #36070d 0%, #110305 50%, #060102 100%);
+      background: var(--bg-page);
+      background-image:
+        radial-gradient(circle at 15% 20%, rgba(227, 239, 255, 0.6) 0%, transparent 40%),
+        radial-gradient(circle at 85% 75%, rgba(236, 235, 250, 0.6) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(228, 246, 241, 0.4) 0%, transparent 50%);
+      background-attachment: fixed;
     }
 
     .ig-card {
       width: 100%;
-      max-width: 420px;
-      background: rgba(22, 11, 14, 0.9);
-      border: 1px solid rgba(239, 68, 68, 0.28);
-      border-radius: var(--radius-lg, 14px);
+      max-width: 440px;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
       padding: 2.5rem 2.25rem;
       text-align: center;
-      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.04), 0 20px 40px -10px rgba(15, 23, 42, 0.08);
+      box-sizing: border-box;
       transition: all 0.3s ease;
     }
 
     .ig-logo {
-      font-family: var(--font-brand, system-ui);
-      font-size: 2.5rem;
-      font-weight: 900;
-      letter-spacing: -1px;
-      background: linear-gradient(90deg, #ffffff, #c7d2fe, #6366f1);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      font-family: var(--font-brand);
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-main);
       margin-bottom: 0.25rem;
     }
 
+    .ig-logo::after {
+      content: " •";
+      color: var(--accent-primary);
+    }
+
     .ig-tagline {
-      font-size: 0.9rem;
-      color: var(--text-dim, #94a3b8);
+      font-family: var(--font-reading);
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--text-muted);
       margin-bottom: 1.75rem;
       line-height: 1.4;
     }
 
     .ig-step-header {
-      font-size: 1.25rem;
+      font-family: var(--font-brand);
+      font-size: 1.35rem;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--text-main);
       margin-bottom: 0.4rem;
+      letter-spacing: -0.3px;
     }
 
     .ig-step-desc {
-      font-size: 0.85rem;
-      color: var(--text-dim, #94a3b8);
+      font-size: 0.9rem;
+      color: var(--text-muted);
       margin-bottom: 1.5rem;
       line-height: 1.5;
     }
 
     .ig-input-group {
-      margin-bottom: 1rem;
+      margin-bottom: 1.15rem;
       text-align: left;
       position: relative;
     }
@@ -76,7 +114,7 @@
       display: block;
       font-size: 0.8rem;
       font-weight: 600;
-      color: #cbd5e1;
+      color: var(--text-main);
       margin-bottom: 0.4rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -84,41 +122,42 @@
 
     .ig-input {
       width: 100%;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: var(--radius-sm, 8px);
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
       padding: 0.85rem 1rem;
-      color: #ffffff;
-      font-size: 0.92rem;
+      color: var(--text-main);
+      font-size: 0.95rem;
       box-sizing: border-box;
       transition: all 0.2s ease;
+      font-family: var(--font-ui);
+      outline: none;
     }
 
     .ig-input:focus {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: #6366f1;
-      box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
-      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px var(--accent-tint);
     }
 
     .ig-btn-primary {
       width: 100%;
-      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      background: var(--accent-gradient);
       color: #ffffff;
       font-weight: 700;
       font-size: 0.95rem;
-      padding: 0.9rem;
-      border-radius: var(--radius-sm, 8px);
+      padding: 0.85rem 1.25rem;
+      border-radius: 10px;
       margin-top: 0.75rem;
       cursor: pointer;
       border: none;
-      box-shadow: 0 4px 18px rgba(239, 68, 68, 0.4);
+      box-shadow: 0 2px 8px rgba(47, 109, 246, 0.25);
       transition: all 0.2s ease;
+      font-family: var(--font-ui);
     }
 
     .ig-btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 22px rgba(239, 68, 68, 0.6);
+      background: var(--accent-gradient-hover);
+      transform: translateY(-1px);
     }
 
     .ig-btn-primary:disabled {
@@ -142,28 +181,27 @@
       font-size: 1.5rem;
       font-weight: 800;
       text-align: center;
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: var(--radius-sm, 8px);
+      color: var(--text-main);
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
       font-family: monospace;
       transition: all 0.2s ease;
-    }
-
-    .ig-otp-digit:focus {
-      border-color: #6366f1;
-      background: rgba(255, 255, 255, 0.15);
-      box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
       outline: none;
     }
 
+    .ig-otp-digit:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px var(--accent-tint);
+    }
+
     .ig-alert {
-      background: rgba(239, 68, 68, 0.18);
-      border: 1px solid #6366f1;
-      color: #ff9999;
-      padding: 0.75rem;
-      border-radius: var(--radius-sm, 8px);
-      font-size: 0.85rem;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
       margin-bottom: 1.25rem;
       text-align: center;
       display: none;
@@ -171,12 +209,12 @@
     }
 
     .ig-success-box {
-      background: rgba(34, 197, 94, 0.18);
-      border: 1px solid #22c55e;
-      color: #86efac;
-      padding: 0.75rem;
-      border-radius: var(--radius-sm, 8px);
-      font-size: 0.85rem;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #16a34a;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
       margin-bottom: 1.25rem;
       text-align: center;
       display: none;
@@ -184,7 +222,7 @@
 
     /* Live username status indicator */
     .username-status {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       margin-top: 0.35rem;
       min-height: 1.2rem;
       display: flex;
@@ -193,30 +231,42 @@
     }
 
     .status-available {
-      color: #4ade80;
+      color: #16a34a;
       font-weight: 600;
     }
 
     .status-taken {
-      color: #f87171;
+      color: #dc2626;
       font-weight: 600;
     }
 
     .status-checking {
-      color: #fbbf24;
+      color: #d97706;
     }
 
     .ig-bottom-box {
       width: 100%;
-      max-width: 420px;
-      background: rgba(22, 11, 14, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--radius-md, 12px);
+      max-width: 440px;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
       padding: 1.25rem;
       text-align: center;
-      font-size: 0.875rem;
-      color: var(--text-dim, #94a3b8);
+      font-size: 0.9rem;
+      color: var(--text-muted);
       margin-top: 1rem;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      box-sizing: border-box;
+    }
+
+    .ig-bottom-box a {
+      color: var(--accent-primary);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .ig-bottom-box a:hover {
+      text-decoration: underline;
     }
 
     @keyframes fadeIn {
@@ -264,7 +314,7 @@
         <div class="ig-step-header">Verify Your Email</div>
         <p class="ig-step-desc">
           Enter the 6-digit confirmation code we sent to <br>
-          <strong id="target-email-text" style="color: #ffffff;"></strong>
+          <strong id="target-email-text" style="color: var(--accent-primary);"></strong>
         </p>
 
         <form id="form-step-2" onsubmit="return handleStep2(event)">
@@ -280,8 +330,8 @@
           <button type="submit" id="btn-step-2" class="ig-btn-primary">Verify Code ➔</button>
 
           <div style="margin-top: 1.4rem; font-size: 0.85rem; line-height: 1.8;">
-            <a href="#" onclick="resendCode(event)" style="color: #ff6b6b; text-decoration: none; font-weight: 600;">Didn't get the code? Resend</a><br>
-            <a href="#" onclick="goBackToStep1(event)" style="color: var(--text-dim, #94a3b8); text-decoration: none;">Change Email Address</a>
+            <a href="#" onclick="resendCode(event)" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">Didn't get the code? Resend</a><br>
+            <a href="#" onclick="goBackToStep1(event)" style="color: var(--text-dim); text-decoration: none;">Change Email Address</a>
           </div>
         </form>
       </div>
@@ -349,7 +399,7 @@
 
     <!-- Login Link Box -->
     <div class="ig-bottom-box">
-      Already have an account? <a href="practise.html" style="color: #ff6b6b; font-weight: 700; text-decoration: none;">Log in</a>
+      Already have an account? <a href="practise.html">Log in</a>
     </div>
 
   </div>

@@ -74,7 +74,9 @@ async function formatPosts(rawPosts, currentUserId) {
     likedByUser: likedSet.has(post.id),
     bookmarks: post.bookmarks_count || 0,
     bookmarkedByUser: bookmarkedSet.has(post.id),
+    views: post.views_count || 0,
     timestamp: timeAgo(post.created_at),
+    createdAt: post.created_at,
     comments: commentsByPost[post.id] || []
   }));
 }
@@ -148,8 +150,8 @@ router.get('/', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/posts/user/:handle - Public creator profile (no email is ever returned)
-router.get('/user/:handle', optionalAuthMiddleware, async (req, res) => {
+// GET /api/posts/user/:handle or /api/posts/profile/:handle - Public creator profile
+router.get(['/user/:handle', '/profile/:handle'], optionalAuthMiddleware, async (req, res) => {
   try {
     let handle = String(req.params.handle || '').trim().toLowerCase();
     if (!handle) {
@@ -177,6 +179,12 @@ router.get('/user/:handle', optionalAuthMiddleware, async (req, res) => {
       isFollowing = !!f;
     }
 
+    const userRawPosts = await db.allAsync(
+      `SELECT * FROM posts WHERE author_id = ? ORDER BY created_at DESC`,
+      [user.id]
+    );
+    const userPosts = await formatPosts(userRawPosts, currentUserId);
+
     res.json({
       success: true,
       profile: {
@@ -194,7 +202,8 @@ router.get('/user/:handle', optionalAuthMiddleware, async (req, res) => {
           followers: followers ? followers.count : 0,
           following: following ? following.count : 0
         }
-      }
+      },
+      posts: userPosts
     });
   } catch (error) {
     console.error('Fetch profile error:', error);
@@ -203,7 +212,7 @@ router.get('/user/:handle', optionalAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/posts/thought - Create a new thought card
-router.post('/thought', optionalAuthMiddleware, async (req, res) => {
+router.post('/thought', authMiddleware, async (req, res) => {
   try {
     const { content, theme, category } = req.body;
 
@@ -254,18 +263,22 @@ router.post('/thought', optionalAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/posts/article - Publish long-form article
-router.post('/article', optionalAuthMiddleware, async (req, res) => {
+router.post('/article', authMiddleware, async (req, res) => {
   try {
-    const { title, subtitle, content, category, coverImage } = req.body;
+    const { title, subtitle, category, coverImage } = req.body;
+    const content = req.body.content || req.body.fullContent;
 
-    if (!title || !content) {
-      return res.status(400).json({ success: false, message: 'Title and content are required.' });
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Article title is required.' });
+    }
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: 'Article content is required.' });
     }
 
     const postId = 'article_' + Date.now();
     const author = await resolveAuthor(req, req.body);
 
-    const words = content.split(/\s+/).length;
+    const words = content.trim().split(/\s+/).length;
     const readTime = `${Math.max(1, Math.ceil(words / 180))} min read`;
 
     await db.runAsync(`
@@ -285,6 +298,9 @@ router.post('/article', optionalAuthMiddleware, async (req, res) => {
       readTime
     ]);
 
+    // Clear any saved draft for this user upon publication
+    await db.runAsync(`DELETE FROM drafts WHERE user_id = ?`, [author.id]).catch(() => {});
+
     const newPost = {
       id: postId,
       type: 'article',
@@ -294,7 +310,7 @@ router.post('/article', optionalAuthMiddleware, async (req, res) => {
       avatar: author.avatar,
       title: title.trim(),
       subtitle: subtitle ? subtitle.trim() : '',
-      excerpt: content.length > 160 ? content.substring(0, 160) + '...' : content,
+      excerpt: content.trim().length > 160 ? content.trim().substring(0, 160) + '...' : content.trim(),
       fullContent: content.trim(),
       category: category || 'Tech',
       coverImage: coverImage || DEFAULT_COVER,
@@ -315,7 +331,7 @@ router.post('/article', optionalAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/posts/image - Publish photo/image social post (Instagram style)
-router.post('/image', optionalAuthMiddleware, async (req, res) => {
+router.post('/image', authMiddleware, async (req, res) => {
   try {
     const { caption, imageUrl, category } = req.body;
 
@@ -365,13 +381,130 @@ router.post('/image', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/posts/:id/like - Toggle Like
-router.post('/:id/like', optionalAuthMiddleware, async (req, res) => {
+// GET /api/posts/draft - Retrieve author's saved article draft
+router.get('/draft', authMiddleware, async (req, res) => {
+  try {
+    const draft = await db.getAsync(`SELECT * FROM drafts WHERE user_id = ?`, [req.user.id]);
+    res.json({ success: true, draft: draft || null });
+  } catch (error) {
+    console.error('Get draft error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load draft.' });
+  }
+});
+
+// POST /api/posts/draft - Save or update author's article draft
+router.post('/draft', authMiddleware, async (req, res) => {
+  try {
+    const { title, subtitle, content, category, coverImage } = req.body;
+    const userId = req.user.id;
+    const draftId = 'draft_' + userId;
+
+    await db.runAsync(`
+      INSERT INTO drafts (id, user_id, title, subtitle, content, category, cover_image, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id) DO UPDATE SET
+        title = excluded.title,
+        subtitle = excluded.subtitle,
+        content = excluded.content,
+        category = excluded.category,
+        cover_image = excluded.cover_image,
+        updated_at = CURRENT_TIMESTAMP
+    `, [
+      draftId,
+      userId,
+      (title || '').trim(),
+      (subtitle || '').trim(),
+      (content || '').trim(),
+      category || 'General',
+      coverImage || ''
+    ]);
+
+    res.json({ success: true, message: 'Draft saved securely!' });
+  } catch (error) {
+    console.error('Save draft error:', error);
+    res.status(500).json({ success: false, message: 'Failed to save draft.' });
+  }
+});
+
+// DELETE /api/posts/draft - Discard draft
+router.delete('/draft', authMiddleware, async (req, res) => {
+  try {
+    await db.runAsync(`DELETE FROM drafts WHERE user_id = ?`, [req.user.id]);
+    res.json({ success: true, message: 'Draft cleared.' });
+  } catch (error) {
+    console.error('Delete draft error:', error);
+    res.status(500).json({ success: false, message: 'Failed to clear draft.' });
+  }
+});
+
+// GET /api/posts/single/:id - Fetch permanent single post or article
+router.get('/single/:id', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const post = await db.getAsync(`SELECT * FROM posts WHERE id = ?`, [req.params.id]);
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post or article not found.' });
+    }
+
+    const currentUserId = req.user ? req.user.id : null;
+    const formatted = await formatPosts([post], currentUserId);
+
+    // Fetch related articles (same category or same author)
+    const relatedRaw = await db.allAsync(
+      `SELECT * FROM posts WHERE id != ? AND (category = ? OR author_id = ?) AND type = 'article' ORDER BY created_at DESC LIMIT 3`,
+      [post.id, post.category, post.author_id]
+    );
+    const related = await formatPosts(relatedRaw, currentUserId);
+
+    res.json({ success: true, post: formatted[0], related });
+  } catch (error) {
+    console.error('Fetch single post error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch article.' });
+  }
+});
+
+// POST /api/posts/:id/view - Record a deduplicated article view
+router.post('/:id/view', optionalAuthMiddleware, async (req, res) => {
   try {
     const postId = req.params.id;
-    const userId = req.user ? req.user.id : 'anon_' + req.ip;
+    const post = await db.getAsync(`SELECT id, views_count FROM posts WHERE id = ?`, [postId]);
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found.' });
+    }
 
-    const post = await db.getAsync(`SELECT id FROM posts WHERE id = ?`, [postId]);
+    // Deduplicate views: one count per user/IP per calendar date
+    const today = new Date().toISOString().slice(0, 10);
+    const viewerId = req.user ? `u_${req.user.id}` : `ip_${req.ip || 'anon'}`;
+    const viewerKey = `${viewerId}_${today}`;
+    const viewId = 'vw_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+
+    try {
+      await db.runAsync(
+        `INSERT INTO article_views (id, post_id, viewer_key) VALUES (?, ?, ?)`,
+        [viewId, postId, viewerKey]
+      );
+      await db.runAsync(
+        `UPDATE posts SET views_count = COALESCE(views_count, 0) + 1 WHERE id = ?`,
+        [postId]
+      );
+    } catch (uniqueErr) {
+      // Deduplicated within the same day
+    }
+
+    const updated = await db.getAsync(`SELECT views_count FROM posts WHERE id = ?`, [postId]);
+    res.json({ success: true, views: updated ? (updated.views_count || 0) : 0 });
+  } catch (error) {
+    console.error('View tracking error:', error);
+    res.status(500).json({ success: false, message: 'Failed to record view.' });
+  }
+});
+
+// POST /api/posts/:id/like - Toggle Like (requires auth)
+router.post('/:id/like', authMiddleware, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.id;
+
+    const post = await db.getAsync(`SELECT id, author_id, type FROM posts WHERE id = ?`, [postId]);
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found.' });
     }
@@ -388,14 +521,14 @@ router.post('/:id/like', optionalAuthMiddleware, async (req, res) => {
       await db.runAsync(`UPDATE posts SET likes_count = likes_count + 1 WHERE id = ?`, [postId]);
       
       // Notify post author if different user
-      if (req.user && post.author_id && post.author_id !== req.user.id) {
+      if (post.author_id && post.author_id !== userId) {
         await db.runAsync(`
           INSERT INTO notifications (id, user_id, actor_id, actor_name, actor_avatar, type, post_id, message)
           VALUES (?, ?, ?, ?, ?, 'like', ?, ?)
         `, [
           'notif_' + Date.now(),
           post.author_id,
-          req.user.id,
+          userId,
           req.user.name,
           req.user.avatar || 'CR',
           postId,
@@ -412,11 +545,11 @@ router.post('/:id/like', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/posts/:id/bookmark - Toggle Bookmark
-router.post('/:id/bookmark', optionalAuthMiddleware, async (req, res) => {
+// POST /api/posts/:id/bookmark - Toggle Bookmark (requires auth)
+router.post('/:id/bookmark', authMiddleware, async (req, res) => {
   try {
     const postId = req.params.id;
-    const userId = req.user ? req.user.id : 'anon_' + req.ip;
+    const userId = req.user.id;
 
     const post = await db.getAsync(`SELECT id FROM posts WHERE id = ?`, [postId]);
     if (!post) {
@@ -429,12 +562,12 @@ router.post('/:id/bookmark', optionalAuthMiddleware, async (req, res) => {
       await db.runAsync(`DELETE FROM bookmarks WHERE user_id = ? AND post_id = ?`, [userId, postId]);
       await db.runAsync(`UPDATE posts SET bookmarks_count = MAX(0, bookmarks_count - 1) WHERE id = ?`, [postId]);
       const updated = await db.getAsync(`SELECT bookmarks_count FROM posts WHERE id = ?`, [postId]);
-      return res.json({ success: true, bookmarked: false, bookmarks: updated ? updated.bookmarks_count : 0 });
+      return res.json({ success: true, bookmarked: false, saved: false, bookmarks: updated ? updated.bookmarks_count : 0 });
     } else {
       await db.runAsync(`INSERT INTO bookmarks (id, user_id, post_id) VALUES (?, ?, ?)`, ['bm_' + Date.now(), userId, postId]);
       await db.runAsync(`UPDATE posts SET bookmarks_count = bookmarks_count + 1 WHERE id = ?`, [postId]);
       const updated = await db.getAsync(`SELECT bookmarks_count FROM posts WHERE id = ?`, [postId]);
-      return res.json({ success: true, bookmarked: true, bookmarks: updated ? updated.bookmarks_count : 1 });
+      return res.json({ success: true, bookmarked: true, saved: true, bookmarks: updated ? updated.bookmarks_count : 1 });
     }
   } catch (error) {
     console.error('Bookmark toggle error:', error);
@@ -442,28 +575,25 @@ router.post('/:id/bookmark', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/posts/:id/comment - Add comment
-router.post('/:id/comment', optionalAuthMiddleware, async (req, res) => {
+// POST /api/posts/:id/comment - Add comment (requires auth)
+router.post('/:id/comment', authMiddleware, async (req, res) => {
   try {
     const postId = req.params.id;
-    const { text, authorName } = req.body;
+    const { text } = req.body;
 
     if (!text || !text.trim()) {
-      return res.status(400).json({ success: false, message: 'Comment text is required.' });
+      return res.status(400).json({ success: false, message: 'Comment text cannot be empty.' });
     }
 
-    const post = await db.getAsync(`SELECT id FROM posts WHERE id = ?`, [postId]);
+    const post = await db.getAsync(`SELECT id, author_id, type FROM posts WHERE id = ?`, [postId]);
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found.' });
     }
 
     const commentId = 'cmt_' + Date.now();
-    let author_name = authorName || 'Harsh Bansal';
-    const user_id = req.user ? req.user.id : null;
-    if (req.user) {
-      const u = await db.getAsync(`SELECT name FROM users WHERE id = ?`, [req.user.id]);
-      author_name = u ? u.name : req.user.name;
-    }
+    const user_id = req.user.id;
+    const u = await db.getAsync(`SELECT name FROM users WHERE id = ?`, [user_id]);
+    const author_name = u ? u.name : req.user.name;
 
     await db.runAsync(`
       INSERT INTO comments (id, post_id, user_id, author_name, text)
@@ -471,14 +601,14 @@ router.post('/:id/comment', optionalAuthMiddleware, async (req, res) => {
     `, [commentId, postId, user_id, author_name, text.trim()]);
 
     // Notify post author if different user
-    if (post.author_id && (!user_id || post.author_id !== user_id)) {
+    if (post.author_id && post.author_id !== user_id) {
       await db.runAsync(`
         INSERT INTO notifications (id, user_id, actor_id, actor_name, actor_avatar, type, post_id, message)
         VALUES (?, ?, ?, ?, ?, 'comment', ?, ?)
       `, [
         'notif_' + Date.now(),
         post.author_id,
-        user_id || 'guest',
+        user_id,
         author_name,
         (author_name || 'CR').substring(0, 2).toUpperCase(),
         postId,
@@ -499,6 +629,31 @@ router.post('/:id/comment', optionalAuthMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Add comment error:', error);
     res.status(500).json({ success: false, message: 'Failed to post comment.' });
+  }
+});
+
+// DELETE /api/posts/comments/:commentId - Delete comment (comment author or post owner)
+router.delete('/comments/:commentId', authMiddleware, async (req, res) => {
+  try {
+    const commentId = req.params.commentId;
+    const comment = await db.getAsync(`SELECT * FROM comments WHERE id = ?`, [commentId]);
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Comment not found.' });
+    }
+
+    const post = await db.getAsync(`SELECT author_id FROM posts WHERE id = ?`, [comment.post_id]);
+    const isCommentAuthor = comment.user_id && comment.user_id === req.user.id;
+    const isPostAuthor = post && post.author_id === req.user.id;
+
+    if (!isCommentAuthor && !isPostAuthor) {
+      return res.status(403).json({ success: false, message: 'Unauthorized. You can only delete your own comments.' });
+    }
+
+    await db.runAsync(`DELETE FROM comments WHERE id = ?`, [commentId]);
+    res.json({ success: true, message: 'Comment deleted successfully.' });
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete comment.' });
   }
 });
 
@@ -613,6 +768,7 @@ router.post('/follow/:userId', authMiddleware, async (req, res) => {
       return res.json({
         success: true,
         following: false,
+        isFollowing: false,
         followers: followerCount ? followerCount.count : 0,
         message: `Unfollowed ${targetUser.name}`
       });
@@ -639,6 +795,7 @@ router.post('/follow/:userId', authMiddleware, async (req, res) => {
       return res.json({
         success: true,
         following: true,
+        isFollowing: true,
         followers: followerCount ? followerCount.count : 1,
         message: `Now following ${targetUser.name}`
       });
@@ -653,20 +810,20 @@ router.post('/follow/:userId', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const postId = req.params.id;
-    const { title, subtitle, content, category, theme, coverImage } = req.body;
-
     const post = await db.getAsync(`SELECT * FROM posts WHERE id = ?`, [postId]);
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found.' });
     }
 
-    // Check ownership
-    const isOwner = (post.author_id && post.author_id === req.user.id) ||
-                    (post.author_handle && req.user.handle && post.author_handle.toLowerCase() === req.user.handle.toLowerCase());
-
-    if (!isOwner && req.user.id !== 'usr_harsh') {
-      return res.status(403).json({ success: false, message: 'Unauthorized. You can only edit your own posts.' });
+    // Strict ownership validation: only the original author can edit
+    const isOwner = (post.author_id && post.author_id === req.user.id);
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'Unauthorized. You can only edit your own content.' });
     }
+
+    const { title, subtitle, category, theme, coverImage } = req.body;
+    const rawContent = req.body.content !== undefined ? req.body.content : req.body.fullContent;
+    const content = rawContent !== undefined ? rawContent : post.content;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ success: false, message: 'Content cannot be empty.' });
@@ -704,7 +861,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // DELETE /api/posts/:id - Delete thought or article with strict ownership validation
-router.delete('/:id', optionalAuthMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const postId = req.params.id;
     const post = await db.getAsync(`SELECT * FROM posts WHERE id = ?`, [postId]);
@@ -713,17 +870,10 @@ router.delete('/:id', optionalAuthMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Post not found.' });
     }
 
-    // Must be authenticated to delete any post
-    if (!req.user) {
-      return res.status(401).json({ success: false, message: 'Authentication required to delete this post.' });
-    }
-
-    // Verify post ownership by author_id or author_handle
-    const isOwner = (post.author_id && post.author_id === req.user.id) ||
-                    (post.author_handle && req.user.handle && post.author_handle.toLowerCase() === req.user.handle.toLowerCase());
-
-    if (!isOwner && req.user.id !== 'usr_harsh') {
-      return res.status(403).json({ success: false, message: 'Unauthorized. You can only delete your own posts.' });
+    // Strict ownership validation: only author can delete
+    const isOwner = (post.author_id && post.author_id === req.user.id);
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'Unauthorized. You can only delete your own content.' });
     }
 
     // Delete associated records
@@ -739,8 +889,94 @@ router.delete('/:id', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/posts/dashboard - Creator Dashboard analytics and content management
+router.get('/dashboard', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // 1. Author's posts
+    const userRawPosts = await db.allAsync(
+      `SELECT * FROM posts WHERE author_id = ? ORDER BY created_at DESC`,
+      [userId]
+    );
+    const formattedPosts = await formatPosts(userRawPosts, userId);
+
+    // 2. Draft
+    const draft = await db.getAsync(`SELECT * FROM drafts WHERE user_id = ?`, [userId]);
+
+    // 3. Aggregate statistics
+    const statsRow = await db.getAsync(`
+      SELECT 
+        COUNT(CASE WHEN type = 'article' THEN 1 END) as totalArticles,
+        COUNT(CASE WHEN type = 'thought' THEN 1 END) as totalThoughts,
+        COALESCE(SUM(likes_count), 0) as totalLikes,
+        COALESCE(SUM(views_count), 0) as totalViews
+      FROM posts 
+      WHERE author_id = ?
+    `, [userId]);
+
+    const commentsRow = await db.getAsync(`
+      SELECT COUNT(*) as totalComments 
+      FROM comments 
+      WHERE post_id IN (SELECT id FROM posts WHERE author_id = ?)
+    `, [userId]);
+
+    const followersRow = await db.getAsync(`
+      SELECT COUNT(*) as followersCount 
+      FROM follows 
+      WHERE following_id = ?
+    `, [userId]);
+
+    const followingRow = await db.getAsync(`
+      SELECT COUNT(*) as followingCount 
+      FROM follows 
+      WHERE follower_id = ?
+    `, [userId]);
+
+    // 4. Recent activity on creator's content
+    const recentActivity = await db.allAsync(`
+      SELECT * FROM notifications 
+      WHERE user_id = ? 
+      ORDER BY created_at DESC 
+      LIMIT 10
+    `, [userId]);
+
+    const overview = {
+      totalArticles: statsRow ? statsRow.totalArticles : 0,
+      totalThoughts: statsRow ? statsRow.totalThoughts : 0,
+      totalDrafts: draft ? 1 : 0,
+      totalLikes: statsRow ? statsRow.totalLikes : 0,
+      totalViews: statsRow ? statsRow.totalViews : 0,
+      totalComments: commentsRow ? commentsRow.totalComments : 0,
+      followersCount: followersRow ? followersRow.followersCount : 0,
+      followingCount: followingRow ? followingRow.followingCount : 0
+    };
+
+    res.json({
+      success: true,
+      overview,
+      stats: overview,
+      articles: formattedPosts.filter(p => p.type === 'article'),
+      thoughts: formattedPosts.filter(p => p.type === 'thought'),
+      draft: draft ? {
+        id: draft.id,
+        title: draft.title || '',
+        subtitle: draft.subtitle || '',
+        content: draft.content || '',
+        category: draft.category || 'General',
+        coverImage: draft.cover_image || '',
+        updatedAt: draft.updated_at
+      } : null,
+      recentActivity: recentActivity || []
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load creator dashboard.' });
+  }
+});
+
 // GET /api/posts/notifications - Fetch user notifications
-router.get('/notifications/list', authMiddleware, async (req, res) => {
+router.get(['/notifications', '/notifications/list'], authMiddleware, async (req, res) => {
   try {
     const list = await db.allAsync(`
       SELECT * FROM notifications
@@ -765,8 +1001,8 @@ router.get('/notifications/list', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/posts/notifications/read-all - Mark all notifications as read
-router.post('/notifications/read-all', authMiddleware, async (req, res) => {
+// POST /api/posts/notifications/read-all or mark-read - Mark all notifications as read
+router.post(['/notifications/read-all', '/notifications/mark-read'], authMiddleware, async (req, res) => {
   try {
     await db.runAsync(`
       UPDATE notifications SET is_read = 1 WHERE user_id = ?

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Log into READORA - Where readers become creators.">
-  <title>READORA | Log In</title>
+  <title>READORA | Log In & Switch Account</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/x-icon" href="https://www.bing.com/th/id/OIP.kTjssfQu3vohsl0CrLhGyAHaHa?w=183&h=211&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2">
 </head>
@@ -33,25 +33,36 @@
       </div>
     </div>
 
-    <!-- Login Card -->
+    <!-- Login & Switch Account Card -->
     <div class="auth-card">
-      <h2 class="auth-title">Welcome Back</h2>
-      <p class="auth-subtitle">Log in to your creator sanctuary</p>
+      <h2 class="auth-title" id="auth-main-title">Welcome Back</h2>
+      <p class="auth-subtitle" id="auth-main-sub">Log in to your creator sanctuary</p>
 
-      <div id="auth-error" style="display: none; background: rgba(244, 63, 94, 0.12); border: 1px solid #f43f5e; color: #fecdd3; padding: 0.6rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; text-align: center;"></div>
+      <div id="auth-info" style="display: none; background: var(--accent-tint); border: 1px solid rgba(47,109,246,0.3); color: var(--accent-primary); padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1.25rem; text-align: center; font-weight: 500;"></div>
+      <div id="auth-error" style="display: none;"></div>
 
+      <!-- Quick Switch Account Card (Instagram style) -->
+      <div id="switch-account-card" class="switch-account-card" style="display: none;">
+        <div id="switch-avatar" class="switch-avatar">HB</div>
+        <div id="switch-name" class="switch-name">Harsh Bansal</div>
+        <div id="switch-handle" class="switch-handle">@harshbansal</div>
+        <button type="button" id="btn-quick-switch" class="btn-auth-primary" style="margin-top: 0;">Log Back In as <span id="switch-first-name">User</span></button>
+        <button type="button" id="btn-show-full-form" class="btn-switch-another">Switch to another account</button>
+      </div>
+
+      <!-- Standard Login Form -->
       <form id="login-form" onsubmit="return handleLogin(event)">
         <div class="form-group">
           <label for="login-username">Username or Email</label>
-          <input type="text" id="login-username" class="form-input" placeholder="e.g. harsh@readora.app or harshbansal" required>
+          <input type="text" id="login-username" class="form-input" placeholder="e.g. harsh@readora.app or harshbansal" autocomplete="username" required>
         </div>
 
         <div class="form-group">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
             <label for="login-password" style="margin-bottom: 0;">Password</label>
-            <a href="#" style="font-size: 0.8rem; color: #ff6b6b;" onclick="alert('Demo password is: readora123')">Forgot password?</a>
+            <a href="#" style="font-size: 0.82rem; color: var(--accent-primary); text-decoration: none; font-weight: 500;" onclick="openForgotModal(event)">Forgot password?</a>
           </div>
-          <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password" required>
         </div>
 
         <button type="submit" id="btn-login-submit" class="btn-auth-primary">Log In to Readora</button>
@@ -67,6 +78,69 @@
   <script>
     // Auto-detect API Base for file:// or http:// origins
     const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+
+    // Check for Switch Account state or previously logged in user
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isSwitched = urlParams.get('switched') === 'true';
+      const infoBox = document.getElementById('auth-info');
+
+      if (isSwitched && infoBox) {
+        infoBox.textContent = 'You have logged out. Switch accounts or log back in.';
+        infoBox.style.display = 'block';
+      }
+
+      // Check if we have last user saved for quick switch
+      const lastUserJson = localStorage.getItem('readora_last_user');
+      if (lastUserJson) {
+        try {
+          const lastUser = JSON.parse(lastUserJson);
+          if (lastUser && lastUser.name) {
+            const switchCard = document.getElementById('switch-account-card');
+            const switchAvatar = document.getElementById('switch-avatar');
+            const switchName = document.getElementById('switch-name');
+            const switchHandle = document.getElementById('switch-handle');
+            const switchFirstName = document.getElementById('switch-first-name');
+            const loginForm = document.getElementById('login-form');
+            const titleEl = document.getElementById('auth-main-title');
+            const subEl = document.getElementById('auth-main-sub');
+
+            if (switchCard && switchAvatar && switchName && switchHandle) {
+              switchAvatar.textContent = lastUser.avatar || lastUser.name.substring(0, 2).toUpperCase();
+              switchName.textContent = lastUser.name;
+              switchHandle.textContent = lastUser.handle ? `@${lastUser.handle}` : '';
+              if (switchFirstName) switchFirstName.textContent = lastUser.name.split(' ')[0];
+
+              if (titleEl) titleEl.textContent = 'Switch Account';
+              if (subEl) subEl.textContent = 'Continue with your account or switch to another';
+
+              // Show quick switch by default
+              switchCard.style.display = 'block';
+              loginForm.style.display = 'none';
+
+              document.getElementById('btn-quick-switch').addEventListener('click', () => {
+                switchCard.style.display = 'none';
+                loginForm.style.display = 'block';
+                const uInput = document.getElementById('login-username');
+                const pInput = document.getElementById('login-password');
+                if (uInput) uInput.value = lastUser.handle || lastUser.name;
+                if (pInput) pInput.focus();
+              });
+
+              document.getElementById('btn-show-full-form').addEventListener('click', () => {
+                switchCard.style.display = 'none';
+                loginForm.style.display = 'block';
+                const uInput = document.getElementById('login-username');
+                if (uInput) {
+                  uInput.value = '';
+                  uInput.focus();
+                }
+              });
+            }
+          }
+        } catch (e) {}
+      }
+    });
 
     async function handleLogin(e) {
       e.preventDefault();
@@ -93,6 +167,12 @@
         if (res.ok && data.success) {
           localStorage.setItem('readora_token', data.token);
           localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+          // Save for quick switch
+          localStorage.setItem('readora_last_user', JSON.stringify({
+            name: data.user.name,
+            handle: data.user.handle,
+            avatar: data.user.avatar || (data.user.name ? data.user.name.substring(0, 2).toUpperCase() : 'CR')
+          }));
           window.location.href = 'index.html';
           return false;
         } else {
@@ -103,7 +183,7 @@
       } catch (err) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Log In to Readora';
-        errorBox.textContent = 'Network error: Server se connect nahi ho paya. Ensure server (http://localhost:5000) is running.';
+        errorBox.textContent = 'Network error: Server connection failed. Ensure server (http://localhost:5000) is running.';
         errorBox.style.display = 'block';
         return false;
       }
@@ -112,6 +192,148 @@
     function exploreAsGuest() {
       window.location.href = 'index.html';
     }
+
+    // --- Forgot Password Flow ---
+    let resetEmail = '';
+
+    function openForgotModal(e) {
+      if (e) e.preventDefault();
+      const modal = document.getElementById('forgot-modal');
+      const msg = document.getElementById('forgot-msg');
+      if (modal) modal.style.display = 'flex';
+      if (msg) msg.style.display = 'none';
+      document.getElementById('forgot-step-1').style.display = 'block';
+      document.getElementById('forgot-step-2').style.display = 'none';
+      const emailField = document.getElementById('reset-email');
+      const loginUser = document.getElementById('login-username').value.trim();
+      if (emailField) {
+        if (loginUser.includes('@')) emailField.value = loginUser;
+        emailField.focus();
+      }
+    }
+
+    function closeForgotModal() {
+      const modal = document.getElementById('forgot-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function handleSendResetCode(e) {
+      e.preventDefault();
+      const email = document.getElementById('reset-email').value.trim();
+      const msg = document.getElementById('forgot-msg');
+      const btn = document.getElementById('btn-send-reset');
+
+      btn.disabled = true;
+      btn.textContent = 'Sending code...';
+      msg.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        btn.textContent = 'Send Reset Code';
+
+        resetEmail = email;
+        msg.textContent = data.message || 'If an account exists, a 6-digit code has been sent.';
+        msg.style.background = 'var(--accent-tint)';
+        msg.style.color = 'var(--accent-primary)';
+        msg.style.display = 'block';
+
+        document.getElementById('forgot-step-1').style.display = 'none';
+        document.getElementById('forgot-step-2').style.display = 'block';
+        document.getElementById('reset-code').focus();
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Send Reset Code';
+        msg.textContent = 'Network error. Please try again.';
+        msg.style.background = '#fef2f2';
+        msg.style.color = '#dc2626';
+        msg.style.display = 'block';
+      }
+    }
+
+    async function handleConfirmResetPassword(e) {
+      e.preventDefault();
+      const otp = document.getElementById('reset-code').value.trim();
+      const newPassword = document.getElementById('reset-new-pass').value;
+      const msg = document.getElementById('forgot-msg');
+      const btn = document.getElementById('btn-save-reset');
+
+      btn.disabled = true;
+      btn.textContent = 'Updating password...';
+      msg.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: resetEmail, otp, newPassword })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        btn.textContent = 'Save New Password';
+
+        if (res.ok && data.success) {
+          msg.textContent = 'Password updated successfully! You can now log in.';
+          msg.style.background = '#f0fdf4';
+          msg.style.color = '#16a34a';
+          msg.style.display = 'block';
+          setTimeout(() => {
+            closeForgotModal();
+            document.getElementById('login-username').value = resetEmail;
+            document.getElementById('login-password').focus();
+          }, 1500);
+        } else {
+          msg.textContent = data.message || 'Invalid or expired code.';
+          msg.style.background = '#fef2f2';
+          msg.style.color = '#dc2626';
+          msg.style.display = 'block';
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Save New Password';
+        msg.textContent = 'Network error. Please try again.';
+        msg.style.background = '#fef2f2';
+        msg.style.color = '#dc2626';
+        msg.style.display = 'block';
+      }
+    }
+  </script>
+
+  <!-- Forgot Password Modal -->
+  <div id="forgot-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 1000; padding: 1.5rem;">
+    <div class="modal-card" style="max-width: 420px; width: 100%; background: #ffffff; border-radius: 20px; padding: 2rem; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.1); position: relative; box-sizing: border-box;">
+      <button type="button" class="modal-close-btn" onclick="closeForgotModal()" style="position: absolute; top: 1.25rem; right: 1.25rem; background: none; border: none; font-size: 1.25rem; color: var(--text-dim); cursor: pointer;">✕</button>
+      <h3 style="font-family: var(--font-brand); font-size: 1.35rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.35rem;">Reset Password</h3>
+      <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">Enter your email to receive a 6-digit recovery code.</p>
+      
+      <div id="forgot-msg" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1.25rem; text-align: center; font-weight: 500;"></div>
+
+      <form id="forgot-step-1" onsubmit="handleSendResetCode(event)">
+        <div class="form-group">
+          <label for="reset-email">Account Email</label>
+          <input type="email" id="reset-email" class="form-input" placeholder="e.g. harsh@readora.app" required>
+        </div>
+        <button type="submit" id="btn-send-reset" class="btn-auth-primary">Send Reset Code ➔</button>
+      </form>
+
+      <form id="forgot-step-2" onsubmit="handleConfirmResetPassword(event)" style="display: none;">
+        <div class="form-group">
+          <label for="reset-code">6-Digit Confirmation Code</label>
+          <input type="text" id="reset-code" class="form-input" placeholder="e.g. 123456" maxlength="6" inputmode="numeric" required>
+        </div>
+        <div class="form-group">
+          <label for="reset-new-pass">New Password (min 6 characters)</label>
+          <input type="password" id="reset-new-pass" class="form-input" placeholder="••••••••" minlength="6" required>
+        </div>
+        <button type="submit" id="btn-save-reset" class="btn-auth-primary">Update Password ➔</button>
+      </form>
+    </div>
+  </div>
   </script>
 </body>
 </html>

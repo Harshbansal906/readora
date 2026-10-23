@@ -26,6 +26,40 @@ function profileLink(handle) {
   return '#/u/' + encodeURIComponent(handle || '');
 }
 
+// Lightweight, safe markdown formatter with zero external dependencies and strict XSS protection
+function renderSafeMarkdown(str) {
+  if (!str) return '';
+  let html = esc(str);
+
+  // Headings
+  html = html.replace(/^### (.*$)/gim, '<h3 style="font-family:var(--font-brand); font-size:1.25rem; font-weight:700; color:var(--text-main); margin:1.25rem 0 0.5rem 0;">$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2 style="font-family:var(--font-brand); font-size:1.5rem; font-weight:800; color:var(--text-main); margin:1.5rem 0 0.5rem 0;">$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1 style="font-family:var(--font-brand); font-size:1.85rem; font-weight:800; color:var(--text-main); margin:1.75rem 0 0.75rem 0;">$1</h1>');
+
+  // Blockquotes
+  html = html.replace(/^\&gt; (.*$)/gim, '<blockquote style="border-left: 3px solid var(--accent-primary); padding-left: 1rem; color: var(--text-muted); font-style: italic; margin: 1rem 0;">$1</blockquote>');
+
+  // Code blocks & inline code
+  html = html.replace(/```([\s\S]*?)```/gm, '<pre style="background:var(--bg-subtle); padding:0.75rem 1rem; border-radius:8px; font-size:0.9rem; overflow-x:auto; border:1px solid var(--border-color); margin:1rem 0;"><code>$1</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code style="background:var(--bg-subtle); padding:0.15rem 0.35rem; border-radius:4px; font-size:0.9em; border:1px solid var(--border-color);">$1</code>');
+
+  // Bold & Italic
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  // Links
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent-primary); text-decoration:underline;">$1</a>');
+
+  // Lists
+  html = html.replace(/^\s*-\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: disc;">$1</li>');
+  html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: decimal;">$1</li>');
+
+  // Paragraph breaks
+  html = html.replace(/\n\n+/g, '<br><br>');
+
+  return html;
+}
+
 class ReadoraApp {
   constructor() {
     this.token = localStorage.getItem('readora_token') || null;
@@ -195,31 +229,52 @@ class ReadoraApp {
 
   renderFeaturedCreators(creators) {
     this.cachedCreators = creators;
-    ['featured-creators-list', 'explore-creators-list'].forEach(id => {
-      const listEl = document.getElementById(id);
-      if (!listEl) return;
+    const listEl = document.getElementById('featured-creators-list');
+    if (listEl) {
       if (!creators || creators.length === 0) {
         listEl.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.5rem 0; text-align: center;">New creators will be highlighted here.</div>';
+      } else {
+        listEl.innerHTML = creators.map(c => `
+          <div class="creator-item">
+            <a class="creator-left author-link" href="${profileLink(c.handle)}">
+              <div class="author-avatar" style="width: 34px; height: 34px; font-size: 0.8rem;">${esc(c.avatar)}</div>
+              <div>
+                <div class="creator-name">${esc(c.name)}</div>
+                <div class="creator-handle">${esc(c.handle)} • ${esc(c.followers)} ${c.followers === 1 ? 'follower' : 'followers'}</div>
+              </div>
+            </a>
+            <button class="btn-follow ${c.isFollowing ? 'following' : ''}" data-follow-id="${esc(c.id)}">
+              ${c.isFollowing ? 'Following' : 'Follow'}
+            </button>
+          </div>
+        `).join('');
+
+        listEl.querySelectorAll('[data-follow-id]').forEach(btn => {
+          btn.addEventListener('click', () => this.toggleFollow(btn.dataset.followId));
+        });
+      }
+    }
+
+    // Populate Instagram-Stories Style Creators Row on Feed & Explore
+    this.renderStoriesRows(creators);
+  }
+
+  renderStoriesRows(creators) {
+    ['stories-row', 'explore-creators-row'].forEach(rowId => {
+      const row = document.getElementById(rowId);
+      if (!row) return;
+      if (!creators || creators.length === 0) {
+        row.innerHTML = '';
         return;
       }
-      listEl.innerHTML = creators.map(c => `
-        <div class="creator-item">
-          <a class="creator-left author-link" href="${profileLink(c.handle)}">
-            <div class="author-avatar" style="width: 34px; height: 34px; font-size: 0.8rem;">${esc(c.avatar)}</div>
-            <div>
-              <div class="creator-name">${esc(c.name)}</div>
-              <div class="creator-handle">${esc(c.handle)} • ${esc(c.followers)} ${c.followers === 1 ? 'follower' : 'followers'}</div>
-            </div>
-          </a>
-          <button class="btn-follow ${c.isFollowing ? 'following' : ''}" data-follow-id="${esc(c.id)}" style="${c.isFollowing ? 'background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: #fff;' : ''}">
-            ${c.isFollowing ? 'Following' : 'Follow'}
-          </button>
-        </div>
+      row.innerHTML = creators.map(c => `
+        <a class="story-item author-link" href="${profileLink(c.handle)}" title="${esc(c.name)} (${esc(c.handle)})">
+          <div class="story-avatar-ring">
+            <div class="story-avatar">${esc(c.avatar || c.name.substring(0, 2).toUpperCase())}</div>
+          </div>
+          <span class="story-name">${esc(c.name.split(' ')[0])}</span>
+        </a>
       `).join('');
-
-      listEl.querySelectorAll('[data-follow-id]').forEach(btn => {
-        btn.addEventListener('click', () => this.toggleFollow(btn.dataset.followId));
-      });
     });
   }
 
@@ -303,18 +358,41 @@ class ReadoraApp {
     document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
 
     const hash = window.location.hash || '';
-    const m = /^#\/u\/(.+)$/.exec(hash);
+    const m = /^#\/(u|profile)\/(.+)$/.exec(hash);
+    const artM = /^#\/(article|post)\/(.+)$/.exec(hash);
+    const topicM = /^#\/topic\/(.+)$/.exec(hash);
+
     if (m) {
-      let handle = m[1];
+      let handle = m[2];
       try { handle = decodeURIComponent(handle); } catch (e) {}
       this.route = { name: 'profile', handle };
       this.showProfileView(handle);
+    } else if (artM) {
+      const postId = decodeURIComponent(artM[2]);
+      this.route = { name: 'home' };
+      this.showFeedView();
+      this.openFullArticle(postId, false);
     } else if (hash === '#/explore') {
       this.route = { name: 'explore' };
       this.showExploreView();
+    } else if (topicM) {
+      let topic = topicM[1];
+      try { topic = decodeURIComponent(topic); } catch (e) {}
+      this.route = { name: 'explore' };
+      this.showExploreView(topic);
+    } else if (hash === '#/dashboard') {
+      this.route = { name: 'dashboard' };
+      this.showDashboardView();
     } else if (hash === '#/saved') {
       this.route = { name: 'saved' };
       this.showSavedView();
+    } else if (hash === '#/write') {
+      this.route = { name: 'home' };
+      this.showFeedView();
+      this.openArticleStudio();
+    } else if (hash === '#/notifications') {
+      this.openModal(this.notificationsModal);
+      this.loadNotifications();
     } else {
       this.route = { name: 'home' };
       this.showFeedView();
@@ -324,11 +402,13 @@ class ReadoraApp {
   setNavActive() {
     const isProfile = this.isProfileActive();
     const isExplore = this.route && this.route.name === 'explore';
-    const isSaved = this.currentFilter === 'saved' && !isProfile && !isExplore;
-    const isHome = !isProfile && !isExplore && !isSaved;
+    const isDashboard = this.route && this.route.name === 'dashboard';
+    const isSaved = this.route && this.route.name === 'saved';
+    const isHome = !isProfile && !isExplore && !isDashboard && !isSaved;
 
     const home = document.getElementById('nav-home-btn');
     const explore = document.getElementById('nav-explore-btn');
+    const dashboard = document.getElementById('nav-dashboard-btn');
     const saved = document.getElementById('nav-saved-btn');
     const mine = document.getElementById('nav-profile-btn');
 
@@ -341,6 +421,7 @@ class ReadoraApp {
 
     if (home) home.classList.toggle('active', isHome);
     if (explore) explore.classList.toggle('active', isExplore);
+    if (dashboard) dashboard.classList.toggle('active', isDashboard);
     if (saved) saved.classList.toggle('active', isSaved);
     if (mine) mine.classList.toggle('active', !!isMine);
 
@@ -349,51 +430,474 @@ class ReadoraApp {
     if (mobProfile) mobProfile.classList.toggle('active', isProfile);
   }
 
-  showFeedView() {
+  hideAllViews() {
     const feed = document.getElementById('feed-view');
     const prof = document.getElementById('profile-view');
     const exp = document.getElementById('explore-view');
-    if (feed) feed.style.display = '';
+    const dash = document.getElementById('dashboard-view');
+    const saved = document.getElementById('saved-view');
+    const rSide = document.querySelector('.right-sidebar');
+    if (feed) feed.style.display = 'none';
     if (prof) prof.style.display = 'none';
     if (exp) exp.style.display = 'none';
+    if (dash) dash.style.display = 'none';
+    if (saved) saved.style.display = 'none';
+    if (rSide) rSide.style.display = '';
+  }
+
+  showFeedView() {
+    this.hideAllViews();
+    const feed = document.getElementById('feed-view');
+    if (feed) feed.style.display = '';
     document.title = 'READORA | Where readers become creators';
     this.setNavActive();
     this.render();
   }
 
   showProfileView(handle) {
-    const feed = document.getElementById('feed-view');
+    this.hideAllViews();
     const prof = document.getElementById('profile-view');
-    const exp = document.getElementById('explore-view');
-    if (feed) feed.style.display = 'none';
     if (prof) prof.style.display = 'flex';
-    if (exp) exp.style.display = 'none';
     this.setNavActive();
     window.scrollTo({ top: 0 });
     this.profileFilter = 'all';
     this.loadProfile(handle);
   }
 
-  showExploreView() {
-    const feed = document.getElementById('feed-view');
-    const prof = document.getElementById('profile-view');
+  showExploreView(topicFilter = '') {
+    this.hideAllViews();
     const exp = document.getElementById('explore-view');
-    if (feed) feed.style.display = 'none';
-    if (prof) prof.style.display = 'none';
+    const rSide = document.querySelector('.right-sidebar');
     if (exp) exp.style.display = 'flex';
-    document.title = 'Explore & Discover | READORA';
+    // On Explore page, hide right sidebar to eliminate duplicate widgets completely!
+    if (rSide) rSide.style.display = 'none';
+    document.title = 'Explore | READORA';
     this.setNavActive();
     window.scrollTo({ top: 0 });
-    if (this.cachedTopics) this.renderTrendingTopics(this.cachedTopics);
-    if (this.cachedCreators) this.renderFeaturedCreators(this.cachedCreators);
+    if (this.cachedCreators) this.renderStoriesRows(this.cachedCreators);
+    this.renderExploreGrid(topicFilter);
+  }
+
+  renderExploreGrid(topicFilter = '') {
+    const grid = document.getElementById('explore-posts-grid');
+    if (!grid) return;
+
+    let items = (this.posts || []);
+    if (topicFilter) {
+      items = items.filter(p => (p.category || '').toLowerCase() === topicFilter.toLowerCase());
+    }
+
+    if (this.activeSearchQuery) {
+      const q = this.activeSearchQuery;
+      items = items.filter(p =>
+        (p.title || '').toLowerCase().includes(q) ||
+        (p.content || '').toLowerCase().includes(q) ||
+        (p.author || '').toLowerCase().includes(q) ||
+        (p.category || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (items.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem; color: var(--text-dim); background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md);">No posts found matching this criteria. Be the first to share one!</div>';
+      return;
+    }
+
+    grid.innerHTML = items.map(post => {
+      const cover = safeUrl(post.coverImage);
+      if (post.type === 'article') {
+        return `
+          <div class="explore-grid-item" data-id="${esc(post.id)}">
+            ${cover ? `<img src="${esc(cover)}" class="explore-grid-cover" alt="Article Cover" loading="lazy" onerror="this.style.display='none';" />` : ''}
+            <div class="explore-grid-body">
+              <span class="card-tag ${this.getCategoryClass(post.category)}" style="align-self:flex-start; margin-bottom: 0.25rem;">${esc(post.category || 'Article')}</span>
+              <div class="explore-grid-title">${esc(post.title)}</div>
+              <div class="explore-grid-author">${esc(post.author)} • ${esc(post.readTime || '3 min read')}</div>
+            </div>
+          </div>
+        `;
+      } else if (post.type === 'image') {
+        return `
+          <div class="explore-grid-item" data-id="${esc(post.id)}">
+            ${cover ? `<img src="${esc(cover)}" class="explore-grid-cover" alt="Photo" loading="lazy" />` : ''}
+            <div class="explore-grid-body">
+              <div class="explore-grid-title" style="font-weight: 500; font-size: 0.875rem;">${esc(post.content || 'Photo Post')}</div>
+              <div class="explore-grid-author">${esc(post.author)} • ${esc(post.timestamp || 'Recently')}</div>
+            </div>
+          </div>
+        `;
+      } else {
+        return `
+          <div class="explore-grid-item" data-id="${esc(post.id)}" style="background: var(--bg-subtle);">
+            <div class="explore-grid-body" style="padding: 1.25rem;">
+              <span class="card-tag ${this.getCategoryClass(post.category)}" style="align-self:flex-start; margin-bottom: 0.5rem;">${esc(post.category || 'Thought')}</span>
+              <div class="thought-text" style="font-size: 1rem; line-height: 1.5; font-family: var(--font-serif); margin-bottom: 0.75rem;">"${esc(post.content)}"</div>
+              <div class="explore-grid-author">— ${esc(post.author)}</div>
+            </div>
+          </div>
+        `;
+      }
+    }).join('');
+
+    grid.querySelectorAll('.explore-grid-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const pId = el.dataset.id;
+        const targetPost = this.posts.find(p => p.id === pId);
+        if (targetPost && targetPost.type === 'article') {
+          this.openFullArticle(pId);
+        } else {
+          // Switch to home feed and scroll to post
+          window.location.hash = '#/';
+          setTimeout(() => {
+            const card = document.querySelector(`[data-id="${pId}"]`);
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
+      });
+    });
+  }
+
+  async showDashboardView() {
+    if (!this.requireLogin('Please log in to view your Creator Dashboard!')) return;
+    this.hideAllViews();
+    const dash = document.getElementById('dashboard-view');
+    if (!dash) return;
+    dash.style.display = 'flex';
+    document.title = 'Creator Dashboard | READORA';
+    this.setNavActive();
+    window.scrollTo({ top: 0 });
+
+    dash.innerHTML = `
+      <div style="text-align:center; padding: 4rem 1rem; color: var(--text-dim);">
+        <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📊</div>
+        Loading Creator Studio & Analytics...
+      </div>
+    `;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/posts/dashboard`, { headers: this.authHeaders() });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        dash.innerHTML = `<div class="dashboard-hero-card" style="text-align:center; color: var(--text-dim);">${data.message || 'Could not load dashboard.'}</div>`;
+        return;
+      }
+      this.dashboardData = data;
+      this.renderDashboard('articles');
+    } catch (e) {
+      dash.innerHTML = `<div class="dashboard-hero-card" style="text-align:center; color: var(--text-dim);">Network error loading Creator Dashboard.</div>`;
+    }
+  }
+
+  renderDashboard(activeTab = 'articles') {
+    const dash = document.getElementById('dashboard-view');
+    if (!dash || !this.dashboardData) return;
+    const { overview, articles, thoughts, draft, recentActivity } = this.dashboardData;
+
+    dash.innerHTML = `
+      <div class="dashboard-hero-card">
+        <div class="dashboard-title-row">
+          <div>
+            <h1 class="dashboard-title">Creator Studio</h1>
+            <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 0.25rem;">Analytics, publications, and real-time community engagement.</p>
+          </div>
+          <button class="btn-auth-primary" id="btn-dash-new-article" style="width: auto; padding: 0.55rem 1.25rem;">
+            + Write New Article
+          </button>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-val" style="color: var(--accent-primary);">${esc(overview.totalArticles || 0)}</div>
+            <div class="dashboard-stat-label">Articles</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-val" style="color: #8b5cf6;">${esc(overview.totalThoughts || 0)}</div>
+            <div class="dashboard-stat-label">Thoughts</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-val" style="color: #10b981;">${esc(overview.totalViews || 0)}</div>
+            <div class="dashboard-stat-label">Total Views</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-val" style="color: #ef4444;">${esc(overview.totalLikes || 0)}</div>
+            <div class="dashboard-stat-label">Likes</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-val" style="color: #3b82f6;">${esc(overview.totalComments || 0)}</div>
+            <div class="dashboard-stat-label">Comments</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-val" style="color: #f59e0b;">${esc(overview.followersCount || 0)}</div>
+            <div class="dashboard-stat-label">Followers</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-section">
+        <div class="feed-filter-bar" style="margin-bottom: 1.25rem;">
+          <button class="feed-tab ${activeTab === 'articles' ? 'active' : ''}" data-dashtab="articles">📖 Articles (${(articles || []).length})</button>
+          <button class="feed-tab ${activeTab === 'thoughts' ? 'active' : ''}" data-dashtab="thoughts">💭 Thoughts (${(thoughts || []).length})</button>
+          <button class="feed-tab ${activeTab === 'drafts' ? 'active' : ''}" data-dashtab="drafts">📝 Drafts (${draft ? 1 : 0})</button>
+          <button class="feed-tab ${activeTab === 'activity' ? 'active' : ''}" data-dashtab="activity">⚡ Activity (${(recentActivity || []).length})</button>
+        </div>
+
+        <div id="dashboard-tab-content"></div>
+      </div>
+    `;
+
+    const newBtn = document.getElementById('btn-dash-new-article');
+    if (newBtn) newBtn.addEventListener('click', () => this.openArticleStudio());
+
+    dash.querySelectorAll('[data-dashtab]').forEach(b => {
+      b.addEventListener('click', () => this.renderDashboard(b.dataset.dashtab));
+    });
+
+    const contentBox = document.getElementById('dashboard-tab-content');
+    if (!contentBox) return;
+
+    if (activeTab === 'articles') {
+      if (!articles || articles.length === 0) {
+        contentBox.innerHTML = `
+          <div style="text-align:center; padding: 3rem 1rem; color: var(--text-dim);">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">✍️</div>
+            <p>You haven't published any long-form articles yet.</p>
+            <button class="btn-dash-action" id="btn-dash-start-writing" style="margin-top: 0.75rem;">Start Your First Article</button>
+          </div>
+        `;
+        const startBtn = document.getElementById('btn-dash-start-writing');
+        if (startBtn) startBtn.addEventListener('click', () => this.openArticleStudio());
+        return;
+      }
+
+      contentBox.innerHTML = articles.map(art => `
+        <div class="dashboard-item-row">
+          <div style="flex:1;">
+            <a href="#/article/${esc(art.id)}" class="dashboard-item-title">${esc(art.title)}</a>
+            <div class="dashboard-item-meta">
+              <span class="card-tag ${this.getCategoryClass(art.category)}">${esc(art.category || 'General')}</span>
+              <span>${esc(art.timestamp || 'Recently')}</span>
+              <span>👁️ ${esc(art.views || 0)} views</span>
+              <span>❤️ ${esc(art.likes || 0)} likes</span>
+              <span>💬 ${(art.comments || []).length} comments</span>
+            </div>
+          </div>
+          <div class="dashboard-btn-group">
+            <button class="btn-dash-action btn-dash-preview" data-id="${esc(art.id)}">Preview</button>
+            <button class="btn-dash-action btn-dash-edit" data-id="${esc(art.id)}">Edit</button>
+            <button class="btn-dash-action btn-dash-danger btn-dash-delete" data-id="${esc(art.id)}">Delete</button>
+          </div>
+        </div>
+      `).join('');
+
+      contentBox.querySelectorAll('.btn-dash-preview').forEach(btn => {
+        btn.addEventListener('click', () => this.openFullArticle(btn.dataset.id));
+      });
+      contentBox.querySelectorAll('.btn-dash-edit').forEach(btn => {
+        btn.addEventListener('click', () => this.openEditPost(btn.dataset.id));
+      });
+      contentBox.querySelectorAll('.btn-dash-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await this.deletePost(btn.dataset.id);
+          this.showDashboardView();
+        });
+      });
+    } else if (activeTab === 'thoughts') {
+      if (!thoughts || thoughts.length === 0) {
+        contentBox.innerHTML = '<div style="text-align:center; padding: 2.5rem 1rem; color: var(--text-dim);">No short thoughts published yet.</div>';
+        return;
+      }
+      contentBox.innerHTML = thoughts.map(th => `
+        <div class="dashboard-item-row">
+          <div style="flex:1;">
+            <div style="font-weight:600; color:var(--text-main); margin-bottom: 0.2rem;">"${esc(th.content)}"</div>
+            <div class="dashboard-item-meta">
+              <span class="card-tag ${this.getCategoryClass(th.category)}">${esc(th.category || 'General')}</span>
+              <span>${esc(th.timestamp || 'Recently')}</span>
+              <span>❤️ ${esc(th.likes || 0)} likes</span>
+            </div>
+          </div>
+          <div class="dashboard-btn-group">
+            <button class="btn-dash-action btn-dash-danger btn-dash-del-th" data-id="${esc(th.id)}">Delete</button>
+          </div>
+        </div>
+      `).join('');
+
+      contentBox.querySelectorAll('.btn-dash-del-th').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await this.deletePost(btn.dataset.id);
+          this.showDashboardView();
+        });
+      });
+    } else if (activeTab === 'drafts') {
+      if (!draft || (!draft.title && !draft.content)) {
+        contentBox.innerHTML = '<div style="text-align:center; padding: 2.5rem 1rem; color: var(--text-dim);">No saved drafts. Open Article Studio and click "Save Draft" to resume writing anytime!</div>';
+        return;
+      }
+      contentBox.innerHTML = `
+        <div class="dashboard-item-row">
+          <div style="flex:1;">
+            <div class="dashboard-item-title">${esc(draft.title || 'Untitled Draft')}</div>
+            <div style="font-size:0.85rem; color: var(--text-muted); margin: 0.25rem 0;">${esc((draft.content || '').substring(0, 140))}...</div>
+            <div class="dashboard-item-meta">
+              <span class="draft-status-pill">Draft in Progress</span>
+              <span>Last saved: ${esc(draft.updatedAt || 'Recently')}</span>
+            </div>
+          </div>
+          <div class="dashboard-btn-group">
+            <button class="btn-dash-action" id="btn-dash-resume-draft">Continue Writing ➔</button>
+            <button class="btn-dash-action btn-dash-danger" id="btn-dash-discard-draft">Discard</button>
+          </div>
+        </div>
+      `;
+      const resume = document.getElementById('btn-dash-resume-draft');
+      if (resume) resume.addEventListener('click', () => this.openArticleStudio(draft));
+      const discard = document.getElementById('btn-dash-discard-draft');
+      if (discard) discard.addEventListener('click', async () => {
+        if (!confirm('Discard this draft permanently?')) return;
+        await fetch(`${this.apiBase}/api/posts/draft`, { method: 'DELETE', headers: this.authHeaders() });
+        this.dashboardData.draft = null;
+        this.renderDashboard('drafts');
+        this.showToast('Draft discarded.');
+      });
+    } else if (activeTab === 'activity') {
+      if (!recentActivity || recentActivity.length === 0) {
+        contentBox.innerHTML = '<div style="text-align:center; padding: 2.5rem 1rem; color: var(--text-dim);">No recent interactions on your posts yet. Share your stories to build an audience!</div>';
+        return;
+      }
+      contentBox.innerHTML = recentActivity.map(act => `
+        <div class="dashboard-item-row">
+          <div style="display:flex; align-items:center; gap: 0.75rem;">
+            <div class="author-avatar" style="width:34px; height:34px; font-size:0.85rem;">${esc(act.actor_avatar || 'CR')}</div>
+            <div>
+              <div style="font-size:0.9rem; color:var(--text-main); font-weight:600;">${esc(act.message)}</div>
+              <div style="font-size:0.78rem; color:var(--text-dim);">${esc(act.created_at || 'Recently')}</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
   }
 
   showSavedView() {
-    window.location.hash = '#/';
-    setTimeout(() => {
-      const tab = document.querySelector('.feed-tab[data-filter="saved"]');
-      if (tab) tab.click();
-    }, 50);
+    this.hideAllViews();
+    const saved = document.getElementById('saved-view');
+    if (!saved) return;
+    saved.style.display = 'flex';
+    document.title = 'Saved Articles & Reading History | READORA';
+    this.setNavActive();
+    window.scrollTo({ top: 0 });
+    this.renderSavedView('bookmarks');
+  }
+
+  renderSavedView(subTab = 'bookmarks', searchQuery = '') {
+    const saved = document.getElementById('saved-view');
+    if (!saved) return;
+
+    const bookmarkedPosts = this.posts.filter(p => p.bookmarkedByUser);
+    const readingHistory = JSON.parse(localStorage.getItem('readora_reading_history') || '[]');
+
+    saved.innerHTML = `
+      <div class="dashboard-hero-card" style="margin-bottom: 1.5rem;">
+        <h1 class="dashboard-title">Reading Lists & Library</h1>
+        <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 0.25rem;">
+          Revisit saved publications, bookmarks, and your reading journey.
+        </p>
+
+        <div class="saved-filter-bar" style="margin-top: 1.25rem;">
+          <div class="feed-filter-bar" style="margin: 0;">
+            <button class="feed-tab ${subTab === 'bookmarks' ? 'active' : ''}" data-savetab="bookmarks">
+              🔖 Bookmarks (${bookmarkedPosts.length})
+            </button>
+            <button class="feed-tab ${subTab === 'history' ? 'active' : ''}" data-savetab="history">
+              🕒 Reading History (${readingHistory.length})
+            </button>
+          </div>
+
+          ${subTab === 'bookmarks' ? `
+            <input type="text" id="saved-search-input" class="saved-search-input" placeholder="Search saved posts..." value="${esc(searchQuery)}">
+          ` : `
+            <button class="btn-dash-action btn-dash-danger" id="btn-clear-reading-history">
+              Clear Reading History
+            </button>
+          `}
+        </div>
+      </div>
+
+      <div id="saved-list-container" class="posts-stream"></div>
+    `;
+
+    saved.querySelectorAll('[data-savetab]').forEach(b => {
+      b.addEventListener('click', () => this.renderSavedView(b.dataset.savetab));
+    });
+
+    const searchInput = document.getElementById('saved-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.renderSavedView('bookmarks', e.target.value);
+      });
+    }
+
+    const clearBtn = document.getElementById('btn-clear-reading-history');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        if (!confirm('Clear your entire reading history?')) return;
+        localStorage.removeItem('readora_reading_history');
+        this.showToast('Reading history cleared.');
+        this.renderSavedView('history');
+      });
+    }
+
+    const listContainer = document.getElementById('saved-list-container');
+    if (!listContainer) return;
+
+    if (subTab === 'bookmarks') {
+      let filtered = bookmarkedPosts;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        filtered = filtered.filter(p =>
+          (p.title || '').toLowerCase().includes(q) ||
+          (p.content || '').toLowerCase().includes(q) ||
+          (p.author || '').toLowerCase().includes(q)
+        );
+      }
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `
+          <div class="dashboard-hero-card" style="text-align:center; padding: 3rem 1rem; color: var(--text-dim);">
+            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔖</div>
+            <p>${searchQuery ? 'No saved posts match your search.' : 'You have no saved posts yet. Click the bookmark icon on any post to save it here.'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(post => this.renderPostCard(post)).join('');
+      this.attachCardEventListeners(listContainer);
+    } else {
+      if (readingHistory.length === 0) {
+        listContainer.innerHTML = `
+          <div class="dashboard-hero-card" style="text-align:center; padding: 3rem 1rem; color: var(--text-dim);">
+            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📖</div>
+            <p>Articles you read will be recorded here so you can easily return to them.</p>
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = readingHistory.map(item => `
+        <div class="dashboard-hero-card" style="padding: 1.15rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <span class="card-tag ${this.getCategoryClass(item.category)}" style="margin-bottom: 0.25rem;">${esc(item.category || 'Article')}</span>
+            <a href="#/article/${esc(item.id)}" class="dashboard-item-title" style="font-size: 1.05rem;">${esc(item.title || 'Untitled Article')}</a>
+            <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.2rem;">By ${esc(item.author || 'Creator')} • Read ${timeAgo(item.timestamp)}</div>
+          </div>
+          <button class="btn-dash-action btn-open-history-art" data-id="${esc(item.id)}">Read Again ➔</button>
+        </div>
+      `).join('');
+
+      listContainer.querySelectorAll('.btn-open-history-art').forEach(b => {
+        b.addEventListener('click', () => this.openFullArticle(b.dataset.id));
+      });
+    }
   }
 
   async loadProfile(handle, silent = false) {
@@ -623,9 +1127,18 @@ class ReadoraApp {
   }
 
   logout() {
+    if (this.currentUser) {
+      try {
+        localStorage.setItem('readora_last_user', JSON.stringify({
+          name: this.currentUser.name,
+          handle: this.currentUser.handle,
+          avatar: this.currentUser.avatar || (this.currentUser.name ? this.currentUser.name.substring(0, 2).toUpperCase() : 'CR')
+        }));
+      } catch (e) {}
+    }
     localStorage.removeItem('readora_token');
     localStorage.removeItem('readora_current_user');
-    window.location.href = 'practise.html';
+    window.location.href = 'practise.html?switched=true';
   }
 
   initDOM() {
@@ -740,6 +1253,45 @@ class ReadoraApp {
         }
       });
     }
+
+    // Photo Drawer Toggle
+    const btnTogglePhoto = document.getElementById('btn-toggle-photo');
+    const photoDrawer = document.getElementById('composer-photo-drawer');
+    const photoInput = document.getElementById('photo-url-input');
+    const photoPreviewBox = document.getElementById('photo-preview-box');
+    const photoPreviewImg = document.getElementById('photo-preview-img');
+
+    if (btnTogglePhoto && photoDrawer) {
+      btnTogglePhoto.addEventListener('click', () => {
+        const isHidden = photoDrawer.style.display === 'none';
+        photoDrawer.style.display = isHidden ? 'block' : 'none';
+        btnTogglePhoto.classList.toggle('active', isHidden);
+        if (isHidden && photoInput) photoInput.focus();
+      });
+    }
+
+    if (photoInput && photoPreviewImg && photoPreviewBox) {
+      photoInput.addEventListener('input', () => {
+        const url = photoInput.value.trim();
+        if (url && /^https?:\/\//i.test(url)) {
+          photoPreviewImg.src = url;
+          photoPreviewBox.style.display = 'block';
+        } else {
+          photoPreviewBox.style.display = 'none';
+        }
+      });
+    }
+
+    // Explore Topic Chips Filter
+    const exploreChips = document.querySelectorAll('.explore-topic-chip');
+    exploreChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        exploreChips.forEach(c => c.style.background = '');
+        chip.style.background = 'var(--accent-tint)';
+        chip.style.color = 'var(--accent-primary)';
+        this.renderExploreGrid(chip.dataset.topic);
+      });
+    });
 
     // Sidebar Navigation items
     const navWriteBtn = document.getElementById('nav-write-btn');
@@ -912,15 +1464,39 @@ class ReadoraApp {
       });
     }
 
-    // Page changes (feed <-> profile)
+    // Page changes (feed <-> profile <-> dashboard)
     window.addEventListener('hashchange', () => this.handleRoute());
 
-    // Modals Open/Close
+    // Search filter with smooth debouncing
+    if (this.searchInput) {
+      let searchTimer;
+      this.searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          this.activeSearchQuery = e.target.value.toLowerCase().trim();
+          this.render();
+          if (this.route && this.route.name === 'explore') {
+            this.renderExploreGrid();
+          }
+        }, 200);
+      });
+    }
+
+    // Explore topic filter chips
+    document.querySelectorAll('.explore-topic-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.explore-topic-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        this.renderExploreGrid(chip.dataset.topic || '');
+      });
+    });
+
+    // Modals Open/Close & Article Studio
     if (this.btnOpenWriteArticle) {
-      this.btnOpenWriteArticle.addEventListener('click', () => this.openModal(this.writeArticleModal));
+      this.btnOpenWriteArticle.addEventListener('click', () => this.openArticleStudio());
     }
     if (this.btnWriteLongArticle) {
-      this.btnWriteLongArticle.addEventListener('click', () => this.openModal(this.writeArticleModal));
+      this.btnWriteLongArticle.addEventListener('click', () => this.openArticleStudio());
     }
     if (this.userBadge) {
       this.userBadge.addEventListener('click', () => this.openModal(this.profileModal));
@@ -945,6 +1521,85 @@ class ReadoraApp {
         this.logout();
       });
     }
+
+    // Notifications Trigger
+    if (this.notifBtn) {
+      this.notifBtn.addEventListener('click', () => {
+        this.openModal(this.notificationsModal);
+        this.loadNotifications();
+      });
+    }
+
+    if (this.btnMarkAllRead) {
+      this.btnMarkAllRead.addEventListener('click', async () => {
+        try {
+          await fetch(`${this.apiBase}/api/posts/notifications/read-all`, { method: 'POST', headers: this.authHeaders() });
+          this.showToast('All notifications marked as read.');
+          this.loadNotifications();
+        } catch (e) {}
+      });
+    }
+
+    // Article Studio Toolbar & Formatting
+    document.querySelectorAll('#editor-toolbar .editor-format-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.applyFormatToArticle(btn.dataset.format);
+      });
+    });
+
+    // Article Studio Mode Tabs (Write vs Preview)
+    const tabWrite = document.getElementById('editor-tab-write');
+    const tabPrev = document.getElementById('editor-tab-preview');
+    if (tabWrite) tabWrite.addEventListener('click', () => this.setEditorMode('write'));
+    if (tabPrev) tabPrev.addEventListener('click', () => this.setEditorMode('preview'));
+
+    // Article Studio Body: Real-time Word & Read-time Counter + Draft Debounce
+    const bodyInput = document.getElementById('article-body-input');
+    if (bodyInput) {
+      let draftTimer;
+      bodyInput.addEventListener('input', () => {
+        this.updateArticleMetaStats();
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(() => this.saveArticleDraft(), 3500);
+      });
+    }
+
+    // Explicit Save Draft Button
+    const btnSaveDraft = document.getElementById('btn-save-draft');
+    if (btnSaveDraft) {
+      btnSaveDraft.addEventListener('click', async () => {
+        await this.saveArticleDraft();
+        this.showToast('💾 Draft saved successfully!');
+      });
+    }
+
+    // Discard Button with Confirmation
+    const btnClearEditor = document.getElementById('btn-clear-editor');
+    if (btnClearEditor) {
+      btnClearEditor.addEventListener('click', () => {
+        const text = document.getElementById('article-body-input')?.value || '';
+        if (text.trim().length > 25 && !confirm('Discard all unsaved changes and close the editor?')) {
+          return;
+        }
+        if (this.articleForm) this.articleForm.reset();
+        const editId = document.getElementById('editing-article-id');
+        if (editId) editId.value = '';
+        const pill = document.getElementById('article-draft-status');
+        if (pill) pill.style.display = 'none';
+        this.editingPostId = null;
+        if (this.writeArticleModal) this.writeArticleModal.classList.remove('active');
+      });
+    }
+
+    // Protect Against Accidental Discard on Page Leave
+    window.addEventListener('beforeunload', (e) => {
+      const isModalOpen = this.writeArticleModal && this.writeArticleModal.classList.contains('active');
+      const bodyVal = document.getElementById('article-body-input')?.value || '';
+      if (isModalOpen && bodyVal.trim().length > 40) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
 
     // Article Form Submit
     if (this.articleForm) {
@@ -980,41 +1635,65 @@ class ReadoraApp {
   }
 
   async handleCreateThought() {
-    if (!this.requireLogin('Please log in to share a thought!')) return;
+    if (!this.requireLogin('Please log in to share!')) return;
 
-    const text = this.thoughtInput.value.trim();
+    const text = this.thoughtInput ? this.thoughtInput.value.trim() : '';
+    const photoInput = document.getElementById('photo-url-input');
+    const photoUrl = photoInput ? photoInput.value.trim() : '';
+    const category = this.composerCategory ? this.composerCategory.value : 'General';
+
+    // If photo is entered, create photo post
+    if (photoUrl) {
+      const publishBtn = this.publishThoughtBtn;
+      if (publishBtn) { publishBtn.disabled = true; publishBtn.textContent = 'Posting...'; }
+      try {
+        let newImagePost = null;
+        if (window.location.origin.startsWith('http')) {
+          const res = await fetch('/api/posts/image', {
+            method: 'POST',
+            headers: this.authHeaders(),
+            body: JSON.stringify({ imageUrl: photoUrl, caption: text, category })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            this.showToast(data.message || 'Failed to share photo post.');
+            return;
+          }
+          newImagePost = data.post;
+        }
+
+        if (newImagePost) {
+          this.posts.unshift(newImagePost);
+          this.saveLocalPosts();
+          if (this.thoughtInput) this.thoughtInput.value = '';
+          if (photoInput) photoInput.value = '';
+          const photoDrawer = document.getElementById('composer-photo-drawer');
+          if (photoDrawer) photoDrawer.style.display = 'none';
+          const photoPreviewBox = document.getElementById('photo-preview-box');
+          if (photoPreviewBox) photoPreviewBox.style.display = 'none';
+          const charCounter = document.getElementById('thought-char-count');
+          if (charCounter) charCounter.textContent = '0 / 280';
+          this.refresh();
+          this.showToast('📸 Photo post shared to Readora!');
+        }
+        return;
+      } catch (err) {
+        this.showToast('Network error while sharing photo post.');
+        return;
+      } finally {
+        if (publishBtn) { publishBtn.disabled = false; publishBtn.textContent = 'Share'; }
+      }
+    }
+
     if (!text) {
       this.showToast('Please write something before publishing!');
       return;
     }
 
-    const category = this.composerCategory ? this.composerCategory.value : 'General';
-
     const payload = {
       content: text,
       theme: this.selectedTheme,
-      category: category,
-      authorName: this.currentUser.name,
-      authorHandle: this.currentUser.handle,
-      authorAvatar: this.currentUser.avatar
-    };
-
-    let newThought = {
-      id: 'post_' + Date.now(),
-      type: 'thought',
-      author_id: this.currentUser.id,
-      author: this.currentUser.name,
-      handle: this.currentUser.handle,
-      avatar: this.currentUser.avatar,
-      timestamp: 'Just now',
-      content: text,
-      theme: this.selectedTheme,
-      category: category,
-      likes: 0,
-      likedByUser: false,
-      bookmarks: 0,
-      bookmarkedByUser: false,
-      comments: []
+      category: category
     };
 
     const publishBtn = this.publishThoughtBtn;
@@ -1025,35 +1704,38 @@ class ReadoraApp {
     }
 
     try {
+      let newThought = null;
       if (window.location.origin.startsWith('http')) {
-        try {
-          const res = await fetch('/api/posts/thought', {
-            method: 'POST',
-            headers: this.authHeaders(),
-            body: JSON.stringify(payload)
-          });
+        const res = await fetch('/api/posts/thought', {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify(payload)
+        });
 
-          if (res.ok) {
-            const data = await res.json();
-            if (data.post) newThought = data.post;
-          }
-        } catch (e) {
-          console.log('Offline post save');
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          this.showToast(data.message || 'Failed to share thought.');
+          return;
         }
+        newThought = data.post;
       }
 
-      this.posts.unshift(newThought);
-      this.saveLocalPosts();
-      this.thoughtInput.value = '';
-      const charCounter = document.getElementById('thought-char-count');
-      if (charCounter) charCounter.textContent = '0 / 280';
-      this.refresh();
-      this.showToast('✨ Thought published to Readora!');
+      if (newThought) {
+        this.posts.unshift(newThought);
+        this.saveLocalPosts();
+        this.thoughtInput.value = '';
+        const charCounter = document.getElementById('thought-char-count');
+        if (charCounter) charCounter.textContent = '0 / 280';
+        this.refresh();
+        this.showToast('✨ Thought published to Readora!');
+      }
+    } catch (e) {
+      this.showToast('Network error connecting to Readora server.');
     } finally {
       if (publishBtn) {
         publishBtn.disabled = false;
         publishBtn.style.opacity = '1';
-        publishBtn.innerHTML = '<span>Share Thought</span>';
+        publishBtn.innerHTML = '<span>Share</span>';
       }
     }
   }
@@ -1072,77 +1754,129 @@ class ReadoraApp {
       return;
     }
 
-    const words = content.split(/\s+/).length;
-    const readTimeMinutes = Math.max(1, Math.ceil(words / 180));
-
-    const payload = {
-      title,
-      subtitle,
-      category,
-      coverImage: coverUrl,
-      content,
-      authorName: this.currentUser.name,
-      authorHandle: this.currentUser.handle,
-      authorAvatar: this.currentUser.avatar
-    };
-
-    let newArticle = {
-      id: 'article_' + Date.now(),
-      type: 'article',
-      author_id: this.currentUser.id,
-      author: this.currentUser.name,
-      handle: this.currentUser.handle,
-      avatar: this.currentUser.avatar,
-      timestamp: 'Just now',
-      title: title,
-      subtitle: subtitle,
-      coverImage: coverUrl,
-      excerpt: content.length > 160 ? content.substring(0, 160) + '...' : content,
-      fullContent: content,
-      category: category,
-      readTime: `${readTimeMinutes} min read`,
-      likes: 0,
-      likedByUser: false,
-      bookmarks: 0,
-      bookmarkedByUser: false,
-      comments: []
-    };
-
     const submitBtn = this.articleForm ? this.articleForm.querySelector('button[type="submit"]') : null;
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.style.opacity = '0.7';
-      submitBtn.textContent = 'Publishing to Readora...';
+      submitBtn.textContent = this.editingPostId ? 'Saving Changes...' : 'Publishing to Readora...';
     }
 
     try {
-      if (window.location.origin.startsWith('http')) {
-        try {
-          const res = await fetch('/api/posts/article', {
-            method: 'POST',
-            headers: this.authHeaders(),
-            body: JSON.stringify(payload)
-          });
+      if (this.editingPostId) {
+        // Edit Mode: PUT /api/posts/:id
+        const res = await fetch(`/api/posts/${this.editingPostId}`, {
+          method: 'PUT',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ title, subtitle, category, coverImage: coverUrl, content })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          this.showToast(data.message || 'Failed to update article.');
+          return;
+        }
+        const post = this.posts.find(p => p.id === this.editingPostId);
+        if (post) {
+          Object.assign(post, data.post);
+          this.saveLocalPosts();
+          this.refresh();
+        }
+        this.editingPostId = null;
+        this.articleForm.reset();
+        this.writeArticleModal.classList.remove('active');
+        if (window.location.hash.startsWith('#/dashboard')) {
+          this.showDashboardView();
+        }
+        this.showToast('Article updated successfully!');
+      } else {
+        // Create Mode: POST /api/posts/article
+        const res = await fetch('/api/posts/article', {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ title, subtitle, category, coverImage: coverUrl, content })
+        });
 
-          if (res.ok) {
-            const data = await res.json();
-            if (data.post) newArticle = data.post;
-          }
-        } catch (e) {}
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          this.showToast(data.message || 'Failed to publish article.');
+          return;
+        }
+
+        const newArticle = data.post;
+        this.posts.unshift(newArticle);
+        this.saveLocalPosts();
+        try { localStorage.removeItem('readora_article_draft'); } catch(e) {}
+        fetch('/api/posts/draft', { method: 'DELETE', headers: this.authHeaders() }).catch(() => {});
+        this.articleForm.reset();
+        this.writeArticleModal.classList.remove('active');
+        this.refresh();
+        if (window.location.hash.startsWith('#/dashboard')) {
+          this.showDashboardView();
+        }
+        this.showToast('📖 Article published successfully!');
       }
-
-      this.posts.unshift(newArticle);
-      this.saveLocalPosts();
-      this.articleForm.reset();
-      this.writeArticleModal.classList.remove('active');
-      this.refresh();
-      this.showToast('📖 Article published successfully!');
+    } catch (e) {
+      this.showToast('Network error while publishing article.');
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';
         submitBtn.textContent = 'Publish to Readora';
       }
+    }
+  }
+
+  openEditPost(postId) {
+    const post = this.posts.find(p => p.id === postId);
+    if (!post) return;
+
+    if (post.type === 'thought' || post.type === 'image') {
+      const current = post.content || '';
+      const updated = prompt('Edit your thought:', current);
+      if (updated === null) return;
+      if (!updated.trim()) {
+        this.showToast('Content cannot be empty.');
+        return;
+      }
+      this.updatePost(postId, { content: updated.trim() });
+    } else if (post.type === 'article') {
+      this.editingPostId = postId;
+      document.getElementById('article-title-input').value = post.title || '';
+      document.getElementById('article-subtitle-input').value = post.subtitle || '';
+      document.getElementById('article-category-input').value = post.category || 'Tech';
+      document.getElementById('article-cover-input').value = post.coverImage || '';
+      document.getElementById('article-body-input').value = post.fullContent || post.content || '';
+
+      const modalTitle = document.querySelector('#write-article-modal .modal-header-title');
+      const submitBtn = this.articleForm ? this.articleForm.querySelector('button[type="submit"]') : null;
+      if (modalTitle) modalTitle.textContent = 'Edit Article';
+      if (submitBtn) submitBtn.textContent = 'Save Changes';
+
+      this.openModal(this.writeArticleModal);
+    }
+  }
+
+  async updatePost(postId, updates) {
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: 'PUT',
+        headers: this.authHeaders(),
+        body: JSON.stringify(updates)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const post = this.posts.find(p => p.id === postId);
+        if (post) {
+          Object.assign(post, updates);
+          if (data.post) Object.assign(post, data.post);
+          this.saveLocalPosts();
+          this.refresh();
+        }
+        this.showToast('Post updated successfully!');
+      } else {
+        this.showToast(data.message || 'Could not update post.');
+      }
+    } catch (e) {
+      this.showToast('Network error while updating post.');
     }
   }
 
@@ -1299,9 +2033,14 @@ class ReadoraApp {
   }
 
   async toggleLike(postId) {
+    if (!this.requireLogin('Please log in to like posts!')) return;
     const post = this.posts.find(p => p.id === postId);
     if (!post) return;
 
+    const prevLiked = post.likedByUser;
+    const prevLikes = post.likes;
+
+    // Optimistic UI update
     if (post.likedByUser) {
       post.likes = Math.max(0, post.likes - 1);
       post.likedByUser = false;
@@ -1314,21 +2053,45 @@ class ReadoraApp {
 
     if (window.location.origin.startsWith('http')) {
       try {
-        await fetch(`/api/posts/${postId}/like`, { method: 'POST', headers: this.authHeaders() });
-      } catch (e) {}
+        const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST', headers: this.authHeaders() });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          if (typeof data.likes === 'number') post.likes = data.likes;
+          if (typeof data.liked === 'boolean') post.likedByUser = data.liked;
+          this.saveLocalPosts();
+          this.refresh();
+        } else {
+          // Revert if unauthorized or failed
+          post.likedByUser = prevLiked;
+          post.likes = prevLikes;
+          this.saveLocalPosts();
+          this.refresh();
+          this.showToast(data.message || 'Unable to update like.');
+        }
+      } catch (e) {
+        post.likedByUser = prevLiked;
+        post.likes = prevLikes;
+        this.saveLocalPosts();
+        this.refresh();
+      }
     }
   }
 
   async toggleBookmark(postId) {
+    if (!this.requireLogin('Please log in to bookmark posts!')) return;
     const post = this.posts.find(p => p.id === postId);
     if (!post) return;
 
+    const prevSaved = post.bookmarkedByUser;
+    const prevBookmarks = post.bookmarks || 0;
+
+    // Optimistic UI update
     if (post.bookmarkedByUser) {
-      post.bookmarks = Math.max(0, post.bookmarks - 1);
+      post.bookmarks = Math.max(0, (post.bookmarks || 1) - 1);
       post.bookmarkedByUser = false;
       this.showToast('Removed from bookmarks');
     } else {
-      post.bookmarks++;
+      post.bookmarks = (post.bookmarks || 0) + 1;
       post.bookmarkedByUser = true;
       this.showToast('🔖 Saved to your bookmarks!');
     }
@@ -1337,8 +2100,26 @@ class ReadoraApp {
 
     if (window.location.origin.startsWith('http')) {
       try {
-        await fetch(`/api/posts/${postId}/bookmark`, { method: 'POST', headers: this.authHeaders() });
-      } catch (e) {}
+        const res = await fetch(`/api/posts/${postId}/bookmark`, { method: 'POST', headers: this.authHeaders() });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          if (typeof data.bookmarks === 'number') post.bookmarks = data.bookmarks;
+          if (typeof data.saved === 'boolean') post.bookmarkedByUser = data.saved;
+          this.saveLocalPosts();
+          this.refresh();
+        } else {
+          post.bookmarkedByUser = prevSaved;
+          post.bookmarks = prevBookmarks;
+          this.saveLocalPosts();
+          this.refresh();
+          this.showToast(data.message || 'Unable to update bookmark.');
+        }
+      } catch (e) {
+        post.bookmarkedByUser = prevSaved;
+        post.bookmarks = prevBookmarks;
+        this.saveLocalPosts();
+        this.refresh();
+      }
     }
   }
 
@@ -1357,75 +2138,468 @@ class ReadoraApp {
     if (!text) return;
 
     const post = this.posts.find(p => p.id === postId);
-    if (post) {
+    if (!post) return;
+
+    inputEl.value = '';
+
+    if (window.location.origin.startsWith('http')) {
+      try {
+        const res = await fetch(`/api/posts/${postId}/comment`, {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ text, authorName: this.currentUser.name })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          post.comments = post.comments || [];
+          post.comments.push(data.comment || {
+            id: 'c_' + Date.now(),
+            author: this.currentUser.name,
+            author_id: this.currentUser.id,
+            text: text,
+            created_at: new Date().toISOString()
+          });
+          this.openComments.add(postId);
+          this.saveLocalPosts();
+          this.refresh();
+          this.showToast('Comment posted!');
+        } else {
+          this.showToast(data.message || 'Failed to post comment.');
+        }
+      } catch (e) {
+        this.showToast('Network error posting comment.');
+      }
+    } else {
       post.comments = post.comments || [];
       post.comments.push({
+        id: 'c_' + Date.now(),
         author: this.currentUser.name,
-        text: text
+        author_id: this.currentUser.id,
+        text: text,
+        created_at: new Date().toISOString()
       });
       this.openComments.add(postId);
       this.saveLocalPosts();
-      inputEl.value = '';
       this.refresh();
+    }
+  }
 
-      if (window.location.origin.startsWith('http')) {
-        try {
-          await fetch(`/api/posts/${postId}/comment`, {
-            method: 'POST',
-            headers: this.authHeaders(),
-            body: JSON.stringify({ text, authorName: this.currentUser.name })
-          });
-        } catch (e) {}
+  async deleteComment(postId, commentId) {
+    if (!this.requireLogin('Please log in to delete comments.')) return;
+    if (!confirm('Delete this comment?')) return;
+
+    if (window.location.origin.startsWith('http')) {
+      try {
+        const res = await fetch(`/api/posts/comments/${commentId}`, {
+          method: 'DELETE',
+          headers: this.authHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          this.showToast(data.message || 'Failed to delete comment.');
+          return;
+        }
+      } catch (e) {
+        this.showToast('Network error deleting comment.');
+        return;
       }
     }
+
+    const post = this.posts.find(p => p.id === postId);
+    if (post && post.comments) {
+      post.comments = post.comments.filter(c => String(c.id) !== String(commentId));
+      this.saveLocalPosts();
+      this.refresh();
+    }
+    this.showToast('Comment deleted');
   }
 
   sharePost(post) {
     const title = post.type === 'thought' ? post.content : post.title;
+    const permalink = `${window.location.origin}${window.location.pathname}#/${post.type === 'thought' ? 'post' : 'article'}/${post.id}`;
     if (navigator.share) {
       navigator.share({
         title: 'Readora - ' + post.author,
         text: title,
-        url: window.location.href
+        url: permalink
       }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(`"${title}" — by ${post.author} on Readora (${window.location.href})`);
-      this.showToast('🔗 Post quote & link copied to clipboard!');
+      navigator.clipboard.writeText(`"${title}" — by ${post.author} on Readora (${permalink})`);
+      this.showToast('🔗 Permanent article link copied to clipboard!');
     }
   }
 
-  openFullArticle(postId) {
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) return;
+  async openFullArticle(postId, updateHash = true) {
+    let post = this.posts.find(p => p.id === postId);
+    let related = [];
+
+    // If post not present in client memory, or to fetch authoritative related/view data
+    if (window.location.origin.startsWith('http')) {
+      try {
+        const res = await fetch(`${this.apiBase}/api/posts/single/${postId}`, { headers: this.authHeaders() });
+        const data = await res.json();
+        if (res.ok && data.success && data.post) {
+          post = data.post;
+          related = data.related || [];
+          if (!this.posts.some(p => p.id === post.id)) {
+            this.posts.unshift(post);
+          }
+        }
+      } catch (e) {}
+
+      // Track view deduplicated
+      fetch(`${this.apiBase}/api/posts/${postId}/view`, { method: 'POST', headers: this.authHeaders() }).catch(() => {});
+    }
+
+    if (!post) {
+      this.showToast('Article not found.');
+      return;
+    }
+
+    // Save to reading history
+    try {
+      const hist = JSON.parse(localStorage.getItem('readora_reading_history') || '[]');
+      const idx = hist.findIndex(h => h.id === post.id);
+      if (idx !== -1) hist.splice(idx, 1);
+      hist.unshift({
+        id: post.id,
+        title: post.title,
+        author: post.author,
+        category: post.category,
+        readTime: post.readTime,
+        timestamp: Date.now()
+      });
+      if (hist.length > 50) hist.pop();
+      localStorage.setItem('readora_reading_history', JSON.stringify(hist));
+    } catch (e) {}
+
+    if (updateHash && window.location.hash !== `#/article/${postId}`) {
+      window.location.hash = `#/article/${postId}`;
+    }
 
     const contentBox = document.getElementById('read-article-container');
     if (!contentBox) return;
 
+    // Reset and attach scroll listener to reading progress bar
+    const bar = document.getElementById('reading-progress-bar');
+    if (bar) bar.style.width = '0%';
+    contentBox.scrollTop = 0;
+
+    contentBox.onscroll = () => {
+      if (!bar) return;
+      const maxScroll = contentBox.scrollHeight - contentBox.clientHeight;
+      if (maxScroll > 0) {
+        const progress = (contentBox.scrollTop / maxScroll) * 100;
+        bar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+      }
+    };
+
     const cover = safeUrl(post.coverImage);
+    const catClass = this.getCategoryClass(post.category);
+    const initials = post.avatar || (post.author ? post.author.substring(0, 2).toUpperCase() : 'CR');
 
     contentBox.innerHTML = `
       <div style="margin-bottom: 1.5rem;">
-        <span class="card-tag" style="margin-bottom: 0.5rem; display: inline-block;">${esc(post.category)}</span>
-        <h1 style="font-family: var(--font-brand); font-size: 2rem; color: #fff; line-height: 1.25; margin-bottom: 0.5rem;">${esc(post.title)}</h1>
-        ${post.subtitle ? `<p style="font-size: 1.1rem; color: var(--text-dim); margin-bottom: 1rem;">${esc(post.subtitle)}</p>` : ''}
+        <span class="card-tag ${catClass}" style="margin-bottom: 0.5rem; display: inline-block;">${esc(post.category || 'Article')}</span>
+        <h1 style="font-family: var(--font-brand); font-size: 2.1rem; font-weight: 800; color: var(--text-main); line-height: 1.25; margin-bottom: 0.6rem;">${esc(post.title)}</h1>
+        ${post.subtitle ? `<p style="font-size: 1.15rem; color: var(--text-dim); margin-bottom: 1.1rem; line-height: 1.5;">${esc(post.subtitle)}</p>` : ''}
 
-        <a class="author-link" href="${profileLink(post.handle)}" style="display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 1rem;">
-          <div class="author-avatar">${esc(post.avatar)}</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+          <a class="author-link" href="${profileLink(post.handle)}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+            <div class="author-avatar">${esc(initials)}</div>
+            <div>
+              <div class="author-name" style="font-weight: 700; color: var(--text-main);">${esc(post.author)}</div>
+              <div style="font-size: 0.8rem; color: var(--text-dim);">${esc(post.timestamp || 'Recently')} • ${esc(post.readTime || '3 min read')} • 👁️ ${esc(post.views || 0)} views</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      ${cover ? `<img src="${esc(cover)}" alt="Cover" style="width: 100%; max-height: 380px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 1.75rem;" onerror="this.style.display='none';" />` : ''}
+
+      <div style="font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.85; color: var(--text-main); margin-bottom: 2rem;">
+        ${renderSafeMarkdown(post.fullContent || post.content || post.excerpt)}
+      </div>
+
+      <!-- Action bar inside article modal -->
+      <div class="card-actions-bar" style="margin-top: 1.5rem; padding: 0.75rem 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+        <div class="action-buttons-group">
+          <button class="card-action-btn btn-like ${post.likedByUser ? 'liked' : ''}" data-id="${esc(post.id)}" title="Like">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.likedByUser ? '#ef4444' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <span>${esc(post.likes || 0)}</span>
+          </button>
+          <button class="card-action-btn btn-share" data-id="${esc(post.id)}" title="Share Article">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+          </button>
+        </div>
+        <button class="card-action-btn btn-bookmark ${post.bookmarkedByUser ? 'bookmarked' : ''}" data-id="${esc(post.id)}" title="Save">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.bookmarkedByUser ? '#f59e0b' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+        </button>
+      </div>
+
+      <!-- About the Author Box -->
+      <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-top: 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.85rem;">
+          <div class="author-avatar" style="width: 48px; height: 48px; font-size: 1.2rem;">${esc(initials)}</div>
           <div>
-            <div class="author-name" style="font-weight: 700; color: #fff;">${esc(post.author)}</div>
-            <div style="font-size: 0.8rem; color: var(--text-dim);">${esc(post.timestamp)} • ${esc(post.readTime)}</div>
+            <div style="font-weight: 700; color: var(--text-main); font-size: 1rem;">Written by ${esc(post.author)}</div>
+            <div style="font-size: 0.82rem; color: var(--text-dim);">${esc(post.handle)}</div>
           </div>
-        </a>
+        </div>
+        <a href="${profileLink(post.handle)}" class="btn-dash-action" style="text-decoration:none;">View Profile ➔</a>
       </div>
 
-      ${cover ? `<img src="${esc(cover)}" alt="Cover" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 1.5rem;" />` : ''}
-
-      <div style="font-family: var(--font-serif); font-size: 1.1rem; line-height: 1.8; color: var(--text-muted); white-space: pre-line;">
-        ${esc(post.fullContent || post.excerpt)}
-      </div>
+      <!-- Related Reads -->
+      ${related && related.length > 0 ? `
+        <div class="related-articles-section">
+          <div class="related-articles-title">Related Stories & Insights</div>
+          <div class="related-articles-grid">
+            ${related.map(rel => `
+              <div class="related-article-card" data-rel-id="${esc(rel.id)}">
+                <span class="card-tag ${this.getCategoryClass(rel.category)}" style="margin-bottom: 0.35rem;">${esc(rel.category || 'Article')}</span>
+                <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem; margin-bottom: 0.35rem; line-height: 1.3;">${esc(rel.title)}</div>
+                <div style="font-size: 0.78rem; color: var(--text-dim);">${esc(rel.author)} • ${esc(rel.readTime || '3 min read')}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
     `;
 
+    // Wire actions inside the article modal
+    const likeBtn = contentBox.querySelector('.btn-like');
+    if (likeBtn) likeBtn.addEventListener('click', () => this.toggleLike(post.id));
+    const bmBtn = contentBox.querySelector('.btn-bookmark');
+    if (bmBtn) bmBtn.addEventListener('click', () => this.toggleBookmark(post.id));
+    const shareBtn = contentBox.querySelector('.btn-share');
+    if (shareBtn) shareBtn.addEventListener('click', () => this.sharePost(post));
+
+    contentBox.querySelectorAll('.related-article-card').forEach(card => {
+      card.addEventListener('click', () => {
+        this.openFullArticle(card.dataset.relId);
+      });
+    });
+
     this.openModal(this.readArticleModal);
+  }
+
+  openArticleStudio(initialData = null) {
+    if (!this.requireLogin('Please log in to write an article!')) return;
+
+    const modal = this.writeArticleModal;
+    if (!modal) return;
+
+    const titleInput = document.getElementById('article-title-input');
+    const subtitleInput = document.getElementById('article-subtitle-input');
+    const catInput = document.getElementById('article-category-input');
+    const coverInput = document.getElementById('article-cover-input');
+    const bodyInput = document.getElementById('article-body-input');
+    const editIdInput = document.getElementById('editing-article-id');
+    const draftStatus = document.getElementById('article-draft-status');
+
+    if (initialData) {
+      if (titleInput) titleInput.value = initialData.title || '';
+      if (subtitleInput) subtitleInput.value = initialData.subtitle || '';
+      if (catInput) catInput.value = initialData.category || 'Technology';
+      if (coverInput) coverInput.value = initialData.coverImage || '';
+      if (bodyInput) bodyInput.value = initialData.content || '';
+      if (editIdInput) editIdInput.value = initialData.id || '';
+    } else {
+      if (editIdInput) editIdInput.value = '';
+      // Check for saved draft on backend
+      fetch(`${this.apiBase}/api/posts/draft`, { headers: this.authHeaders() })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success && d.draft && (d.draft.title || d.draft.content)) {
+            if (titleInput && !titleInput.value) titleInput.value = d.draft.title || '';
+            if (subtitleInput && !subtitleInput.value) subtitleInput.value = d.draft.subtitle || '';
+            if (catInput && d.draft.category) catInput.value = d.draft.category;
+            if (coverInput && !coverInput.value) coverInput.value = d.draft.cover_image || '';
+            if (bodyInput && !bodyInput.value) bodyInput.value = d.draft.content || '';
+            if (draftStatus) {
+              draftStatus.textContent = 'Draft restored';
+              draftStatus.style.display = 'inline-flex';
+            }
+            this.updateArticleMetaStats();
+          }
+        })
+        .catch(() => {});
+    }
+
+    this.updateArticleMetaStats();
+    this.setEditorMode('write');
+    this.openModal(modal);
+  }
+
+  setEditorMode(mode) {
+    const writeBtn = document.getElementById('editor-tab-write');
+    const prevBtn = document.getElementById('editor-tab-preview');
+    const writePane = document.getElementById('editor-write-pane');
+    const prevPane = document.getElementById('editor-preview-pane');
+
+    if (writeBtn) writeBtn.classList.toggle('active', mode === 'write');
+    if (prevBtn) prevBtn.classList.toggle('active', mode === 'preview');
+
+    if (mode === 'preview') {
+      if (writePane) writePane.style.display = 'none';
+      if (prevPane) {
+        prevPane.style.display = 'block';
+        const title = (document.getElementById('article-title-input')?.value || 'Untitled Article').trim();
+        const subtitle = (document.getElementById('article-subtitle-input')?.value || '').trim();
+        const cover = (document.getElementById('article-cover-input')?.value || '').trim();
+        const category = document.getElementById('article-category-input')?.value || 'General';
+        const content = document.getElementById('article-body-input')?.value || '';
+
+        prevPane.innerHTML = `
+          <div style="margin-bottom: 1.25rem;">
+            <span class="card-tag ${this.getCategoryClass(category)}" style="margin-bottom: 0.5rem; display: inline-block;">${esc(category)}</span>
+            <h1 style="font-family: var(--font-brand); font-size: 1.85rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.35rem;">${esc(title)}</h1>
+            ${subtitle ? `<p style="font-size: 1.05rem; color: var(--text-dim); margin-bottom: 0.75rem;">${esc(subtitle)}</p>` : ''}
+          </div>
+          ${cover ? `<img src="${esc(cover)}" alt="Cover" style="width:100%; max-height:280px; object-fit:cover; border-radius:var(--radius-md); margin-bottom:1.5rem;" />` : ''}
+          <div style="font-family:var(--font-serif); font-size:1.1rem; line-height:1.8; color:var(--text-main);">
+            ${renderSafeMarkdown(content)}
+          </div>
+        `;
+      }
+    } else {
+      if (writePane) writePane.style.display = 'block';
+      if (prevPane) prevPane.style.display = 'none';
+    }
+  }
+
+  updateArticleMetaStats() {
+    const body = document.getElementById('article-body-input');
+    const countEl = document.getElementById('article-word-count');
+    const timeEl = document.getElementById('article-read-time');
+    if (!body || !countEl || !timeEl) return;
+
+    const text = body.value.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    const chars = text.length;
+    const readTime = Math.max(1, Math.ceil(words / 180));
+
+    countEl.textContent = `${words} words • ${chars} characters`;
+    timeEl.textContent = `~${readTime} min read`;
+  }
+
+  applyFormatToArticle(format) {
+    const textarea = document.getElementById('article-body-input');
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end);
+    let replacement = '';
+
+    switch (format) {
+      case 'bold':
+        replacement = `**${selected || 'bold text'}**`;
+        break;
+      case 'italic':
+        replacement = `*${selected || 'italic text'}*`;
+        break;
+      case 'h2':
+        replacement = `\n## ${selected || 'Heading 2'}\n`;
+        break;
+      case 'h3':
+        replacement = `\n### ${selected || 'Heading 3'}\n`;
+        break;
+      case 'quote':
+        replacement = `\n> ${selected || 'Quotation text'}\n`;
+        break;
+      case 'bullet':
+        replacement = `\n- ${selected || 'List item'}\n`;
+        break;
+      case 'numbered':
+        replacement = `\n1. ${selected || 'List item'}\n`;
+        break;
+      case 'link':
+        replacement = `[${selected || 'link text'}](https://example.com)`;
+        break;
+      case 'code':
+        replacement = `\`${selected || 'code snippet'}\``;
+        break;
+      default:
+        return;
+    }
+
+    textarea.setRangeText(replacement, start, end, 'select');
+    textarea.focus();
+    this.updateArticleMetaStats();
+  }
+
+  async saveArticleDraft() {
+    if (!this.token) return;
+    const title = document.getElementById('article-title-input')?.value || '';
+    const subtitle = document.getElementById('article-subtitle-input')?.value || '';
+    const category = document.getElementById('article-category-input')?.value || 'General';
+    const coverImage = document.getElementById('article-cover-input')?.value || '';
+    const content = document.getElementById('article-body-input')?.value || '';
+
+    if (!title.trim() && !content.trim()) return;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/posts/draft`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ title, subtitle, category, coverImage, content })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const pill = document.getElementById('article-draft-status');
+        if (pill) {
+          pill.textContent = 'Draft saved at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          pill.style.display = 'inline-flex';
+        }
+      }
+    } catch (e) {}
+  }
+
+  async loadNotifications() {
+    if (!this.token) return;
+    try {
+      const res = await fetch(`${this.apiBase}/api/posts/notifications`, { headers: this.authHeaders() });
+      const data = await res.json();
+      if (!res.ok || !data.success) return;
+
+      const listEl = document.getElementById('notifications-list');
+      const badgeEl = document.getElementById('nav-notif-badge');
+      if (badgeEl) {
+        if (data.unreadCount > 0) {
+          badgeEl.textContent = data.unreadCount;
+          badgeEl.style.display = 'inline-block';
+        } else {
+          badgeEl.style.display = 'none';
+        }
+      }
+
+      if (listEl && data.notifications) {
+        if (data.notifications.length === 0) {
+          listEl.innerHTML = '<div style="text-align:center; padding: 2rem 0; color: var(--text-dim); font-size: 0.9rem;">No notifications yet. When people like, comment, or follow you, they will appear here!</div>';
+          return;
+        }
+
+        listEl.innerHTML = data.notifications.map(n => `
+          <div class="notification-item ${n.is_read ? '' : 'unread'}" style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border-bottom:1px solid var(--border-color); cursor:pointer;" data-post-id="${esc(n.post_id || '')}">
+            <div class="author-avatar" style="width:36px; height:36px; font-size:0.85rem;">${esc(n.actor_avatar || 'CR')}</div>
+            <div style="flex:1;">
+              <div style="font-size:0.88rem; color:var(--text-main); font-weight:600;">${esc(n.message)}</div>
+              <div style="font-size:0.75rem; color:var(--text-dim);">${esc(n.created_at || 'Recently')}</div>
+            </div>
+          </div>
+        `).join('');
+
+        listEl.querySelectorAll('.notification-item').forEach(item => {
+          item.addEventListener('click', () => {
+            if (item.dataset.postId) {
+              this.notificationsModal.classList.remove('active');
+              this.openFullArticle(item.dataset.postId);
+            }
+          });
+        });
+      }
+    } catch (e) {}
   }
 
   openModal(modal) {
@@ -1447,6 +2621,7 @@ class ReadoraApp {
   refresh() {
     this.render();
     if (this.isProfileActive()) this.renderProfilePosts();
+    if (this.route && this.route.name === 'explore') this.renderExploreGrid();
   }
 
   render() {
@@ -1529,8 +2704,7 @@ class ReadoraApp {
   isPostAuthor(post) {
     if (!this.currentUser) return false;
     return (post.author_id && post.author_id === this.currentUser.id) ||
-           (post.handle && this.currentUser.handle && post.handle.toLowerCase() === this.currentUser.handle.toLowerCase()) ||
-           this.currentUser.id === 'usr_harsh';
+           (post.handle && this.currentUser.handle && post.handle.toLowerCase() === this.currentUser.handle.toLowerCase());
   }
 
   // ---------- Post cards ----------
@@ -1570,6 +2744,9 @@ class ReadoraApp {
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <span class="card-tag ${catClass}">${esc(post.category || 'General')}</span>
           ${isOwner ? `
+            <button class="btn-edit-post" data-id="${esc(post.id)}" title="Edit Post" style="background: transparent; border: 1px solid var(--border-default); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
             <button class="btn-delete-post" data-id="${esc(post.id)}" title="${deleteTitle}" style="background: transparent; border: 1px solid var(--border-default); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
@@ -1606,15 +2783,29 @@ class ReadoraApp {
 
   renderCommentsDrawer(post) {
     const id = esc(post.id);
+    const isPostOwner = this.isPostAuthor(post);
     return `
       <div class="comments-drawer" style="display: ${this.openComments.has(post.id) ? 'block' : 'none'};">
         <div class="comments-list">
-          ${(post.comments || []).map(c => `
-            <div class="comment-item">
-              <span class="comment-author">${esc(c.author)}:</span>
-              <span class="comment-body">${esc(c.text)}</span>
+          ${(post.comments || []).map(c => {
+            const canDelete = this.currentUser && (
+              isPostOwner ||
+              (c.author_id && c.author_id === this.currentUser.id) ||
+              (c.user_id && c.user_id === this.currentUser.id) ||
+              (c.author && this.currentUser.name && c.author === this.currentUser.name)
+            );
+            return `
+            <div class="comment-item" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.35rem 0;">
+              <div style="flex: 1; font-size: 0.88rem;">
+                <span class="comment-author" style="font-weight: 600; color: var(--text-main);">${esc(c.author || c.name || 'User')}:</span>
+                <span class="comment-body" style="color: var(--text-muted); margin-left: 0.25rem;">${esc(c.text)}</span>
+              </div>
+              ${canDelete && c.id ? `
+                <button class="btn-delete-comment" data-post-id="${id}" data-comment-id="${esc(c.id)}" title="Delete comment" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 0 4px; font-size: 1.1rem; line-height: 1;">&times;</button>
+              ` : ''}
             </div>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
         <div class="comment-input-row">
           <input type="text" placeholder="Add a comment..." class="input-comment" data-id="${id}">
@@ -1697,10 +2888,24 @@ class ReadoraApp {
       btn.addEventListener('click', () => this.toggleBookmark(btn.dataset.id));
     });
 
+    root.querySelectorAll('.btn-edit-post').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openEditPost(btn.dataset.id);
+      });
+    });
+
     root.querySelectorAll('.btn-delete-post').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.deletePost(btn.dataset.id);
+      });
+    });
+
+    root.querySelectorAll('.btn-delete-comment').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.deleteComment(btn.dataset.postId, btn.dataset.commentId);
       });
     });
 
