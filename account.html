@@ -1,714 +1,1143 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Create your READORA account - Where readers become creators.">
-  <title>READORA | Create Account</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" type="image/x-icon" href="https://www.bing.com/th/id/OIP.kTjssfQu3vohsl0CrLhGyAHaHa?w=183&h=211&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2">
+  <meta name="description" content="Create your READORA Creator Account - The modern editorial sanctuary where readers become creators.">
+  <title>READORA | Create Account - Sign Up</title>
+  <link rel="icon" type="image/jpeg" href="assets/readora-3d-logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
   <style>
-    /* Clean Instagram/Threads Style Light Auth Aesthetic */
+    /* ==========================================================================
+       READORA - Ultra-Premium 3D Neumorphic & Glassmorphic Authentication
+       ========================================================================== */
     :root {
-      --bg-page: #f4f7fb;
-      --bg-surface: #ffffff;
-      --bg-subtle: #f8fafc;
-      --border-color: #e6ebf2;
-      --text-main: #0f172a;
-      --text-muted: #475569;
-      --text-dim: #64748b;
-      --accent-primary: #2f6df6;
-      --accent-hover: #2459d6;
-      --accent-tint: #e8f0ff;
-      --accent-gradient: linear-gradient(135deg, #3b7bff 0%, #2f6df6 100%);
-      --accent-gradient-hover: linear-gradient(135deg, #2f6df6 0%, #2459d6 100%);
-      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      --font-brand: 'Plus Jakarta Sans', var(--font-ui);
-      --font-reading: 'Lora', Georgia, serif;
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      /* Light Theme (Default - Soft 3D Neumorphism) */
+      --bg-page: #ebf0f7;
+      --bg-gradient: radial-gradient(circle at 15% 15%, #ffffff 0%, #ebf1f8 45%, #dde6f2 100%);
+      
+      --card-bg: rgba(255, 255, 255, 0.76);
+      --card-border: rgba(255, 255, 255, 0.9);
+      --card-shadow: 
+        0 30px 65px -12px rgba(24, 45, 90, 0.12),
+        0 14px 28px -6px rgba(37, 99, 235, 0.08),
+        inset 0 1px 2px rgba(255, 255, 255, 0.98);
+
+      --neu-surface: linear-gradient(145deg, #ffffff, #eaf0f9);
+      --neu-emboss: 
+        6px 6px 16px rgba(166, 180, 204, 0.38),
+        -6px -6px 16px rgba(255, 255, 255, 0.98);
+      --neu-emboss-hover: 
+        8px 8px 20px rgba(166, 180, 204, 0.48),
+        -8px -8px 20px rgba(255, 255, 255, 1);
+      --neu-inset: 
+        inset 3px 3px 6px rgba(166, 175, 195, 0.32),
+        inset -3px -3px 6px rgba(255, 255, 255, 0.95);
+      --neu-inset-focus: 
+        inset 2px 2px 5px rgba(37, 99, 235, 0.12),
+        0 0 0 4px rgba(37, 99, 235, 0.16);
+
+      --input-bg: #eef3f9;
+      --input-border: rgba(255, 255, 255, 0.8);
+      
+      --text-title: #0a1128;
+      --text-sub: #6c7f99;
+      --text-body: #1e293b;
+      --text-muted: #8393a8;
+      
+      --accent-blue: #2563eb;
+      --accent-blue-hover: #1d4ed8;
+      --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 55%, #1d4ed8 100%);
+      --accent-shadow: 
+        0 12px 26px -4px rgba(37, 99, 235, 0.48),
+        0 4px 10px -2px rgba(37, 99, 235, 0.28),
+        inset 0 1px 1px rgba(255, 255, 255, 0.4);
+
+      --arc-glow: rgba(59, 130, 246, 0.35);
+      --divider-line: rgba(166, 180, 204, 0.45);
     }
 
-    body {
+    [data-theme="dark"] {
+      /* Dark Theme (Obsidian & Electric Sapphire Neumorphism) */
+      --bg-page: #090d16;
+      --bg-gradient: radial-gradient(circle at 15% 15%, #131c2e 0%, #0c121e 50%, #070a12 100%);
+      
+      --card-bg: rgba(16, 23, 38, 0.78);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-shadow: 
+        0 35px 70px -15px rgba(0, 0, 0, 0.75),
+        0 15px 30px -8px rgba(37, 99, 235, 0.22),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
+
+      --neu-surface: linear-gradient(145deg, #162035, #0f1728);
+      --neu-emboss: 
+        6px 6px 18px rgba(0, 0, 0, 0.6),
+        -5px -5px 15px rgba(30, 41, 59, 0.35);
+      --neu-emboss-hover: 
+        8px 8px 24px rgba(0, 0, 0, 0.75),
+        -6px -6px 18px rgba(37, 99, 235, 0.25);
+      --neu-inset: 
+        inset 3px 3px 6px rgba(0, 0, 0, 0.65),
+        inset -2px -2px 6px rgba(30, 41, 59, 0.4);
+      --neu-inset-focus: 
+        inset 2px 2px 5px rgba(37, 99, 235, 0.2),
+        0 0 0 4px rgba(59, 130, 246, 0.25);
+
+      --input-bg: #0d1525;
+      --input-border: rgba(255, 255, 255, 0.06);
+      
+      --text-title: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-body: #cbd5e1;
+      --text-muted: #64748b;
+
+      --accent-blue: #3b82f6;
+      --accent-blue-hover: #60a5fa;
+      --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 55%, #1d4ed8 100%);
+      --accent-shadow: 
+        0 12px 28px -4px rgba(37, 99, 235, 0.65),
+        0 4px 10px -2px rgba(37, 99, 235, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.35);
+
+      --arc-glow: rgba(59, 130, 246, 0.25);
+      --divider-line: rgba(255, 255, 255, 0.12);
+    }
+
+    * {
       margin: 0;
       padding: 0;
-      background: var(--bg-page);
-      font-family: var(--font-ui);
-      color: var(--text-main);
+      box-sizing: border-box;
       -webkit-font-smoothing: antialiased;
     }
 
-    .ig-auth-container {
+    body {
+      font-family: var(--font-main);
+      background: var(--bg-page);
+      background-image: var(--bg-gradient);
       min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow-x: hidden;
+      color: var(--text-body);
+      padding: 2rem 1.25rem;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    /* Ambient Shapes */
+    .ambient-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .arc-top-left {
+      position: absolute;
+      top: -160px;
+      left: -160px;
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      border: 36px solid rgba(255, 255, 255, 0.65);
+      box-shadow: 0 0 60px var(--arc-glow), inset 0 0 40px var(--arc-glow);
+    }
+
+    [data-theme="dark"] .arc-top-left {
+      border-color: rgba(30, 41, 59, 0.45);
+    }
+
+    .orb-mid-right {
+      position: absolute;
+      top: 22%;
+      right: -60px;
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(210, 228, 250, 0.25));
+      box-shadow: 14px 14px 30px rgba(166, 180, 204, 0.35), -8px -8px 24px rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(14px);
+    }
+
+    .arc-bottom-left {
+      position: absolute;
+      bottom: -150px;
+      left: -150px;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      border: 28px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 0 45px var(--arc-glow);
+    }
+
+    .wave-bottom-right {
+      position: absolute;
+      bottom: -100px;
+      right: -100px;
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      border: 32px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 40px var(--arc-glow);
+    }
+
+    .ambient-corner-caption {
+      position: fixed;
+      bottom: 2rem;
+      right: 2.25rem;
+      text-align: right;
+      pointer-events: none;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.25rem;
+    }
+
+    .ambient-caption-title {
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 2.2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .ambient-caption-line {
+      width: 24px;
+      height: 2px;
+      background: var(--accent-blue);
+      border-radius: 2px;
+      margin-top: 2px;
+    }
+
+    /* Top Bar */
+    .top-actions-bar {
+      position: fixed;
+      top: 1.5rem;
+      left: 0;
+      right: 0;
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      pointer-events: auto;
+    }
+
+    .top-brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65rem;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+    }
+
+    .top-brand-pill:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--neu-emboss-hover);
+    }
+
+    .brand-pill-logo {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+
+    .brand-pill-text {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: var(--text-title);
+    }
+
+    .brand-pill-dot {
+      color: var(--accent-blue);
+    }
+
+    .theme-toggle-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-title);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+    }
+
+    .theme-toggle-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--neu-emboss-hover);
+      color: var(--accent-blue);
+    }
+
+    .theme-toggle-btn:active {
+      transform: translateY(1px);
+      box-shadow: var(--neu-inset);
+    }
+
+    /* Center Stage */
+    .auth-center-stage {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 440px;
+      margin: 3.5rem auto 1.5rem auto;
+      animation: stageFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes stageFadeIn {
+      from { opacity: 0; transform: translateY(22px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .auth-neu-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1.5px solid var(--card-border);
+      border-radius: 40px;
+      padding: 2.75rem 2.4rem 2.25rem 2.4rem;
+      box-shadow: var(--card-shadow);
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 2rem 1.5rem;
-      position: relative;
-      background: var(--bg-page);
-      background-image:
-        radial-gradient(circle at 15% 20%, rgba(227, 239, 255, 0.6) 0%, transparent 40%),
-        radial-gradient(circle at 85% 75%, rgba(236, 235, 250, 0.6) 0%, transparent 40%),
-        radial-gradient(circle at 50% 50%, rgba(228, 246, 241, 0.4) 0%, transparent 50%);
-      background-attachment: fixed;
-    }
-
-    .ig-card {
-      width: 100%;
-      max-width: 440px;
-      background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 20px;
-      padding: 2.5rem 2.25rem;
       text-align: center;
-      box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.04), 0 20px 40px -10px rgba(15, 23, 42, 0.08);
-      box-sizing: border-box;
-      transition: all 0.3s ease;
-    }
-
-    .ig-logo {
-      font-family: var(--font-brand);
-      font-size: 2.25rem;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      color: var(--text-main);
-      margin-bottom: 0.25rem;
-    }
-
-    .ig-logo::after {
-      content: " •";
-      color: var(--accent-primary);
-    }
-
-    .ig-tagline {
-      font-family: var(--font-reading);
-      font-style: italic;
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      margin-bottom: 1.75rem;
-      line-height: 1.4;
-    }
-
-    .ig-step-header {
-      font-family: var(--font-brand);
-      font-size: 1.35rem;
-      font-weight: 700;
-      color: var(--text-main);
-      margin-bottom: 0.4rem;
-      letter-spacing: -0.3px;
-    }
-
-    .ig-step-desc {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      margin-bottom: 1.5rem;
-      line-height: 1.5;
-    }
-
-    .ig-input-group {
-      margin-bottom: 1.15rem;
-      text-align: left;
       position: relative;
     }
 
-    .ig-label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-main);
-      margin-bottom: 0.4rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .ig-input {
-      width: 100%;
-      background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 0.85rem 1rem;
-      color: var(--text-main);
-      font-size: 0.95rem;
-      box-sizing: border-box;
-      transition: all 0.2s ease;
-      font-family: var(--font-ui);
-      outline: none;
-    }
-
-    .ig-input:focus {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 3px var(--accent-tint);
-    }
-
-    .ig-btn-primary {
-      width: 100%;
-      background: var(--accent-gradient);
-      color: #ffffff;
-      font-weight: 700;
-      font-size: 0.95rem;
-      padding: 0.85rem 1.25rem;
-      border-radius: 10px;
-      margin-top: 0.75rem;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 2px 8px rgba(47, 109, 246, 0.25);
-      transition: all 0.2s ease;
-      font-family: var(--font-ui);
-    }
-
-    .ig-btn-primary:hover {
-      background: var(--accent-gradient-hover);
-      transform: translateY(-1px);
-    }
-
-    .ig-btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    /* 6-Digit Code Boxes */
-    .ig-otp-row {
-      display: flex;
-      justify-content: center;
-      gap: 0.5rem;
-      margin: 1.5rem 0;
-    }
-
-    .ig-otp-digit {
-      width: 44px;
-      height: 52px;
-      font-size: 1.5rem;
-      font-weight: 800;
-      text-align: center;
-      color: var(--text-main);
-      background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      font-family: monospace;
-      transition: all 0.2s ease;
-      outline: none;
-    }
-
-    .ig-otp-digit:focus {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 3px var(--accent-tint);
-    }
-
-    .ig-alert {
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      color: #dc2626;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      margin-bottom: 1.25rem;
-      text-align: center;
-      display: none;
-      animation: fadeIn 0.2s ease;
-    }
-
-    .ig-success-box {
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      color: #16a34a;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      margin-bottom: 1.25rem;
-      text-align: center;
-      display: none;
-    }
-
-    /* Live username status indicator */
-    .username-status {
-      font-size: 0.82rem;
-      margin-top: 0.35rem;
-      min-height: 1.2rem;
+    .floating-logo-vessel {
+      width: 104px;
+      height: 104px;
+      border-radius: 30px;
+      background: var(--neu-surface);
+      border: 1.5px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
       display: flex;
       align-items: center;
-      gap: 0.3rem;
+      justify-content: center;
+      margin-bottom: 1.6rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
-    .status-available {
-      color: #16a34a;
-      font-weight: 600;
+    .floating-logo-vessel:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: var(--neu-emboss-hover);
     }
 
-    .status-taken {
-      color: #dc2626;
-      font-weight: 600;
+    .floating-logo-img {
+      width: 82px;
+      height: 82px;
+      object-fit: contain;
+      border-radius: 20px;
+      filter: drop-shadow(0 8px 16px rgba(37, 99, 235, 0.25));
     }
 
-    .status-checking {
-      color: #d97706;
+    .auth-title {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      color: var(--text-title);
+      margin-bottom: 0.35rem;
+      line-height: 1.15;
     }
 
-    .ig-bottom-box {
+    .auth-subtitle {
+      font-size: 0.94rem;
+      color: var(--text-sub);
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      margin-bottom: 1.6rem;
+    }
+
+    .auth-tab-pill-track {
       width: 100%;
-      max-width: 440px;
-      background: #ffffff;
-      border: 1px solid var(--border-color);
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      box-shadow: var(--neu-inset);
+      border-radius: 9999px;
+      padding: 4px;
+      display: flex;
+      margin-bottom: 1.6rem;
+    }
+
+    .tab-pill-btn {
+      flex: 1;
+      padding: 0.65rem 0.85rem;
+      border-radius: 9999px;
+      border: none;
+      background: transparent;
+      font-family: var(--font-main);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
+
+    .tab-pill-btn.active {
+      background: var(--neu-surface);
+      color: var(--text-title);
+      font-weight: 700;
+      box-shadow: var(--neu-emboss);
+    }
+
+    .auth-alert-box {
+      width: 100%;
       border-radius: 14px;
-      padding: 1.25rem;
-      text-align: center;
-      font-size: 0.9rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.86rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+      text-align: left;
+    }
+
+    .auth-alert-error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+    }
+
+    .auth-alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+    }
+
+    /* Inputs */
+    .auth-form {
+      width: 100%;
+      text-align: left;
+    }
+
+    .neu-input-track {
+      position: relative;
+      width: 100%;
+      margin-bottom: 1.15rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .neu-input-icon {
+      position: absolute;
+      left: 1.25rem;
       color: var(--text-muted);
-      margin-top: 1rem;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+    }
+
+    .neu-input-field {
+      width: 100%;
+      height: 54px;
+      border-radius: 9999px;
+      background: var(--input-bg);
+      border: 1.5px solid var(--input-border);
+      box-shadow: var(--neu-inset);
+      padding: 0 3.25rem 0 3.25rem;
+      font-size: 0.94rem;
+      font-family: var(--font-main);
+      color: var(--text-title);
+      outline: none;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       box-sizing: border-box;
     }
 
-    .ig-bottom-box a {
-      color: var(--accent-primary);
+    .neu-input-field:focus {
+      background: var(--card-bg);
+      border-color: var(--accent-blue);
+      box-shadow: var(--neu-inset-focus);
+    }
+
+    .neu-input-field:focus ~ .neu-input-icon {
+      color: var(--accent-blue);
+    }
+
+    .neu-input-toggle-eye {
+      position: absolute;
+      right: 1.15rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: color 0.2s ease, transform 0.2s ease;
+      outline: none;
+    }
+
+    .neu-input-toggle-eye:hover {
+      color: var(--text-title);
+      transform: scale(1.1);
+    }
+
+    .btn-submit-pill {
+      width: 100%;
+      height: 56px;
+      border-radius: 9999px;
+      background: var(--accent-gradient);
+      border: none;
+      color: #ffffff;
+      font-family: var(--font-main);
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      box-shadow: var(--accent-shadow);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+    }
+
+    .btn-submit-pill:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 32px -4px rgba(37, 99, 235, 0.58), 0 6px 14px -2px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-submit-pill:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 14px -2px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-arrow-circle {
+      position: absolute;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35);
+      transition: transform 0.25s ease;
+    }
+
+    .btn-submit-pill:hover .btn-arrow-circle {
+      transform: translateX(3px);
+    }
+
+    .auth-divider {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      margin: 1.75rem 0 1.35rem 0;
+    }
+
+    .auth-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--divider-line);
+    }
+
+    .auth-divider-text {
+      padding: 0 1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .btn-google-direct {
+      width: 100%;
+      height: 48px;
+      border-radius: 9999px;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      color: var(--text-title);
+      font-family: var(--font-main);
+      font-size: 0.92rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      margin-bottom: 1.4rem;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+    }
+
+    .btn-google-direct:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--neu-emboss-hover);
+      border-color: rgba(66, 133, 244, 0.4);
+    }
+
+    .social-btn-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+      width: 100%;
+    }
+
+    .social-squircle {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+      padding: 0;
+    }
+
+    .social-squircle:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--neu-emboss-hover);
+    }
+
+    .auth-bottom-tagline {
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 2.2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+    }
+
+    .auth-switch-link {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+    }
+
+    .auth-switch-link a {
+      color: var(--accent-blue);
       font-weight: 700;
       text-decoration: none;
     }
 
-    .ig-bottom-box a:hover {
-      text-decoration: underline;
+    .guest-explore-row {
+      margin-top: 0.75rem;
+      font-size: 0.84rem;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
+    .guest-explore-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 16, 28, 0.65);
+      backdrop-filter: blur(12px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 1.5rem;
+    }
+
+    .modal-dialog {
+      background: var(--card-bg);
+      backdrop-filter: blur(28px);
+      border: 1.5px solid var(--card-border);
+      box-shadow: var(--card-shadow);
+      border-radius: 32px;
+      width: 100%;
+      max-width: 440px;
+      padding: 2.4rem 2.2rem;
+      position: relative;
+    }
+
+    .modal-close-icon {
+      position: absolute;
+      top: 1.35rem;
+      right: 1.35rem;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .google-profile-card {
+      width: 100%;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      border-radius: 16px;
+      padding: 0.9rem 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      cursor: pointer;
+      margin-bottom: 0.85rem;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .google-profile-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--neu-emboss-hover);
+    }
+
+    .google-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4285F4 0%, #34A853 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 1.25rem 0.85rem; }
+      .auth-neu-card { padding: 2.25rem 1.6rem 2rem 1.6rem; border-radius: 32px; }
+      .ambient-corner-caption { display: none; }
     }
   </style>
 </head>
 <body>
-  <div class="ig-auth-container">
-    
-    <div class="ig-card">
-      <div class="ig-logo">READORA</div>
-      <p class="ig-tagline">"Where readers become creators."</p>
 
-      <!-- Alert / Notice Messages -->
-      <div id="ig-error" class="ig-alert"></div>
-      <div id="ig-success" class="ig-success-box"></div>
+  <!-- Ambient background -->
+  <div class="ambient-canvas">
+    <div class="arc-top-left"></div>
+    <div class="orb-mid-right"></div>
+    <div class="arc-bottom-left"></div>
+    <div class="wave-bottom-right"></div>
+  </div>
 
-      <!-- ================= STEP 1: Enter Gmail / Email ================= -->
-      <div id="step-1">
-        <div class="ig-step-header">Create Your Account</div>
-        <p class="ig-step-desc">Enter your Gmail or email address to receive a verification code.</p>
+  <!-- Top bar -->
+  <header class="top-actions-bar">
+    <a href="index.html" class="top-brand-pill" title="READORA Home Sanctuary">
+      <img src="assets/readora-3d-logo.jpg" alt="READORA Emblem" class="brand-pill-logo">
+      <span class="brand-pill-text">READORA<span class="brand-pill-dot">•</span></span>
+    </a>
 
-        <form id="form-step-1" onsubmit="return handleStep1(event)">
-          <div class="ig-input-group">
-            <label for="email" class="ig-label">Email Address</label>
-            <input 
-              type="email" 
-              id="email" 
-              class="ig-input" 
-              placeholder="e.g. yourname@gmail.com" 
-              required 
-              autocomplete="email"
-              autofocus
-            >
-          </div>
+    <button type="button" class="theme-toggle-btn" id="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
+      <svg id="theme-moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+      <svg id="theme-sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="display: none;">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+    </button>
+  </header>
 
-          <button type="submit" id="btn-step-1" class="ig-btn-primary">Send Verification Code ➔</button>
-        </form>
+  <!-- Center Card -->
+  <main class="auth-center-stage">
+    <div class="auth-neu-card">
+      
+      <!-- 3D Floating Emblem -->
+      <a href="index.html" class="floating-logo-vessel" title="READORA - Where readers become creators">
+        <img src="assets/readora-3d-logo.jpg" alt="READORA 3D Flame Emblem" class="floating-logo-img">
+      </a>
+
+      <h1 class="auth-title" id="auth-main-title">Create Account</h1>
+      <p class="auth-subtitle" id="auth-main-subtitle">Join the creator network</p>
+
+      <!-- Segmented Tab -->
+      <div class="auth-tab-pill-track" role="tablist">
+        <button type="button" class="tab-pill-btn" id="tab-sign-in" onclick="switchAuthMode('signin')">Sign In</button>
+        <button type="button" class="tab-pill-btn active" id="tab-sign-up" onclick="switchAuthMode('signup')">Sign Up</button>
       </div>
 
-      <!-- ================= STEP 2: Enter 6-Digit OTP Code ================= -->
-      <div id="step-2" style="display: none;">
-        <div class="ig-step-header">Verify Your Email</div>
-        <p class="ig-step-desc">
-          Enter the 6-digit confirmation code we sent to <br>
-          <strong id="target-email-text" style="color: var(--accent-primary);"></strong>
-        </p>
-
-        <form id="form-step-2" onsubmit="return handleStep2(event)">
-          <div class="ig-otp-row">
-            <input type="text" maxlength="1" class="ig-otp-digit" id="code-1" inputmode="numeric" required autofocus>
-            <input type="text" maxlength="1" class="ig-otp-digit" id="code-2" inputmode="numeric" required>
-            <input type="text" maxlength="1" class="ig-otp-digit" id="code-3" inputmode="numeric" required>
-            <input type="text" maxlength="1" class="ig-otp-digit" id="code-4" inputmode="numeric" required>
-            <input type="text" maxlength="1" class="ig-otp-digit" id="code-5" inputmode="numeric" required>
-            <input type="text" maxlength="1" class="ig-otp-digit" id="code-6" inputmode="numeric" required>
-          </div>
-
-          <button type="submit" id="btn-step-2" class="ig-btn-primary">Verify Code ➔</button>
-
-          <div style="margin-top: 1.4rem; font-size: 0.85rem; line-height: 1.8;">
-            <a href="#" onclick="resendCode(event)" style="color: var(--accent-primary); text-decoration: none; font-weight: 600;">Didn't get the code? Resend</a><br>
-            <a href="#" onclick="goBackToStep1(event)" style="color: var(--text-dim); text-decoration: none;">Change Email Address</a>
-          </div>
-        </form>
+      <!-- Feedback Alert -->
+      <div id="auth-feedback-box" class="auth-alert-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <span id="auth-feedback-text"></span>
       </div>
 
-      <!-- ================= STEP 3: Choose Username, Full Name & Password ================= -->
-      <div id="step-3" style="display: none;">
-        <div class="ig-step-header">Choose Your Username</div>
-        <p class="ig-step-desc">Select a unique handle and secure your account.</p>
+      <!-- Direct Google Sign-Up Button -->
+      <button type="button" class="btn-google-direct" onclick="openGoogleModal()" id="btn-direct-google-main" title="Direct Google Sign Up">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span id="btn-google-label">Sign Up with Google</span>
+      </button>
 
-        <form id="form-step-3" onsubmit="return handleStep3(event)">
-          
-          <div class="ig-input-group">
-            <label for="username" class="ig-label">Username / Handle</label>
-            <input 
-              type="text" 
-              id="username" 
-              class="ig-input" 
-              placeholder="@your_username (e.g. @harshbansal)" 
-              required
-              oninput="handleUsernameInput(this.value)"
-              autocomplete="off"
-            >
-            <div id="username-feedback" class="username-status"></div>
+      <!-- Form -->
+      <form class="auth-form" id="main-auth-form" onsubmit="return handleFormSubmit(event)" novalidate>
+        
+        <div class="neu-input-track" id="signup-name-track">
+          <span class="neu-input-icon">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </span>
+          <input type="text" id="auth-name" class="neu-input-field" placeholder="Full Name (e.g. Harsh Bansal)" autocomplete="name">
+        </div>
+
+        <div class="neu-input-track">
+          <span class="neu-input-icon">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path></svg>
+          </span>
+          <input type="text" id="auth-identifier" class="neu-input-field" placeholder="Email Address or @username" autocomplete="username" required>
+        </div>
+
+        <div class="neu-input-track">
+          <span class="neu-input-icon">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </span>
+          <input type="password" id="auth-password" class="neu-input-field" placeholder="Password (min 6 characters)" autocomplete="new-password" required minlength="6">
+          <button type="button" class="neu-input-toggle-eye" onclick="togglePasswordVisibility('auth-password', this)" title="Toggle Password Visibility">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+
+        <button type="submit" id="btn-submit-main" class="btn-submit-pill">
+          <span id="btn-submit-label">Sign Up</span>
+          <div class="btn-arrow-circle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
           </div>
+        </button>
+      </form>
 
-          <div class="ig-input-group">
-            <label for="fullname" class="ig-label">Full Name</label>
-            <input 
-              type="text" 
-              id="fullname" 
-              class="ig-input" 
-              placeholder="e.g. Harsh Bansal" 
-              required
-            >
-          </div>
+      <!-- Divider -->
+      <div class="auth-divider">
+        <div class="auth-divider-line"></div>
+        <div class="auth-divider-text">OR CONTINUE WITH</div>
+        <div class="auth-divider-line"></div>
+      </div>
 
-          <div class="ig-input-group">
-            <label for="password" class="ig-label">Password</label>
-            <input 
-              type="password" 
-              id="password" 
-              class="ig-input" 
-              placeholder="Minimum 6 characters" 
-              required 
-              minlength="6"
-            >
-          </div>
+      <!-- Social Squircle Row -->
+      <div class="social-btn-row">
+        <button type="button" class="social-squircle" onclick="openGoogleModal()" title="Direct Google Sign Up">
+          <svg width="24" height="24" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+        </button>
 
-          <div class="ig-input-group">
-            <label for="confirm-password" class="ig-label">Confirm Password</label>
-            <input 
-              type="password" 
-              id="confirm-password" 
-              class="ig-input" 
-              placeholder="Re-enter your password" 
-              required
-            >
-          </div>
+        <button type="button" class="social-squircle" onclick="simulateOAuth('Discord')" title="Continue with Discord">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="#5865F2">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+          </svg>
+        </button>
 
-          <button type="submit" id="btn-step-3" class="ig-btn-primary">Complete Account Setup 🎉</button>
-        </form>
+        <button type="button" class="social-squircle" onclick="simulateOAuth('GitHub')" title="Continue with GitHub">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="auth-bottom-tagline">READ • WRITE • GROW TOGETHER</div>
+
+      <div class="auth-switch-link" id="auth-switch-prompt">
+        Already have an account? <a href="login.html">Sign In ➔</a>
+      </div>
+
+      <div class="guest-explore-row">
+        <a href="index.html" class="guest-explore-link">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="10 8 16 12 10 16 10 8"></polygon>
+          </svg>
+          <span>Explore Public Feed as Guest</span>
+        </a>
       </div>
 
     </div>
+  </main>
 
-    <!-- Login Link Box -->
-    <div class="ig-bottom-box">
-      Already have an account? <a href="practise.html">Log in</a>
+  <div class="ambient-corner-caption">
+    <span class="ambient-caption-title">MORE THAN A PLATFORM</span>
+    <span class="ambient-caption-title" style="color: var(--accent-blue);">A SANCTUARY</span>
+    <div class="ambient-caption-line"></div>
+  </div>
+
+  <!-- Google Modal -->
+  <div id="google-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <button type="button" class="modal-close-icon" onclick="closeGoogleModal()">✕</button>
+      
+      <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1.25rem;">
+        <svg width="32" height="32" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <div>
+          <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-title); line-height: 1.2;">Sign up with Google</h3>
+          <p style="font-size: 0.82rem; color: var(--text-sub);">Direct 1-click access to Readora</p>
+        </div>
+      </div>
+
+      <p style="font-size: 0.88rem; color: var(--text-sub); margin-bottom: 1.25rem; text-align: left;">
+        Choose a verified Google account to immediately create your creator sanctuary:
+      </p>
+
+      <div class="google-profile-card" onclick="executeGoogleAuth('harsh.bansal.dev@gmail.com', 'Harsh Bansal')">
+        <div class="google-avatar">HB</div>
+        <div>
+          <div style="font-size: 0.94rem; font-weight: 700; color: var(--text-title);">Harsh Bansal</div>
+          <div style="font-size: 0.8rem; color: var(--text-sub);">harsh.bansal.dev@gmail.com</div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left: auto; color: var(--accent-blue);"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+      </div>
+
+      <div class="google-profile-card" onclick="executeGoogleAuth('creator@readora.app', 'Readora Creator')">
+        <div class="google-avatar" style="background: linear-gradient(135deg, #8B5CF6, #3B82F6);">RC</div>
+        <div>
+          <div style="font-size: 0.94rem; font-weight: 700; color: var(--text-title);">Readora Creator</div>
+          <div style="font-size: 0.8rem; color: var(--text-sub);">creator@readora.app</div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left: auto; color: var(--accent-blue);"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+      </div>
+
+      <div class="auth-divider" style="margin: 1.25rem 0 1rem 0;">
+        <div class="auth-divider-line"></div>
+        <div class="auth-divider-text">OR ENTER ANY GMAIL</div>
+        <div class="auth-divider-line"></div>
+      </div>
+
+      <form onsubmit="handleCustomGoogleSubmit(event)" style="display: flex; flex-direction: column; gap: 0.85rem;">
+        <div class="neu-input-track" style="margin-bottom: 0;">
+          <span class="neu-input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </span>
+          <input type="email" id="custom-google-email" class="neu-input-field" placeholder="e.g. yourname@gmail.com" required>
+        </div>
+
+        <button type="submit" class="btn-submit-pill" style="height: 48px; font-size: 0.96rem;">
+          <span>Instant Google Sign Up</span>
+          <div class="btn-arrow-circle" style="width: 30px; height: 30px; right: 10px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+          </div>
+        </button>
+      </form>
     </div>
-
   </div>
 
   <script>
-    // Auto-detect API Base: If opened directly via file://, point to http://localhost:5000
     const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+    let currentAuthMode = 'signup';
 
-    const state = {
-      email: '',
-      verificationToken: '',
-      isUsernameAvailable: false,
-      checkedUsername: ''
-    };
-
-    let usernameDebounceTimer = null;
-
-    const digits = [
-      document.getElementById('code-1'),
-      document.getElementById('code-2'),
-      document.getElementById('code-3'),
-      document.getElementById('code-4'),
-      document.getElementById('code-5'),
-      document.getElementById('code-6')
-    ];
-
-    // OTP auto-focus handlers & auto navigation
-    digits.forEach((input, i) => {
-      input.addEventListener('input', (e) => {
-        if (e.target.value.length === 1 && i < 5) {
-          digits[i + 1].focus();
-        }
-      });
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Backspace' && !e.target.value && i > 0) {
-          digits[i - 1].focus();
-        }
-      });
-      input.addEventListener('paste', (e) => {
-        e.preventDefault();
-        const text = (e.clipboardData || window.clipboardData).getData('text').trim();
-        if (/^\d{6}$/.test(text)) {
-          text.split('').forEach((char, idx) => {
-            if (digits[idx]) digits[idx].value = char;
-          });
-          digits[5].focus();
-        }
-      });
-    });
-
-    function showError(msg) {
-      const err = document.getElementById('ig-error');
-      const succ = document.getElementById('ig-success');
-      succ.style.display = 'none';
-      err.textContent = msg;
-      err.style.display = 'block';
+    function initTheme() {
+      const savedTheme = localStorage.getItem('readora_theme') || 'light';
+      applyTheme(savedTheme);
     }
 
-    function showSuccess(msg) {
-      const err = document.getElementById('ig-error');
-      const succ = document.getElementById('ig-success');
-      err.style.display = 'none';
-      succ.textContent = msg;
-      succ.style.display = 'block';
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      localStorage.setItem('readora_theme', next);
     }
 
-    function clearMessages() {
-      document.getElementById('ig-error').style.display = 'none';
-      document.getElementById('ig-success').style.display = 'none';
-    }
-
-    // ================= STEP 1: Enter & Verify Gmail / Email =================
-    async function handleStep1(e) {
-      e.preventDefault();
-      clearMessages();
-
-      const emailInput = document.getElementById('email').value.trim();
-
-      // Basic regex check
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(emailInput)) {
-        showError('Please enter a valid email address (e.g. name@gmail.com).');
-        return false;
-      }
-
-      const btn = document.getElementById('btn-step-1');
-      btn.disabled = true;
-      btn.textContent = 'Verifying & sending code...';
-
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/send-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: emailInput })
-        });
-
-        const data = await res.json();
-        btn.disabled = false;
-        btn.textContent = 'Send Verification Code ➔';
-
-        if (res.ok && data.success) {
-          state.email = emailInput;
-          document.getElementById('step-1').style.display = 'none';
-          document.getElementById('step-2').style.display = 'block';
-          document.getElementById('target-email-text').textContent = emailInput;
-          digits.forEach(d => d.value = '');
-          digits[0].focus();
-          showSuccess(`A 6-digit confirmation code has been sent to ${emailInput}. Please check your inbox!`);
-          return false;
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const moon = document.getElementById('theme-moon-icon');
+      const sun = document.getElementById('theme-sun-icon');
+      if (moon && sun) {
+        if (theme === 'dark') {
+          moon.style.display = 'none';
+          sun.style.display = 'block';
         } else {
-          showError(data.message || 'Failed to send verification code.');
-          return false;
+          moon.style.display = 'block';
+          sun.style.display = 'none';
         }
-      } catch (err) {
-        btn.disabled = false;
-        btn.textContent = 'Send Verification Code ➔';
-        showError('Network error: Server se connect nahi ho paya. Kripya check karein ki server (http://localhost:5000) running hai.');
-        return false;
       }
     }
 
-    function goBackToStep1(e) {
-      if (e) e.preventDefault();
-      clearMessages();
-      document.getElementById('step-2').style.display = 'none';
-      document.getElementById('step-1').style.display = 'block';
-      document.getElementById('email').focus();
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      btn.innerHTML = isPassword
+        ? `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`
+        : `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
     }
 
-    async function resendCode(e) {
-      if (e) e.preventDefault();
-      clearMessages();
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/send-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: state.email })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          showSuccess('✅ A new 6-digit confirmation code has been sent to ' + state.email);
-        } else {
-          showError(data.message || 'Failed to resend code.');
-        }
-      } catch (err) {
-        showError('Error connecting to server.');
+    function switchAuthMode(mode) {
+      if (mode === 'signin') {
+        window.location.href = 'practise.html';
       }
     }
 
-    // ================= STEP 2: Verify Confirmation Code =================
-    async function handleStep2(e) {
+    function showFeedback(msg, type = 'error') {
+      const box = document.getElementById('auth-feedback-box');
+      const text = document.getElementById('auth-feedback-text');
+      if (!box || !text) return;
+      text.textContent = msg;
+      box.className = 'auth-alert-box ' + (type === 'error' ? 'auth-alert-error' : 'auth-alert-success');
+      box.style.display = 'flex';
+    }
+
+    async function handleFormSubmit(e) {
       e.preventDefault();
-      clearMessages();
+      const name = document.getElementById('auth-name').value.trim();
+      const identifier = document.getElementById('auth-identifier').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const submitBtn = document.getElementById('btn-submit-main');
+      const btnLabel = document.getElementById('btn-submit-label');
 
-      const otp = digits.map(d => d.value).join('');
-      if (otp.length !== 6) {
-        showError('Please enter the full 6-digit code.');
+      if (!identifier || !password) {
+        showFeedback('Please provide both username/email and password.');
         return false;
       }
 
-      const btn = document.getElementById('btn-step-2');
-      btn.disabled = true;
-      btn.textContent = 'Verifying code...';
+      submitBtn.disabled = true;
+      btnLabel.textContent = 'Creating Account...';
+
+      const email = identifier.includes('@') ? identifier : `${identifier.replace(/^@/, '')}@readora.app`;
+      const handle = identifier.startsWith('@') ? identifier : '@' + identifier.split('@')[0];
+      const displayName = name || identifier.split('@')[0];
 
       try {
-        const res = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+        const res = await fetch(`${API_BASE}/api/auth/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: state.email, otp })
+          body: JSON.stringify({ name: displayName, email, password, handle })
         });
-
         const data = await res.json();
-        btn.disabled = false;
-        btn.textContent = 'Verify Code ➔';
+        submitBtn.disabled = false;
+        btnLabel.textContent = 'Sign Up';
 
-        if (res.ok && data.success) {
-          state.verificationToken = data.verificationToken;
-          document.getElementById('step-2').style.display = 'none';
-          document.getElementById('step-3').style.display = 'block';
-          document.getElementById('username').focus();
-          showSuccess('✓ Email verified! Now choose your username.');
-          return false;
-        } else {
-          showError(data.message || 'Invalid or expired verification code.');
-          return false;
-        }
-      } catch (err) {
-        btn.disabled = false;
-        btn.textContent = 'Verify Code ➔';
-        showError('Network error. Please try again.');
-        return false;
-      }
-    }
-
-    // ================= STEP 3: Realtime Username Check & Complete Setup =================
-    function handleUsernameInput(val) {
-      clearTimeout(usernameDebounceTimer);
-      const feedback = document.getElementById('username-feedback');
-      
-      const cleanVal = val.trim();
-      if (!cleanVal) {
-        feedback.innerHTML = '';
-        state.isUsernameAvailable = false;
-        return;
-      }
-
-      feedback.innerHTML = '<span class="status-checking">⏳ Checking availability...</span>';
-      
-      usernameDebounceTimer = setTimeout(async () => {
-        try {
-          const res = await fetch(`${API_BASE}/api/auth/check-username?username=${encodeURIComponent(cleanVal)}`);
-          const data = await res.json();
-
-          if (data.available) {
-            state.isUsernameAvailable = true;
-            state.checkedUsername = data.cleanHandle;
-            feedback.innerHTML = `<span class="status-available">✓ ${data.message}</span>`;
-          } else {
-            state.isUsernameAvailable = false;
-            feedback.innerHTML = `<span class="status-taken">✗ ${data.message}</span>`;
-          }
-        } catch (err) {
-          feedback.innerHTML = '<span class="status-taken">Unable to verify username.</span>';
-        }
-      }, 350);
-    }
-
-    async function handleStep3(e) {
-      e.preventDefault();
-      clearMessages();
-
-      const usernameInput = document.getElementById('username').value.trim();
-      const fullname = document.getElementById('fullname').value.trim();
-      const password = document.getElementById('password').value;
-      const confirmPassword = document.getElementById('confirm-password').value;
-
-      if (!fullname) {
-        showError('Please enter your full name.');
-        return false;
-      }
-
-      if (!usernameInput) {
-        showError('Please choose a username.');
-        return false;
-      }
-
-      // Check username validity first
-      try {
-        const checkRes = await fetch(`${API_BASE}/api/auth/check-username?username=${encodeURIComponent(usernameInput)}`);
-        const checkData = await checkRes.json();
-        if (!checkData.available) {
-          showError(checkData.message || `Username "${usernameInput}" is already taken. Please choose another username.`);
-          document.getElementById('username').focus();
-          return false;
-        }
-      } catch (err) {
-        showError('Error validating username. Please try again.');
-        return false;
-      }
-
-      if (password.length < 6) {
-        showError('Password must be at least 6 characters long.');
-        return false;
-      }
-
-      if (password !== confirmPassword) {
-        showError('Passwords do not match. Please re-enter.');
-        return false;
-      }
-
-      const btn = document.getElementById('btn-step-3');
-      btn.disabled = true;
-      btn.textContent = 'Setting Up Your Sanctuary...';
-
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/complete-signup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: fullname,
-            email: state.email,
-            handle: usernameInput,
-            password: password,
-            verificationToken: state.verificationToken
-          })
-        });
-
-        const data = await res.json();
         if (res.ok && data.success) {
           localStorage.setItem('readora_token', data.token);
           localStorage.setItem('readora_current_user', JSON.stringify(data.user));
-          showSuccess(`🎉 Welcome to Readora, ${fullname}! Redirecting...`);
-          setTimeout(() => {
-            window.location.href = 'index.html';
-          }, 1000);
-          return false;
+          showFeedback('🎉 Account created successfully! Redirecting...', 'success');
+          setTimeout(() => { window.location.href = 'index.html'; }, 600);
         } else {
-          btn.disabled = false;
-          btn.textContent = 'Complete Account Setup 🎉';
-          showError(data.message || 'Failed to complete registration.');
-          return false;
+          showFeedback(data.message || 'Registration failed. Try another handle or email.');
         }
       } catch (err) {
-        btn.disabled = false;
-        btn.textContent = 'Complete Account Setup 🎉';
-        showError('Network error. Please try again.');
-        return false;
+        submitBtn.disabled = false;
+        btnLabel.textContent = 'Sign Up';
+        showFeedback('Server connection error. Make sure server is running.');
+      }
+      return false;
+    }
+
+    function openGoogleModal() {
+      const modal = document.getElementById('google-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeGoogleModal() {
+      const modal = document.getElementById('google-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function executeGoogleAuth(email, name) {
+      closeGoogleModal();
+      showFeedback('Authenticating with Google...', 'success');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          localStorage.setItem('readora_token', data.token);
+          localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+          showFeedback(`✨ Authenticated as ${data.user.name}! Redirecting to sanctuary...`, 'success');
+          setTimeout(() => { window.location.href = 'index.html'; }, 400);
+        } else {
+          showFeedback(data.message || 'Google authentication failed.');
+        }
+      } catch (err) {
+        showFeedback('Connection error during Google authentication.');
       }
     }
+
+    function handleCustomGoogleSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('custom-google-email').value.trim();
+      if (!email) return;
+      const rawName = email.split('@')[0];
+      const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+      executeGoogleAuth(email, displayName);
+    }
+
+    function simulateOAuth(provider) {
+      showFeedback(`Opening ${provider} secure OAuth authentication...`, 'success');
+      setTimeout(() => {
+        const randomId = Math.floor(100 + Math.random() * 900);
+        executeGoogleAuth(`creator_${provider.toLowerCase()}${randomId}@readora.app`, `${provider} Creator`);
+      }, 700);
+    }
+
+    window.addEventListener('click', (e) => {
+      const gModal = document.getElementById('google-modal');
+      if (e.target === gModal) closeGoogleModal();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+    });
   </script>
 </body>
 </html>

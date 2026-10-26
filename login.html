@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign into READORA - The modern editorial sanctuary where readers become creators.">
+  <title>READORA | Welcome Back - Sign In</title>
+  <link rel="icon" type="image/jpeg" href="assets/readora-3d-logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================================
+       READORA - Ultra-Premium 3D Neumorphic & Glassmorphic Authentication
+       ========================================================================== */
+    :root {
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      /* Light Theme (Default - Soft 3D Neumorphism) */
+      --bg-page: #ebf0f7;
+      --bg-gradient: radial-gradient(circle at 15% 15%, #ffffff 0%, #ebf1f8 45%, #dde6f2 100%);
+      
+      --card-bg: rgba(255, 255, 255, 0.76);
+      --card-border: rgba(255, 255, 255, 0.9);
+      --card-shadow: 
+        0 30px 65px -12px rgba(24, 45, 90, 0.12),
+        0 14px 28px -6px rgba(37, 99, 235, 0.08),
+        inset 0 1px 2px rgba(255, 255, 255, 0.98);
+
+      --neu-surface: linear-gradient(145deg, #ffffff, #eaf0f9);
+      --neu-emboss: 
+        6px 6px 16px rgba(166, 180, 204, 0.38),
+        -6px -6px 16px rgba(255, 255, 255, 0.98);
+      --neu-emboss-hover: 
+        8px 8px 20px rgba(166, 180, 204, 0.48),
+        -8px -8px 20px rgba(255, 255, 255, 1);
+      --neu-inset: 
+        inset 3px 3px 6px rgba(166, 175, 195, 0.32),
+        inset -3px -3px 6px rgba(255, 255, 255, 0.95);
+      --neu-inset-focus: 
+        inset 2px 2px 5px rgba(37, 99, 235, 0.12),
+        0 0 0 4px rgba(37, 99, 235, 0.16);
+
+      --input-bg: #eef3f9;
+      --input-border: rgba(255, 255, 255, 0.8);
+      
+      --text-title: #0a1128;
+      --text-sub: #6c7f99;
+      --text-body: #1e293b;
+      --text-muted: #8393a8;
+      
+      --accent-blue: #2563eb;
+      --accent-blue-hover: #1d4ed8;
+      --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 55%, #1d4ed8 100%);
+      --accent-shadow: 
+        0 12px 26px -4px rgba(37, 99, 235, 0.48),
+        0 4px 10px -2px rgba(37, 99, 235, 0.28),
+        inset 0 1px 1px rgba(255, 255, 255, 0.4);
+
+      --arc-glow: rgba(59, 130, 246, 0.35);
+      --divider-line: rgba(166, 180, 204, 0.45);
+    }
+
+    [data-theme="dark"] {
+      /* Dark Theme (Obsidian & Electric Sapphire Neumorphism) */
+      --bg-page: #090d16;
+      --bg-gradient: radial-gradient(circle at 15% 15%, #131c2e 0%, #0c121e 50%, #070a12 100%);
+      
+      --card-bg: rgba(16, 23, 38, 0.78);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-shadow: 
+        0 35px 70px -15px rgba(0, 0, 0, 0.75),
+        0 15px 30px -8px rgba(37, 99, 235, 0.22),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
+
+      --neu-surface: linear-gradient(145deg, #162035, #0f1728);
+      --neu-emboss: 
+        6px 6px 18px rgba(0, 0, 0, 0.6),
+        -5px -5px 15px rgba(30, 41, 59, 0.35);
+      --neu-emboss-hover: 
+        8px 8px 24px rgba(0, 0, 0, 0.75),
+        -6px -6px 18px rgba(37, 99, 235, 0.25);
+      --neu-inset: 
+        inset 3px 3px 6px rgba(0, 0, 0, 0.65),
+        inset -2px -2px 6px rgba(30, 41, 59, 0.4);
+      --neu-inset-focus: 
+        inset 2px 2px 5px rgba(37, 99, 235, 0.2),
+        0 0 0 4px rgba(59, 130, 246, 0.25);
+
+      --input-bg: #0d1525;
+      --input-border: rgba(255, 255, 255, 0.06);
+      
+      --text-title: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-body: #cbd5e1;
+      --text-muted: #64748b;
+
+      --accent-blue: #3b82f6;
+      --accent-blue-hover: #60a5fa;
+      --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 55%, #1d4ed8 100%);
+      --accent-shadow: 
+        0 12px 28px -4px rgba(37, 99, 235, 0.65),
+        0 4px 10px -2px rgba(37, 99, 235, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.35);
+
+      --arc-glow: rgba(59, 130, 246, 0.25);
+      --divider-line: rgba(255, 255, 255, 0.12);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: var(--font-main);
+      background: var(--bg-page);
+      background-image: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow-x: hidden;
+      color: var(--text-body);
+      padding: 2rem 1.25rem;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    /* ================= 3D Ambient Sculptural Geometry ================= */
+    .ambient-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    /* Top Left Illuminated Arc */
+    .arc-top-left {
+      position: absolute;
+      top: -160px;
+      left: -160px;
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      border: 36px solid rgba(255, 255, 255, 0.65);
+      box-shadow: 
+        0 0 60px var(--arc-glow),
+        inset 0 0 40px var(--arc-glow);
+      filter: blur(1px);
+    }
+
+    [data-theme="dark"] .arc-top-left {
+      border-color: rgba(30, 41, 59, 0.45);
+    }
+
+    /* Floating Glass Sphere (Right) */
+    .orb-mid-right {
+      position: absolute;
+      top: 22%;
+      right: -60px;
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(210, 228, 250, 0.25));
+      box-shadow: 
+        14px 14px 30px rgba(166, 180, 204, 0.35),
+        -8px -8px 24px rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    [data-theme="dark"] .orb-mid-right {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.2));
+      box-shadow: 14px 14px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Bottom Left Concentric Ring */
+    .arc-bottom-left {
+      position: absolute;
+      bottom: -150px;
+      left: -150px;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      border: 28px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 0 45px var(--arc-glow);
+    }
+
+    [data-theme="dark"] .arc-bottom-left {
+      border-color: rgba(30, 41, 59, 0.35);
+    }
+
+    /* Bottom Right Ambient Wave & Typography */
+    .wave-bottom-right {
+      position: absolute;
+      bottom: -100px;
+      right: -100px;
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      border: 32px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 40px var(--arc-glow);
+    }
+
+    .ambient-corner-caption {
+      position: fixed;
+      bottom: 2rem;
+      right: 2.25rem;
+      text-align: right;
+      pointer-events: none;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.25rem;
+    }
+
+    .ambient-caption-title {
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 2.2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .ambient-caption-line {
+      width: 24px;
+      height: 2px;
+      background: var(--accent-blue);
+      border-radius: 2px;
+      margin-top: 2px;
+    }
+
+    /* ================= Top Bar: Brand & Theme Switcher ================= */
+    .top-actions-bar {
+      position: fixed;
+      top: 1.5rem;
+      left: 0;
+      right: 0;
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      pointer-events: auto;
+    }
+
+    .top-brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65rem;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+    }
+
+    .top-brand-pill:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--neu-emboss-hover);
+    }
+
+    .brand-pill-logo {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+
+    .brand-pill-text {
+      font-family: var(--font-main);
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: var(--text-title);
+    }
+
+    .brand-pill-dot {
+      color: var(--accent-blue);
+    }
+
+    /* Neumorphic Dark / Light Mode Toggle Button */
+    .theme-toggle-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-title);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+    }
+
+    .theme-toggle-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--neu-emboss-hover);
+      color: var(--accent-blue);
+    }
+
+    .theme-toggle-btn:active {
+      transform: translateY(1px);
+      box-shadow: var(--neu-inset);
+    }
+
+    /* ================= Center 3D Neumorphic Login Card ================= */
+    .auth-center-stage {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 440px;
+      margin: 3.5rem auto 1.5rem auto;
+      animation: stageFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes stageFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(22px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .auth-neu-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1.5px solid var(--card-border);
+      border-radius: 40px;
+      padding: 2.75rem 2.4rem 2.25rem 2.4rem;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+    }
+
+    /* 3D Floating Insignia Squircle */
+    .floating-logo-vessel {
+      width: 104px;
+      height: 104px;
+      border-radius: 30px;
+      background: var(--neu-surface);
+      border: 1.5px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.6rem;
+      position: relative;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .floating-logo-vessel:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: var(--neu-emboss-hover);
+    }
+
+    .floating-logo-img {
+      width: 82px;
+      height: 82px;
+      object-fit: contain;
+      border-radius: 20px;
+      filter: drop-shadow(0 8px 16px rgba(37, 99, 235, 0.25));
+    }
+
+    /* Card Header Titles */
+    .auth-title {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      color: var(--text-title);
+      margin-bottom: 0.35rem;
+      line-height: 1.15;
+    }
+
+    .auth-subtitle {
+      font-size: 0.94rem;
+      color: var(--text-sub);
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      margin-bottom: 1.6rem;
+    }
+
+    /* Tab Switcher: Sign In / Sign Up */
+    .auth-tab-pill-track {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      box-shadow: var(--neu-inset);
+      border-radius: 9999px;
+      padding: 4px;
+      display: flex;
+      margin-bottom: 1.6rem;
+      position: relative;
+    }
+
+    .tab-pill-btn {
+      flex: 1;
+      padding: 0.65rem 0.85rem;
+      border-radius: 9999px;
+      border: none;
+      background: transparent;
+      font-family: var(--font-main);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tab-pill-btn.active {
+      background: var(--neu-surface);
+      color: var(--text-title);
+      font-weight: 700;
+      box-shadow: var(--neu-emboss);
+    }
+
+    /* Feedback Alert Box */
+    .auth-alert-box {
+      width: 100%;
+      border-radius: 14px;
+      padding: 0.75rem 1rem;
+      font-size: 0.86rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+      text-align: left;
+      animation: alertSlide 0.2s ease forwards;
+    }
+
+    @keyframes alertSlide {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .auth-alert-error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+    }
+
+    .auth-alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+    }
+
+    /* Quick Switch Account Card */
+    .switch-card {
+      width: 100%;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      border-radius: 22px;
+      padding: 1.35rem 1.25rem;
+      margin-bottom: 1.4rem;
+      display: none;
+    }
+
+    .switch-user-avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: var(--accent-gradient);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.65rem auto;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    }
+
+    .switch-user-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-title);
+      margin-bottom: 0.15rem;
+    }
+
+    .switch-user-handle {
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      margin-bottom: 1rem;
+    }
+
+    /* Form & Neumorphic Pill Inputs */
+    .auth-form {
+      width: 100%;
+      text-align: left;
+    }
+
+    .neu-input-track {
+      position: relative;
+      width: 100%;
+      margin-bottom: 1.15rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .neu-input-icon {
+      position: absolute;
+      left: 1.25rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+    }
+
+    .neu-input-field {
+      width: 100%;
+      height: 54px;
+      border-radius: 9999px;
+      background: var(--input-bg);
+      border: 1.5px solid var(--input-border);
+      box-shadow: var(--neu-inset);
+      padding: 0 3.25rem 0 3.25rem;
+      font-size: 0.94rem;
+      font-family: var(--font-main);
+      color: var(--text-title);
+      outline: none;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-sizing: border-box;
+    }
+
+    .neu-input-field::placeholder {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .neu-input-field:focus {
+      background: var(--card-bg);
+      border-color: var(--accent-blue);
+      box-shadow: var(--neu-inset-focus);
+    }
+
+    .neu-input-field:focus ~ .neu-input-icon {
+      color: var(--accent-blue);
+    }
+
+    .neu-input-toggle-eye {
+      position: absolute;
+      right: 1.15rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: color 0.2s ease, transform 0.2s ease;
+      outline: none;
+    }
+
+    .neu-input-toggle-eye:hover {
+      color: var(--text-title);
+      transform: scale(1.1);
+    }
+
+    /* Sub-row: Remember Me & Forgot Password */
+    .form-options-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0.25rem 0.5rem 1.4rem 0.5rem;
+      font-size: 0.88rem;
+    }
+
+    .remember-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65rem;
+      color: var(--text-sub);
+      cursor: pointer;
+      user-select: none;
+      font-weight: 500;
+    }
+
+    .remember-label input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 19px;
+      height: 19px;
+      border-radius: 6px;
+      background: var(--input-bg);
+      border: 1.5px solid var(--input-border);
+      box-shadow: var(--neu-inset);
+      cursor: pointer;
+      display: grid;
+      place-content: center;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .remember-label input[type="checkbox"]:checked {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+
+    .remember-label input[type="checkbox"]:checked::after {
+      content: '';
+      width: 5px;
+      height: 9px;
+      border: solid #ffffff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      margin-bottom: 2px;
+    }
+
+    .forgot-link {
+      color: var(--accent-blue);
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 0.2s ease, text-decoration 0.2s ease;
+    }
+
+    .forgot-link:hover {
+      color: var(--accent-blue-hover);
+      text-decoration: underline;
+    }
+
+    /* Primary Action Pill Button ("Login" / "Sign In") */
+    .btn-submit-pill {
+      width: 100%;
+      height: 56px;
+      border-radius: 9999px;
+      background: var(--accent-gradient);
+      border: none;
+      color: #ffffff;
+      font-family: var(--font-main);
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      box-shadow: var(--accent-shadow);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+    }
+
+    .btn-submit-pill:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 16px 32px -4px rgba(37, 99, 235, 0.58),
+        0 6px 14px -2px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-submit-pill:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 14px -2px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-submit-pill:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-arrow-circle {
+      position: absolute;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35);
+      transition: transform 0.25s ease;
+    }
+
+    .btn-submit-pill:hover .btn-arrow-circle {
+      transform: translateX(3px);
+    }
+
+    /* Elegant Divider */
+    .auth-divider {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      margin: 1.75rem 0 1.35rem 0;
+    }
+
+    .auth-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--divider-line);
+    }
+
+    .auth-divider-text {
+      padding: 0 1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Social Squircle Row (Direct Google, GitHub, Discord) */
+    .social-btn-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+      width: 100%;
+    }
+
+    .social-squircle {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      outline: none;
+      padding: 0;
+    }
+
+    .social-squircle:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--neu-emboss-hover);
+    }
+
+    .social-squircle:active {
+      transform: translateY(1px);
+      box-shadow: var(--neu-inset);
+    }
+
+    /* Dedicated Direct Google 1-Click Button */
+    .btn-google-direct {
+      width: 100%;
+      height: 48px;
+      border-radius: 9999px;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      color: var(--text-title);
+      font-family: var(--font-main);
+      font-size: 0.92rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      margin-bottom: 1.4rem;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+    }
+
+    .btn-google-direct:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--neu-emboss-hover);
+      border-color: rgba(66, 133, 244, 0.4);
+    }
+
+    .btn-google-direct:active {
+      transform: translateY(1px);
+      box-shadow: var(--neu-inset);
+    }
+
+    /* Demo Credentials Chip Bar */
+    .demo-chip-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      margin-bottom: 1.4rem;
+      flex-wrap: wrap;
+    }
+
+    .demo-chip {
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      border-radius: 9999px;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+    }
+
+    .demo-chip:hover {
+      transform: translateY(-1px);
+      color: var(--accent-blue);
+      box-shadow: var(--neu-emboss-hover);
+    }
+
+    .demo-chip-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+
+    /* Footer Tagline & Guest Link */
+    .auth-bottom-tagline {
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 2.2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+    }
+
+    .auth-switch-link {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+    }
+
+    .auth-switch-link a {
+      color: var(--accent-blue);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .auth-switch-link a:hover {
+      text-decoration: underline;
+    }
+
+    .guest-explore-row {
+      margin-top: 0.75rem;
+      font-size: 0.84rem;
+    }
+
+    .guest-explore-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: color 0.2s ease;
+    }
+
+    .guest-explore-link:hover {
+      color: var(--accent-blue);
+    }
+
+    /* ================= Modal Backdrop & Styling ================= */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 16, 28, 0.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 1.5rem;
+      animation: modalFade 0.25s ease forwards;
+    }
+
+    @keyframes modalFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-dialog {
+      background: var(--card-bg);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1.5px solid var(--card-border);
+      box-shadow: var(--card-shadow);
+      border-radius: 32px;
+      width: 100%;
+      max-width: 440px;
+      padding: 2.4rem 2.2rem;
+      position: relative;
+      animation: modalSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes modalSlide {
+      from { transform: translateY(18px) scale(0.97); }
+      to { transform: translateY(0) scale(1); }
+    }
+
+    .modal-close-icon {
+      position: absolute;
+      top: 1.35rem;
+      right: 1.35rem;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close-icon:hover {
+      color: var(--text-title);
+      transform: scale(1.08);
+    }
+
+    /* Google Profile Option Cards */
+    .google-profile-card {
+      width: 100%;
+      background: var(--neu-surface);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--neu-emboss);
+      border-radius: 16px;
+      padding: 0.9rem 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      cursor: pointer;
+      margin-bottom: 0.85rem;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .google-profile-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(66, 133, 244, 0.5);
+      box-shadow: var(--neu-emboss-hover);
+    }
+
+    .google-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4285F4 0%, #34A853 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+      body {
+        padding: 1.25rem 0.85rem;
+      }
+      .auth-neu-card {
+        padding: 2.25rem 1.6rem 2rem 1.6rem;
+        border-radius: 32px;
+      }
+      .top-actions-bar {
+        padding: 0 1rem;
+      }
+      .floating-logo-vessel {
+        width: 90px;
+        height: 90px;
+        border-radius: 26px;
+      }
+      .floating-logo-img {
+        width: 70px;
+        height: 70px;
+      }
+      .auth-title {
+        font-size: 1.75rem;
+      }
+      .ambient-corner-caption {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D Organic Ambient Canvas -->
+  <div class="ambient-canvas">
+    <div class="arc-top-left"></div>
+    <div class="orb-mid-right"></div>
+    <div class="arc-bottom-left"></div>
+    <div class="wave-bottom-right"></div>
+  </div>
+
+  <!-- Top Navigation & Theme Switcher -->
+  <header class="top-actions-bar">
+    <a href="index.html" class="top-brand-pill" title="READORA Home Sanctuary">
+      <img src="assets/readora-3d-logo.jpg" alt="READORA Emblem" class="brand-pill-logo">
+      <span class="brand-pill-text">READORA<span class="brand-pill-dot">•</span></span>
+    </a>
+
+    <button type="button" class="theme-toggle-btn" id="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
+      <!-- Moon Icon for Light Mode -->
+      <svg id="theme-moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+      <!-- Sun Icon for Dark Mode -->
+      <svg id="theme-sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+    </button>
+  </header>
+
+  <!-- Center Stage 3D Neumorphic Card -->
+  <main class="auth-center-stage">
+    <div class="auth-neu-card">
+      
+      <!-- 3D Floating Logo Emblem -->
+      <a href="index.html" class="floating-logo-vessel" title="READORA - Where readers become creators">
+        <img src="assets/readora-3d-logo.jpg" alt="READORA 3D Flame Emblem" class="floating-logo-img">
+      </a>
+
+      <!-- Header Typography -->
+      <h1 class="auth-title" id="auth-main-title">Welcome Back</h1>
+      <p class="auth-subtitle" id="auth-main-subtitle">Sign in to continue</p>
+
+      <!-- Segmented Tab: Sign In / Create Account -->
+      <div class="auth-tab-pill-track" role="tablist">
+        <button type="button" class="tab-pill-btn active" id="tab-sign-in" onclick="switchAuthMode('signin')">Sign In</button>
+        <button type="button" class="tab-pill-btn" id="tab-sign-up" onclick="switchAuthMode('signup')">Sign Up</button>
+      </div>
+
+      <!-- Live Feedback Alert Box -->
+      <div id="auth-feedback-box" class="auth-alert-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span id="auth-feedback-text"></span>
+      </div>
+
+      <!-- Quick Switch Account Card (for returning creators) -->
+      <div id="switch-account-card" class="switch-card">
+        <div id="switch-avatar" class="switch-user-avatar">HB</div>
+        <div id="switch-name" class="switch-user-name">Harsh Bansal</div>
+        <div id="switch-handle" class="switch-user-handle">@harshbansal</div>
+        
+        <button type="button" id="btn-quick-continue" class="btn-submit-pill" style="height: 48px; font-size: 0.95rem; margin-bottom: 0.75rem;">
+          <span>Continue as <span id="switch-first-name">Creator</span></span>
+          <div class="btn-arrow-circle" style="width: 30px; height: 30px; right: 10px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+          </div>
+        </button>
+        
+        <button type="button" id="btn-use-different-account" style="background: transparent; border: none; font-size: 0.84rem; font-weight: 600; color: var(--accent-blue); cursor: pointer;">
+          Log in with a different account
+        </button>
+      </div>
+
+      <!-- Direct Google 1-Click Sign-Up / Sign-In Button -->
+      <button type="button" class="btn-google-direct" onclick="openGoogleModal()" id="btn-direct-google-main" title="Direct Google Sign In / Sign Up">
+        <!-- Official Google Multicolor SVG Icon -->
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span id="btn-google-label">Continue with Google</span>
+      </button>
+
+      <!-- Standard Form (Sign In / Sign Up) -->
+      <form class="auth-form" id="main-auth-form" onsubmit="return handleFormSubmit(event)" novalidate>
+        
+        <!-- Sign Up Extra Field: Full Name (hidden in Sign In mode) -->
+        <div class="neu-input-track" id="signup-name-track" style="display: none;">
+          <span class="neu-input-icon">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </span>
+          <input 
+            type="text" 
+            id="auth-name" 
+            class="neu-input-field" 
+            placeholder="Full Name (e.g. Harsh Bansal)" 
+            autocomplete="name"
+          >
+        </div>
+
+        <!-- Field 1: Username or Email -->
+        <div class="neu-input-track">
+          <span class="neu-input-icon">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </span>
+          <input 
+            type="text" 
+            id="auth-identifier" 
+            class="neu-input-field" 
+            placeholder="Username or Email" 
+            autocomplete="username" 
+            required
+          >
+        </div>
+
+        <!-- Field 2: Password -->
+        <div class="neu-input-track">
+          <span class="neu-input-icon">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </span>
+          <input 
+            type="password" 
+            id="auth-password" 
+            class="neu-input-field" 
+            placeholder="Password" 
+            autocomplete="current-password" 
+            required
+          >
+          <button type="button" class="neu-input-toggle-eye" onclick="togglePasswordVisibility('auth-password', this)" title="Toggle Password Visibility" aria-label="Toggle Password Visibility">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Options: Remember Me & Forgot Password -->
+        <div class="form-options-row" id="form-options-row">
+          <label class="remember-label">
+            <input type="checkbox" id="auth-remember-me" checked>
+            <span>Remember Me</span>
+          </label>
+          <a href="#" class="forgot-link" onclick="openForgotModal(event)">Forgot Password?</a>
+        </div>
+
+        <!-- Primary Action Pill Button -->
+        <button type="submit" id="btn-submit-main" class="btn-submit-pill">
+          <span id="btn-submit-label">Login</span>
+          <div class="btn-arrow-circle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"></path>
+              <path d="m12 5 7 7-7 7"></path>
+            </svg>
+          </div>
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="auth-divider">
+        <div class="auth-divider-line"></div>
+        <div class="auth-divider-text">OR CONTINUE WITH</div>
+        <div class="auth-divider-line"></div>
+      </div>
+
+      <!-- Social Squircle Row -->
+      <div class="social-btn-row">
+        <!-- Direct Google Squircle Button -->
+        <button type="button" class="social-squircle" onclick="openGoogleModal()" title="Sign up / in with Google" aria-label="Google Authentication">
+          <svg width="24" height="24" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+        </button>
+
+        <!-- Discord Squircle Button -->
+        <button type="button" class="social-squircle" onclick="simulateOAuth('Discord')" title="Continue with Discord" aria-label="Discord Authentication">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="#5865F2">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+          </svg>
+        </button>
+
+        <!-- GitHub Squircle Button -->
+        <button type="button" class="social-squircle" onclick="simulateOAuth('GitHub')" title="Continue with GitHub" aria-label="GitHub Authentication">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Quick 1-Click Demo Credentials Bar -->
+      <div class="demo-chip-bar">
+        <button type="button" class="demo-chip" onclick="fillDemo('harsh@readora.app', 'Harsh@123')">
+          <span class="demo-chip-dot"></span>
+          <span>Founder: Harsh Bansal</span>
+        </button>
+        <button type="button" class="demo-chip" onclick="fillDemo('@harshbansal', 'Harsh@123')">
+          <span>@harshbansal</span>
+        </button>
+      </div>
+
+      <!-- Bottom Tagline & Navigation -->
+      <div class="auth-bottom-tagline">READ • WRITE • GROW TOGETHER</div>
+
+      <div class="auth-switch-link" id="auth-switch-prompt">
+        Don't have an account? <a href="#" onclick="switchAuthMode('signup'); return false;">Sign Up ➔</a>
+      </div>
+
+      <div class="guest-explore-row">
+        <a href="index.html" class="guest-explore-link">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="10 8 16 12 10 16 10 8"></polygon>
+          </svg>
+          <span>Explore Public Feed as Guest</span>
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Corner Ambient Badge -->
+  <div class="ambient-corner-caption">
+    <span class="ambient-caption-title">MORE THAN A PLATFORM</span>
+    <span class="ambient-caption-title" style="color: var(--accent-blue);">A SANCTUARY</span>
+    <div class="ambient-caption-line"></div>
+  </div>
+
+  <!-- ================= Google 1-Click Direct Sign Up / In Modal ================= -->
+  <div id="google-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <button type="button" class="modal-close-icon" onclick="closeGoogleModal()" aria-label="Close modal">✕</button>
+      
+      <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1.25rem;">
+        <svg width="32" height="32" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <div>
+          <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-title); line-height: 1.2;">Sign up with Google</h3>
+          <p style="font-size: 0.82rem; color: var(--text-sub);">Direct 1-click access to Readora</p>
+        </div>
+      </div>
+
+      <p style="font-size: 0.88rem; color: var(--text-sub); margin-bottom: 1.25rem; text-align: left;">
+        Choose a verified Google account to immediately create or access your creator sanctuary:
+      </p>
+
+      <!-- 1-Click Profile: Harsh Bansal -->
+      <div class="google-profile-card" onclick="executeGoogleAuth('harsh.bansal.dev@gmail.com', 'Harsh Bansal')">
+        <div class="google-avatar">HB</div>
+        <div>
+          <div style="font-size: 0.94rem; font-weight: 700; color: var(--text-title);">Harsh Bansal</div>
+          <div style="font-size: 0.8rem; color: var(--text-sub);">harsh.bansal.dev@gmail.com</div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left: auto; color: var(--accent-blue);">
+          <path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path>
+        </svg>
+      </div>
+
+      <!-- 1-Click Profile: Reader / Creator -->
+      <div class="google-profile-card" onclick="executeGoogleAuth('creator@readora.app', 'Readora Creator')">
+        <div class="google-avatar" style="background: linear-gradient(135deg, #8B5CF6, #3B82F6);">RC</div>
+        <div>
+          <div style="font-size: 0.94rem; font-weight: 700; color: var(--text-title);">Readora Creator</div>
+          <div style="font-size: 0.8rem; color: var(--text-sub);">creator@readora.app</div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left: auto; color: var(--accent-blue);">
+          <path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path>
+        </svg>
+      </div>
+
+      <div class="auth-divider" style="margin: 1.25rem 0 1rem 0;">
+        <div class="auth-divider-line"></div>
+        <div class="auth-divider-text">OR ENTER ANY GMAIL</div>
+        <div class="auth-divider-line"></div>
+      </div>
+
+      <!-- Custom Google Email Input -->
+      <form onsubmit="handleCustomGoogleSubmit(event)" style="display: flex; flex-direction: column; gap: 0.85rem;">
+        <div class="neu-input-track" style="margin-bottom: 0;">
+          <span class="neu-input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </span>
+          <input type="email" id="custom-google-email" class="neu-input-field" placeholder="e.g. yourname@gmail.com" required>
+        </div>
+
+        <button type="submit" id="btn-custom-google-submit" class="btn-submit-pill" style="height: 48px; font-size: 0.96rem;">
+          <span>Instant Google Sign Up</span>
+          <div class="btn-arrow-circle" style="width: 30px; height: 30px; right: 10px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+          </div>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= Forgot Password Modal ================= -->
+  <div id="forgot-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <button type="button" class="modal-close-icon" onclick="closeForgotModal()" aria-label="Close modal">✕</button>
+
+      <div style="width: 48px; height: 48px; border-radius: 16px; background: var(--neu-surface); border: 1px solid var(--card-border); box-shadow: var(--neu-emboss); color: var(--accent-blue); display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      </div>
+
+      <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-title); margin-bottom: 0.35rem;">Reset Password</h3>
+      <p style="font-size: 0.88rem; color: var(--text-sub); margin-bottom: 1.4rem; text-align: left;">
+        Enter your registered email to receive a 6-digit confirmation code.
+      </p>
+
+      <div id="forgot-alert-box" class="auth-alert-box" style="margin-bottom: 1rem;">
+        <span id="forgot-alert-text"></span>
+      </div>
+
+      <!-- Step 1: Send Code -->
+      <form id="forgot-step-1" onsubmit="handleSendResetCode(event)">
+        <div class="neu-input-track" style="margin-bottom: 1.25rem;">
+          <span class="neu-input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </span>
+          <input type="email" id="reset-email" class="neu-input-field" placeholder="your@email.com" required>
+        </div>
+        <button type="submit" id="btn-send-code" class="btn-submit-pill" style="height: 50px;">
+          <span>Send Recovery Code</span>
+          <div class="btn-arrow-circle" style="width: 32px; height: 32px; right: 10px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+          </div>
+        </button>
+      </form>
+
+      <!-- Step 2: Confirm OTP & New Password -->
+      <form id="forgot-step-2" onsubmit="handleConfirmReset(event)" style="display: none;">
+        <div class="neu-input-track" style="margin-bottom: 1rem;">
+          <span class="neu-input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </span>
+          <input type="text" id="reset-code" class="neu-input-field" placeholder="6-digit code (e.g. 123456)" maxlength="6" inputmode="numeric" required style="letter-spacing: 3px; font-weight: 700; text-align: center;">
+        </div>
+
+        <div class="neu-input-track" style="margin-bottom: 1.25rem;">
+          <span class="neu-input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </span>
+          <input type="password" id="reset-new-password" class="neu-input-field" placeholder="New Password (min 6 chars)" minlength="6" required>
+        </div>
+
+        <button type="submit" id="btn-save-new-pass" class="btn-submit-pill" style="height: 50px;">
+          <span>Update Password & Log In</span>
+          <div class="btn-arrow-circle" style="width: 32px; height: 32px; right: 10px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+          </div>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= Core Interactions Script ================= -->
+  <script>
+    // Auto-detect API Base for file:// or localhost / production origins
+    const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+
+    let currentAuthMode = 'signin'; // 'signin' or 'signup'
+    let resetEmail = '';
+
+    // Theme Management (Supports Light/Dark Neumorphism)
+    function initTheme() {
+      const savedTheme = localStorage.getItem('readora_theme') || 'light';
+      applyTheme(savedTheme);
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      localStorage.setItem('readora_theme', next);
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const moon = document.getElementById('theme-moon-icon');
+      const sun = document.getElementById('theme-sun-icon');
+      if (moon && sun) {
+        if (theme === 'dark') {
+          moon.style.display = 'none';
+          sun.style.display = 'block';
+        } else {
+          moon.style.display = 'block';
+          sun.style.display = 'none';
+        }
+      }
+    }
+
+    // Password Visibility Toggle
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+
+      btn.innerHTML = isPassword
+        ? `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`
+        : `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+    }
+
+    // Switch between Sign In and Sign Up within the same gorgeous 3D card
+    function switchAuthMode(mode) {
+      currentAuthMode = mode;
+      const tabSignIn = document.getElementById('tab-sign-in');
+      const tabSignUp = document.getElementById('tab-sign-up');
+      const titleEl = document.getElementById('auth-main-title');
+      const subEl = document.getElementById('auth-main-subtitle');
+      const btnLabel = document.getElementById('btn-submit-label');
+      const signupNameTrack = document.getElementById('signup-name-track');
+      const optionsRow = document.getElementById('form-options-row');
+      const switchPrompt = document.getElementById('auth-switch-prompt');
+      const googleLabel = document.getElementById('btn-google-label');
+      const switchCard = document.getElementById('switch-account-card');
+
+      hideFeedback();
+
+      if (switchCard) switchCard.style.display = 'none';
+      document.getElementById('main-auth-form').style.display = 'block';
+
+      if (mode === 'signup') {
+        tabSignIn.classList.remove('active');
+        tabSignUp.classList.add('active');
+        titleEl.textContent = 'Create Account';
+        subEl.textContent = 'Join the creator network';
+        btnLabel.textContent = 'Sign Up';
+        if (googleLabel) googleLabel.textContent = 'Sign Up with Google';
+        signupNameTrack.style.display = 'flex';
+        optionsRow.style.display = 'none';
+        switchPrompt.innerHTML = `Already have an account? <a href="#" onclick="switchAuthMode('signin'); return false;">Log In ➔</a>`;
+      } else {
+        tabSignIn.classList.add('active');
+        tabSignUp.classList.remove('active');
+        titleEl.textContent = 'Welcome Back';
+        subEl.textContent = 'Sign in to continue';
+        btnLabel.textContent = 'Login';
+        if (googleLabel) googleLabel.textContent = 'Continue with Google';
+        signupNameTrack.style.display = 'none';
+        optionsRow.style.display = 'flex';
+        switchPrompt.innerHTML = `Don't have an account? <a href="#" onclick="switchAuthMode('signup'); return false;">Sign Up ➔</a>`;
+      }
+    }
+
+    // Feedback Notifications
+    function showFeedback(message, type = 'error') {
+      const box = document.getElementById('auth-feedback-box');
+      const text = document.getElementById('auth-feedback-text');
+      if (!box || !text) return;
+      text.textContent = message;
+      box.className = 'auth-alert-box ' + (type === 'error' ? 'auth-alert-error' : 'auth-alert-success');
+      box.style.display = 'flex';
+    }
+
+    function hideFeedback() {
+      const box = document.getElementById('auth-feedback-box');
+      if (box) box.style.display = 'none';
+    }
+
+    // One-Click Demo Credentials
+    function fillDemo(username, password) {
+      switchAuthMode('signin');
+      const idField = document.getElementById('auth-identifier');
+      const passField = document.getElementById('auth-password');
+      if (idField) {
+        idField.value = username;
+        idField.focus();
+      }
+      if (passField) {
+        passField.value = password;
+      }
+    }
+
+    // Form Submission: Login or Direct Sign Up
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const identifier = document.getElementById('auth-identifier').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const submitBtn = document.getElementById('btn-submit-main');
+      const btnLabel = document.getElementById('btn-submit-label');
+
+      if (!identifier || !password) {
+        showFeedback('Please fill in all required fields.');
+        return false;
+      }
+
+      hideFeedback();
+      submitBtn.disabled = true;
+      btnLabel.textContent = currentAuthMode === 'signup' ? 'Creating Account...' : 'Signing in...';
+
+      if (currentAuthMode === 'signup') {
+        // Direct Sign Up flow
+        const name = document.getElementById('auth-name').value.trim() || identifier.split('@')[0];
+        const email = identifier.includes('@') ? identifier : `${identifier.replace(/^@/, '')}@readora.app`;
+        const handle = identifier.startsWith('@') ? identifier : '@' + identifier.split('@')[0];
+
+        try {
+          const res = await fetch(`${API_BASE}/api/auth/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password, handle })
+          });
+          const data = await res.json();
+          submitBtn.disabled = false;
+          btnLabel.textContent = 'Sign Up';
+
+          if (res.ok && data.success) {
+            localStorage.setItem('readora_token', data.token);
+            localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+            showFeedback('🎉 Account created successfully! Redirecting...', 'success');
+            setTimeout(() => { window.location.href = 'index.html'; }, 600);
+          } else {
+            showFeedback(data.message || 'Signup failed. Please try a different email or username.');
+          }
+        } catch (err) {
+          submitBtn.disabled = false;
+          btnLabel.textContent = 'Sign Up';
+          showFeedback('Server connection error. Make sure server is running on http://localhost:5000.');
+        }
+      } else {
+        // Sign In Flow
+        try {
+          const res = await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, password })
+          });
+          const data = await res.json();
+          submitBtn.disabled = false;
+          btnLabel.textContent = 'Login';
+
+          if (res.ok && data.success) {
+            localStorage.setItem('readora_token', data.token);
+            localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+            localStorage.setItem('readora_last_user', JSON.stringify({
+              name: data.user.name,
+              handle: data.user.handle,
+              avatar: data.user.avatar || data.user.name.substring(0, 2).toUpperCase()
+            }));
+
+            showFeedback('✨ Success! Welcome back to your sanctuary...', 'success');
+            setTimeout(() => { window.location.href = 'index.html'; }, 450);
+          } else {
+            showFeedback(data.message || 'Invalid username or password.');
+          }
+        } catch (err) {
+          submitBtn.disabled = false;
+          btnLabel.textContent = 'Login';
+          showFeedback('Server connection error. Make sure server is running on http://localhost:5000.');
+        }
+      }
+      return false;
+    }
+
+    // ================= Direct Google Sign Up / Sign In Flow =================
+    function openGoogleModal() {
+      const modal = document.getElementById('google-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeGoogleModal() {
+      const modal = document.getElementById('google-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function executeGoogleAuth(email, name) {
+      closeGoogleModal();
+      showFeedback('Authenticating with Google...', 'success');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          localStorage.setItem('readora_token', data.token);
+          localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+          localStorage.setItem('readora_last_user', JSON.stringify({
+            name: data.user.name,
+            handle: data.user.handle,
+            avatar: data.user.avatar
+          }));
+          showFeedback(`✨ Authenticated as ${data.user.name}! Redirecting to sanctuary...`, 'success');
+          setTimeout(() => { window.location.href = 'index.html'; }, 400);
+        } else {
+          showFeedback(data.message || 'Google authentication failed.');
+        }
+      } catch (err) {
+        showFeedback('Connection error during Google authentication.');
+      }
+    }
+
+    function handleCustomGoogleSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('custom-google-email').value.trim();
+      if (!email) return;
+      const rawName = email.split('@')[0];
+      const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+      executeGoogleAuth(email, displayName);
+    }
+
+    function simulateOAuth(provider) {
+      showFeedback(`Opening ${provider} secure OAuth authentication...`, 'success');
+      setTimeout(() => {
+        const randomId = Math.floor(100 + Math.random() * 900);
+        executeGoogleAuth(`creator_${provider.toLowerCase()}${randomId}@readora.app`, `${provider} Creator`);
+      }, 700);
+    }
+
+    // ================= Forgot Password Flow =================
+    function openForgotModal(e) {
+      if (e) e.preventDefault();
+      const modal = document.getElementById('forgot-modal');
+      const alertBox = document.getElementById('forgot-alert-box');
+      if (alertBox) alertBox.style.display = 'none';
+      document.getElementById('forgot-step-1').style.display = 'block';
+      document.getElementById('forgot-step-2').style.display = 'none';
+      if (modal) modal.style.display = 'flex';
+      const emailField = document.getElementById('reset-email');
+      const curInput = document.getElementById('auth-identifier').value.trim();
+      if (emailField && curInput.includes('@')) {
+        emailField.value = curInput;
+      }
+    }
+
+    function closeForgotModal() {
+      const modal = document.getElementById('forgot-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function handleSendResetCode(e) {
+      e.preventDefault();
+      const email = document.getElementById('reset-email').value.trim();
+      const alertBox = document.getElementById('forgot-alert-box');
+      const alertText = document.getElementById('forgot-alert-text');
+      const btn = document.getElementById('btn-send-code');
+
+      btn.disabled = true;
+      btn.querySelector('span').textContent = 'Sending Code...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Send Recovery Code';
+
+        resetEmail = email;
+        alertText.textContent = data.message || 'If an account exists, a 6-digit code has been sent.';
+        alertBox.className = 'auth-alert-box auth-alert-success';
+        alertBox.style.display = 'flex';
+
+        document.getElementById('forgot-step-1').style.display = 'none';
+        document.getElementById('forgot-step-2').style.display = 'block';
+        document.getElementById('reset-code').focus();
+      } catch (err) {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Send Recovery Code';
+        alertText.textContent = 'Server connection error.';
+        alertBox.className = 'auth-alert-box auth-alert-error';
+        alertBox.style.display = 'flex';
+      }
+    }
+
+    async function handleConfirmReset(e) {
+      e.preventDefault();
+      const otp = document.getElementById('reset-code').value.trim();
+      const newPassword = document.getElementById('reset-new-password').value;
+      const alertBox = document.getElementById('forgot-alert-box');
+      const alertText = document.getElementById('forgot-alert-text');
+      const btn = document.getElementById('btn-save-new-pass');
+
+      btn.disabled = true;
+      btn.querySelector('span').textContent = 'Updating...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: resetEmail, otp, newPassword })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Update Password & Log In';
+
+        if (res.ok && data.success) {
+          alertText.textContent = 'Password updated! Redirecting to sign in...';
+          alertBox.className = 'auth-alert-box auth-alert-success';
+          alertBox.style.display = 'flex';
+
+          setTimeout(() => {
+            closeForgotModal();
+            document.getElementById('auth-identifier').value = resetEmail;
+            document.getElementById('auth-password').value = newPassword;
+            document.getElementById('btn-submit-main').click();
+          }, 900);
+        } else {
+          alertText.textContent = data.message || 'Invalid or expired code.';
+          alertBox.className = 'auth-alert-box auth-alert-error';
+          alertBox.style.display = 'flex';
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Update Password & Log In';
+        alertText.textContent = 'Server connection error.';
+        alertBox.className = 'auth-alert-box auth-alert-error';
+        alertBox.style.display = 'flex';
+      }
+    }
+
+    // Close Modals on click outside
+    window.addEventListener('click', (e) => {
+      const gModal = document.getElementById('google-modal');
+      const fModal = document.getElementById('forgot-modal');
+      if (e.target === gModal) closeGoogleModal();
+      if (e.target === fModal) closeForgotModal();
+    });
+
+    // Check last user for Quick Switch Account feature
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('mode') === 'signup') {
+        switchAuthMode('signup');
+      }
+
+      const lastUserJson = localStorage.getItem('readora_last_user');
+      if (lastUserJson) {
+        try {
+          const lastUser = JSON.parse(lastUserJson);
+          if (lastUser && lastUser.name) {
+            const switchCard = document.getElementById('switch-account-card');
+            const switchAvatar = document.getElementById('switch-avatar');
+            const switchName = document.getElementById('switch-name');
+            const switchHandle = document.getElementById('switch-handle');
+            const switchFirstName = document.getElementById('switch-first-name');
+            const mainForm = document.getElementById('main-auth-form');
+
+            if (switchCard && switchAvatar && switchName && switchHandle) {
+              switchAvatar.textContent = lastUser.avatar || lastUser.name.substring(0, 2).toUpperCase();
+              switchName.textContent = lastUser.name;
+              switchHandle.textContent = lastUser.handle || `@${lastUser.name.toLowerCase().replace(/\s+/g, '_')}`;
+              if (switchFirstName) switchFirstName.textContent = lastUser.name.split(' ')[0];
+
+              switchCard.style.display = 'block';
+              mainForm.style.display = 'none';
+
+              document.getElementById('btn-quick-continue').addEventListener('click', () => {
+                switchCard.style.display = 'none';
+                mainForm.style.display = 'block';
+                const idInput = document.getElementById('auth-identifier');
+                const passInput = document.getElementById('auth-password');
+                if (idInput) idInput.value = lastUser.handle || lastUser.name;
+                if (passInput) passInput.focus();
+              });
+
+              document.getElementById('btn-use-different-account').addEventListener('click', () => {
+                switchCard.style.display = 'none';
+                mainForm.style.display = 'block';
+                const idInput = document.getElementById('auth-identifier');
+                if (idInput) {
+                  idInput.value = '';
+                  idInput.focus();
+                }
+              });
+            }
+          }
+        } catch (e) {}
+      }
+    });
+  </script>
+</body>
+</html>

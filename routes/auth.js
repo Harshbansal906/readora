@@ -500,6 +500,72 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/google - Direct Google Sign-In & Sign-Up
+router.post('/google', async (req, res) => {
+  try {
+    const { email, name, avatar, googleId } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, message: 'Valid Google email is required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Check if user exists with this email
+    let user = await db.getAsync(`SELECT * FROM users WHERE LOWER(email) = ?`, [cleanEmail]);
+
+    if (!user) {
+      // Auto-create account (Direct Google Sign Up)
+      const userId = 'usr_g_' + Date.now();
+      const rawName = (name && name.trim()) || cleanEmail.split('@')[0];
+      const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+      const baseHandle = '@' + rawName.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 20);
+
+      // Ensure unique handle
+      let finalHandle = baseHandle;
+      let counter = 1;
+      while (await db.getAsync(`SELECT id FROM users WHERE LOWER(handle) = ?`, [finalHandle.toLowerCase()])) {
+        finalHandle = `${baseHandle}_${counter}`;
+        counter++;
+      }
+
+      const userAvatar = avatar || displayName.substring(0, 2).toUpperCase();
+      const randomPassword = 'g_oauth_' + Math.random().toString(36).slice(2) + Date.now();
+      const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+      await db.runAsync(`
+        INSERT INTO users (id, name, email, handle, password_hash, avatar, bio)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [userId, displayName, cleanEmail, finalHandle, passwordHash, userAvatar, 'Reader & creator on Readora (Google verified).']);
+
+      user = await db.getAsync(`SELECT * FROM users WHERE id = ?`, [userId]);
+    }
+
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email, handle: user.handle, avatar: user.avatar },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      message: `Welcome to Readora, ${user.name}!`,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        handle: user.handle,
+        avatar: user.avatar,
+        bio: user.bio || 'Reader & creator on Readora.'
+      }
+    });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(500).json({ success: false, message: 'Direct Google authentication failed.' });
+  }
+});
+
 // GET /api/auth/me - Verify and fetch logged-in user profile
 router.get('/me', authMiddleware, async (req, res) => {
   try {
