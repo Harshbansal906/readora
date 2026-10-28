@@ -116,18 +116,23 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    html, body {
+      height: 100%;
+    }
+
     body {
       font-family: var(--font-main);
       background: var(--bg-page);
       background-image: var(--bg-gradient);
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
       overflow-x: hidden;
       color: var(--text-body);
-      padding: 2rem 1.25rem;
+      padding: 0.75rem 1rem;
       transition: background 0.3s ease, color 0.3s ease;
     }
 
@@ -210,8 +215,29 @@
       color: var(--text-muted);
     }
 
+    .ambient-corner-caption {
+      position: fixed;
+      bottom: 1.25rem;
+      right: 1.5rem;
+      text-align: right;
+      pointer-events: none;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.15rem;
+    }
+
+    .ambient-caption-title {
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
     .ambient-caption-line {
-      width: 24px;
+      width: 20px;
       height: 2px;
       background: var(--accent-blue);
       border-radius: 2px;
@@ -221,10 +247,10 @@
     /* Top Bar */
     .top-actions-bar {
       position: fixed;
-      top: 1.5rem;
+      top: 1rem;
       left: 0;
       right: 0;
-      padding: 0 2rem;
+      padding: 0 1.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -235,9 +261,9 @@
     .top-brand-pill {
       display: inline-flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.5rem;
       text-decoration: none;
-      padding: 0.5rem 1rem;
+      padding: 0.38rem 0.85rem;
       border-radius: 9999px;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -252,14 +278,14 @@
     }
 
     .brand-pill-logo {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
       object-fit: cover;
     }
 
     .brand-pill-text {
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       font-weight: 800;
       letter-spacing: -0.3px;
       color: var(--text-title);
@@ -270,8 +296,8 @@
     }
 
     .theme-toggle-btn {
-      width: 48px;
-      height: 48px;
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
       background: var(--neu-surface);
       border: 1px solid var(--card-border);
@@ -301,13 +327,13 @@
       position: relative;
       z-index: 2;
       width: 100%;
-      max-width: 440px;
-      margin: 3.5rem auto 1.5rem auto;
-      animation: stageFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      max-width: 410px;
+      margin: 0 auto;
+      animation: stageFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
     @keyframes stageFadeIn {
-      from { opacity: 0; transform: translateY(22px) scale(0.98); }
+      from { opacity: 0; transform: translateY(14px) scale(0.98); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
@@ -316,8 +342,8 @@
       backdrop-filter: blur(28px);
       -webkit-backdrop-filter: blur(28px);
       border: 1.5px solid var(--card-border);
-      border-radius: 40px;
-      padding: 2.75rem 2.4rem 2.25rem 2.4rem;
+      border-radius: 28px;
+      padding: 1.25rem 1.85rem 1.1rem 1.85rem;
       box-shadow: var(--card-shadow);
       display: flex;
       flex-direction: column;
@@ -327,49 +353,49 @@
     }
 
     .floating-logo-vessel {
-      width: 104px;
-      height: 104px;
-      border-radius: 30px;
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
       background: var(--neu-surface);
       border: 1.5px solid var(--card-border);
       box-shadow: var(--neu-emboss);
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 1.6rem;
+      margin-bottom: 0.45rem;
       cursor: pointer;
       text-decoration: none;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
 
     .floating-logo-vessel:hover {
-      transform: translateY(-3px) scale(1.02);
+      transform: translateY(-2px) scale(1.02);
       box-shadow: var(--neu-emboss-hover);
     }
 
     .floating-logo-img {
-      width: 82px;
-      height: 82px;
+      width: 40px;
+      height: 40px;
       object-fit: contain;
-      border-radius: 20px;
-      filter: drop-shadow(0 8px 16px rgba(37, 99, 235, 0.25));
+      border-radius: 11px;
+      filter: drop-shadow(0 4px 8px rgba(37, 99, 235, 0.25));
     }
 
     .auth-title {
-      font-size: 2rem;
+      font-size: 1.4rem;
       font-weight: 800;
-      letter-spacing: -0.6px;
+      letter-spacing: -0.4px;
       color: var(--text-title);
-      margin-bottom: 0.35rem;
-      line-height: 1.15;
+      margin-bottom: 0.15rem;
+      line-height: 1.2;
     }
 
     .auth-subtitle {
-      font-size: 0.94rem;
+      font-size: 0.8rem;
       color: var(--text-sub);
       font-weight: 500;
-      letter-spacing: 0.3px;
-      margin-bottom: 1.6rem;
+      letter-spacing: 0.2px;
+      margin-bottom: 0.65rem;
     }
 
     .auth-tab-pill-track {
@@ -378,19 +404,19 @@
       border: 1px solid var(--input-border);
       box-shadow: var(--neu-inset);
       border-radius: 9999px;
-      padding: 4px;
+      padding: 3px;
       display: flex;
-      margin-bottom: 1.6rem;
+      margin-bottom: 0.65rem;
     }
 
     .tab-pill-btn {
       flex: 1;
-      padding: 0.65rem 0.85rem;
+      padding: 0.38rem 0.75rem;
       border-radius: 9999px;
       border: none;
       background: transparent;
       font-family: var(--font-main);
-      font-size: 0.88rem;
+      font-size: 0.82rem;
       font-weight: 600;
       color: var(--text-sub);
       cursor: pointer;
@@ -410,14 +436,14 @@
 
     .auth-alert-box {
       width: 100%;
-      border-radius: 14px;
-      padding: 0.75rem 1rem;
-      font-size: 0.86rem;
+      border-radius: 12px;
+      padding: 0.45rem 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      margin-bottom: 1.25rem;
+      margin-bottom: 0.55rem;
       display: none;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.5rem;
       text-align: left;
     }
 
@@ -442,14 +468,14 @@
     .neu-input-track {
       position: relative;
       width: 100%;
-      margin-bottom: 1.15rem;
+      margin-bottom: 0.55rem;
       display: flex;
       align-items: center;
     }
 
     .neu-input-icon {
       position: absolute;
-      left: 1.25rem;
+      left: 0.95rem;
       color: var(--text-muted);
       pointer-events: none;
       display: flex;
@@ -458,20 +484,31 @@
       transition: color 0.2s ease;
     }
 
+    .neu-input-icon svg {
+      width: 17px;
+      height: 17px;
+    }
+
     .neu-input-field {
       width: 100%;
-      height: 54px;
+      height: 40px;
       border-radius: 9999px;
       background: var(--input-bg);
       border: 1.5px solid var(--input-border);
       box-shadow: var(--neu-inset);
-      padding: 0 3.25rem 0 3.25rem;
-      font-size: 0.94rem;
+      padding: 0 2.65rem 0 2.65rem;
+      font-size: 0.88rem;
       font-family: var(--font-main);
       color: var(--text-title);
       outline: none;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       box-sizing: border-box;
+    }
+
+    .neu-input-field::placeholder {
+      color: var(--text-muted);
+      font-weight: 400;
+      font-size: 0.84rem;
     }
 
     .neu-input-field:focus {
@@ -486,12 +523,12 @@
 
     .neu-input-toggle-eye {
       position: absolute;
-      right: 1.15rem;
+      right: 0.85rem;
       background: transparent;
       border: none;
       color: var(--text-muted);
       cursor: pointer;
-      padding: 0.35rem;
+      padding: 0.3rem;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -500,21 +537,26 @@
       outline: none;
     }
 
+    .neu-input-toggle-eye svg {
+      width: 17px;
+      height: 17px;
+    }
+
     .neu-input-toggle-eye:hover {
       color: var(--text-title);
-      transform: scale(1.1);
+      transform: scale(1.08);
     }
 
     .btn-submit-pill {
       width: 100%;
-      height: 56px;
+      height: 42px;
       border-radius: 9999px;
       background: var(--accent-gradient);
       border: none;
       color: #ffffff;
       font-family: var(--font-main);
       font-weight: 700;
-      font-size: 1.05rem;
+      font-size: 0.92rem;
       letter-spacing: 0.3px;
       display: flex;
       align-items: center;
@@ -527,20 +569,20 @@
     }
 
     .btn-submit-pill:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 16px 32px -4px rgba(37, 99, 235, 0.58), 0 6px 14px -2px rgba(37, 99, 235, 0.35);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px -4px rgba(37, 99, 235, 0.58), 0 4px 10px -2px rgba(37, 99, 235, 0.35);
     }
 
     .btn-submit-pill:active {
       transform: translateY(1px);
-      box-shadow: 0 6px 14px -2px rgba(37, 99, 235, 0.4);
+      box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4);
     }
 
     .btn-arrow-circle {
       position: absolute;
-      right: 12px;
-      width: 36px;
-      height: 36px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.22);
       display: flex;
@@ -551,15 +593,20 @@
       transition: transform 0.25s ease;
     }
 
+    .btn-arrow-circle svg {
+      width: 15px;
+      height: 15px;
+    }
+
     .btn-submit-pill:hover .btn-arrow-circle {
-      transform: translateX(3px);
+      transform: translateX(2px);
     }
 
     .auth-divider {
       width: 100%;
       display: flex;
       align-items: center;
-      margin: 1.75rem 0 1.35rem 0;
+      margin: 0.55rem 0 0.45rem 0;
     }
 
     .auth-divider-line {
@@ -569,37 +616,43 @@
     }
 
     .auth-divider-text {
-      padding: 0 1rem;
-      font-size: 0.72rem;
+      padding: 0 0.75rem;
+      font-size: 0.66rem;
       font-weight: 700;
       color: var(--text-muted);
-      letter-spacing: 2px;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
     }
 
     .btn-google-direct {
       width: 100%;
-      height: 48px;
+      height: 38px;
       border-radius: 9999px;
       background: var(--neu-surface);
       border: 1px solid var(--card-border);
       box-shadow: var(--neu-emboss);
       color: var(--text-title);
       font-family: var(--font-main);
-      font-size: 0.92rem;
+      font-size: 0.85rem;
       font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
+      gap: 0.6rem;
       cursor: pointer;
-      margin-bottom: 1.4rem;
+      margin-bottom: 0.55rem;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       outline: none;
     }
 
+    .btn-google-direct svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+    }
+
     .btn-google-direct:hover {
-      transform: translateY(-2px);
+      transform: translateY(-1px);
       box-shadow: var(--neu-emboss-hover);
       border-color: rgba(66, 133, 244, 0.4);
     }
@@ -608,15 +661,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 1.25rem;
-      margin-bottom: 1.5rem;
+      gap: 0.75rem;
+      margin-bottom: 0.55rem;
       width: 100%;
     }
 
     .social-squircle {
-      width: 58px;
-      height: 58px;
-      border-radius: 18px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       background: var(--neu-surface);
       border: 1px solid var(--card-border);
       box-shadow: var(--neu-emboss);
@@ -629,23 +682,29 @@
       padding: 0;
     }
 
+    .social-squircle svg {
+      width: 18px;
+      height: 18px;
+    }
+
     .social-squircle:hover {
       transform: translateY(-2px);
       box-shadow: var(--neu-emboss-hover);
     }
 
     .auth-bottom-tagline {
-      font-size: 0.74rem;
+      font-size: 0.64rem;
       font-weight: 800;
-      letter-spacing: 2.2px;
+      letter-spacing: 1.8px;
       text-transform: uppercase;
       color: var(--text-muted);
-      margin-bottom: 0.85rem;
+      margin-bottom: 0.3rem;
     }
 
     .auth-switch-link {
-      font-size: 0.9rem;
+      font-size: 0.82rem;
       color: var(--text-sub);
+      margin-bottom: 0.2rem;
     }
 
     .auth-switch-link a {
@@ -655,8 +714,8 @@
     }
 
     .guest-explore-row {
-      margin-top: 0.75rem;
-      font-size: 0.84rem;
+      margin-top: 0.2rem;
+      font-size: 0.78rem;
     }
 
     .guest-explore-link {
@@ -744,9 +803,65 @@
       flex-shrink: 0;
     }
 
+    /* Responsive adjustments */
+    @media (max-height: 720px) {
+      body {
+        padding: 0.4rem;
+      }
+      .floating-logo-vessel {
+        width: 44px;
+        height: 44px;
+        border-radius: 13px;
+        margin-bottom: 0.3rem;
+      }
+      .floating-logo-img {
+        width: 32px;
+        height: 32px;
+      }
+      .auth-title {
+        font-size: 1.25rem;
+      }
+      .auth-subtitle {
+        display: none;
+      }
+      .auth-tab-pill-track {
+        margin-bottom: 0.45rem;
+      }
+      .btn-google-direct {
+        height: 35px;
+        margin-bottom: 0.45rem;
+      }
+      .neu-input-track {
+        margin-bottom: 0.45rem;
+      }
+      .neu-input-field {
+        height: 36px;
+        font-size: 0.84rem;
+      }
+      .btn-submit-pill {
+        height: 38px;
+      }
+      .auth-divider {
+        margin: 0.4rem 0 0.3rem 0;
+      }
+      .social-btn-row {
+        margin-bottom: 0.4rem;
+      }
+      .social-squircle {
+        width: 34px;
+        height: 34px;
+      }
+      .auth-bottom-tagline {
+        display: none;
+      }
+      .auth-neu-card {
+        padding: 0.9rem 1.5rem 0.85rem 1.5rem;
+      }
+    }
+
     @media (max-width: 480px) {
-      body { padding: 1.25rem 0.85rem; }
-      .auth-neu-card { padding: 2.25rem 1.6rem 2rem 1.6rem; border-radius: 32px; }
+      body { padding: 0.5rem; }
+      .auth-neu-card { padding: 1.15rem 1.2rem 1rem 1.2rem; border-radius: 22px; }
       .ambient-corner-caption { display: none; }
     }
   </style>

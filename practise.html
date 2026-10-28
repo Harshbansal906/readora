@@ -116,18 +116,23 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    html, body {
+      height: 100%;
+    }
+
     body {
       font-family: var(--font-main);
       background: var(--bg-page);
       background-image: var(--bg-gradient);
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
       overflow-x: hidden;
       color: var(--text-body);
-      padding: 2rem 1.25rem;
+      padding: 0.75rem 1rem;
       transition: background 0.3s ease, color 0.3s ease;
     }
 
@@ -210,90 +215,214 @@
 
     .ambient-corner-caption {
       position: fixed;
-      bottom: 2rem;
-      right: 2.25rem;
+      bottom: 1.25rem;
+      right: 1.5rem;
       text-align: right;
       pointer-events: none;
       z-index: 1;
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 0.25rem;
+      gap: 0.15rem;
     }
 
     .ambient-caption-title {
-      font-size: 0.68rem;
+      font-size: 0.62rem;
       font-weight: 800;
-      letter-spacing: 2.2px;
+      letter-spacing: 2px;
       text-transform: uppercase;
       color: var(--text-muted);
     }
 
     .ambient-caption-line {
-      width: 24px;
+      width: 20px;
       height: 2px;
       background: var(--accent-blue);
       border-radius: 2px;
       margin-top: 2px;
     }
 
-    /* ================= Top Bar: Brand & Theme Switcher ================= */
+    /* ================= Top Bar: Center Animated Brand Showcase ================= */
     .top-actions-bar {
       position: fixed;
-      top: 1.5rem;
+      top: 1.15rem;
       left: 0;
       right: 0;
       padding: 0 2rem;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      z-index: 10;
+      justify-content: center;
+      z-index: 20;
       pointer-events: auto;
     }
 
-    .top-brand-pill {
+    /* Centered Animated Brand Showcase */
+    .top-brand-center {
+      text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 0.65rem;
-      text-decoration: none;
-      padding: 0.5rem 1rem;
+      justify-content: center;
+      position: relative;
+      animation: brandLevitate 4s ease-in-out infinite alternate;
+      cursor: pointer;
+    }
+
+    .brand-center-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.55rem 1.4rem 0.55rem 0.85rem;
       border-radius: 9999px;
       background: var(--card-bg);
-      border: 1px solid var(--card-border);
+      border: 1.5px solid var(--card-border);
+      box-shadow: 
+        var(--neu-emboss),
+        0 10px 32px -4px rgba(37, 99, 235, 0.16);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Ambient shimmering light beam sweep across the pill */
+    .brand-center-pill::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+      transform: skewX(-25deg);
+      animation: pillSweep 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    [data-theme="dark"] .brand-center-pill::before {
+      background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.3), transparent);
+    }
+
+    @keyframes pillSweep {
+      0%, 35% { left: -100%; }
+      75%, 100% { left: 160%; }
+    }
+
+    .top-brand-center:hover .brand-center-pill {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 
+        var(--neu-emboss-hover),
+        0 16px 36px -4px rgba(37, 99, 235, 0.35);
+      border-color: rgba(37, 99, 235, 0.55);
+    }
+
+    .brand-logo-frame {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--neu-surface);
       box-shadow: var(--neu-emboss);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      transition: all 0.2s ease;
+      border: 1px solid var(--card-border);
+      flex-shrink: 0;
     }
 
-    .top-brand-pill:hover {
-      transform: translateY(-1px);
-      box-shadow: var(--neu-emboss-hover);
-    }
-
-    .brand-pill-logo {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
+    .brand-logo-img {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
       object-fit: cover;
+      position: relative;
+      z-index: 2;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
-    .brand-pill-text {
+    .top-brand-center:hover .brand-logo-img {
+      transform: rotate(8deg) scale(1.12);
+    }
+
+    .brand-logo-halo {
+      position: absolute;
+      inset: -5px;
+      border-radius: 15px;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.6) 0%, transparent 70%);
+      opacity: 0.6;
+      animation: haloGlow 3s ease-in-out infinite alternate;
+      z-index: 1;
+    }
+
+    @keyframes haloGlow {
+      0% { transform: scale(0.85); opacity: 0.35; }
+      100% { transform: scale(1.25); opacity: 0.85; }
+    }
+
+    .brand-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    /* Animated Gradient Shimmering Text for Website Name (Bigger with Animation) */
+    .brand-name-shimmer {
       font-family: var(--font-main);
-      font-size: 0.95rem;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      color: var(--text-title);
+      font-size: 1.65rem;
+      font-weight: 850;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 25%, #06b6d4 50%, #3b82f6 75%, #1d4ed8 100%);
+      background-size: 250% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmerGradient 4s linear infinite;
+      filter: drop-shadow(0 2px 10px rgba(37, 99, 235, 0.28));
+      text-transform: uppercase;
+      line-height: 1;
+      display: inline-block;
     }
 
-    .brand-pill-dot {
-      color: var(--accent-blue);
+    [data-theme="dark"] .brand-name-shimmer {
+      background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 25%, #a78bfa 50%, #38bdf8 75%, #60a5fa 100%);
+      background-size: 250% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 14px rgba(59, 130, 246, 0.5));
     }
 
-    /* Neumorphic Dark / Light Mode Toggle Button */
-    .theme-toggle-btn {
-      width: 48px;
-      height: 48px;
+    @keyframes shimmerGradient {
+      0% { background-position: 0% center; }
+      100% { background-position: 250% center; }
+    }
+
+    /* Pulsing Neon Dot Indicator */
+    .brand-name-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      box-shadow: 0 0 10px var(--accent-blue);
+      animation: dotPulse 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes dotPulse {
+      0% { transform: scale(0.8); opacity: 0.65; box-shadow: 0 0 6px var(--accent-blue); }
+      100% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 16px var(--accent-blue), 0 0 24px rgba(37, 99, 235, 0.5); }
+    }
+
+    @keyframes brandLevitate {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-4px); }
+    }
+
+    /* Neumorphic Dark / Light Mode Toggle Button positioned at Top Right */
+    .top-actions-bar .theme-toggle-btn {
+      position: absolute;
+      right: 2rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       background: var(--neu-surface);
       border: 1px solid var(--card-border);
@@ -307,31 +436,31 @@
       outline: none;
     }
 
-    .theme-toggle-btn:hover {
-      transform: translateY(-2px);
+    .top-actions-bar .theme-toggle-btn:hover {
+      transform: translateY(calc(-50% - 2px));
       box-shadow: var(--neu-emboss-hover);
       color: var(--accent-blue);
     }
 
-    .theme-toggle-btn:active {
-      transform: translateY(1px);
+    .top-actions-bar .theme-toggle-btn:active {
+      transform: translateY(calc(-50% + 1px));
       box-shadow: var(--neu-inset);
     }
 
-    /* ================= Center 3D Neumorphic Login Card ================= */
+    /* ================= Center 3D Neumorphic Login Card (Little Bigger & Balanced) ================= */
     .auth-center-stage {
       position: relative;
       z-index: 2;
       width: 100%;
-      max-width: 440px;
-      margin: 3.5rem auto 1.5rem auto;
-      animation: stageFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      max-width: 435px;
+      margin: 0 auto;
+      animation: stageFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
     @keyframes stageFadeIn {
       from {
         opacity: 0;
-        transform: translateY(22px) scale(0.98);
+        transform: translateY(14px) scale(0.98);
       }
       to {
         opacity: 1;
@@ -344,8 +473,8 @@
       backdrop-filter: blur(28px);
       -webkit-backdrop-filter: blur(28px);
       border: 1.5px solid var(--card-border);
-      border-radius: 40px;
-      padding: 2.75rem 2.4rem 2.25rem 2.4rem;
+      border-radius: 32px;
+      padding: 1.5rem 2.2rem 1.3rem 2.2rem;
       box-shadow: var(--card-shadow);
       display: flex;
       flex-direction: column;
@@ -356,51 +485,51 @@
 
     /* 3D Floating Insignia Squircle */
     .floating-logo-vessel {
-      width: 104px;
-      height: 104px;
-      border-radius: 30px;
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
       background: var(--neu-surface);
       border: 1.5px solid var(--card-border);
       box-shadow: var(--neu-emboss);
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 1.6rem;
+      margin-bottom: 0.55rem;
       position: relative;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
       cursor: pointer;
       text-decoration: none;
     }
 
     .floating-logo-vessel:hover {
-      transform: translateY(-3px) scale(1.02);
+      transform: translateY(-2px) scale(1.02);
       box-shadow: var(--neu-emboss-hover);
     }
 
     .floating-logo-img {
-      width: 82px;
-      height: 82px;
+      width: 44px;
+      height: 44px;
       object-fit: contain;
-      border-radius: 20px;
-      filter: drop-shadow(0 8px 16px rgba(37, 99, 235, 0.25));
+      border-radius: 13px;
+      filter: drop-shadow(0 4px 10px rgba(37, 99, 235, 0.25));
     }
 
     /* Card Header Titles */
     .auth-title {
-      font-size: 2rem;
+      font-size: 1.55rem;
       font-weight: 800;
-      letter-spacing: -0.6px;
+      letter-spacing: -0.4px;
       color: var(--text-title);
-      margin-bottom: 0.35rem;
-      line-height: 1.15;
+      margin-bottom: 0.2rem;
+      line-height: 1.2;
     }
 
     .auth-subtitle {
-      font-size: 0.94rem;
+      font-size: 0.86rem;
       color: var(--text-sub);
       font-weight: 500;
-      letter-spacing: 0.3px;
-      margin-bottom: 1.6rem;
+      letter-spacing: 0.2px;
+      margin-bottom: 0.75rem;
     }
 
     /* Tab Switcher: Sign In / Sign Up */
@@ -412,18 +541,18 @@
       border-radius: 9999px;
       padding: 4px;
       display: flex;
-      margin-bottom: 1.6rem;
+      margin-bottom: 0.75rem;
       position: relative;
     }
 
     .tab-pill-btn {
       flex: 1;
-      padding: 0.65rem 0.85rem;
+      padding: 0.42rem 0.85rem;
       border-radius: 9999px;
       border: none;
       background: transparent;
       font-family: var(--font-main);
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 600;
       color: var(--text-sub);
       cursor: pointer;
@@ -444,20 +573,20 @@
     /* Feedback Alert Box */
     .auth-alert-box {
       width: 100%;
-      border-radius: 14px;
-      padding: 0.75rem 1rem;
-      font-size: 0.86rem;
+      border-radius: 13px;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      margin-bottom: 1.25rem;
+      margin-bottom: 0.65rem;
       display: none;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.5rem;
       text-align: left;
       animation: alertSlide 0.2s ease forwards;
     }
 
     @keyframes alertSlide {
-      from { opacity: 0; transform: translateY(-6px); }
+      from { opacity: 0; transform: translateY(-4px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
@@ -479,38 +608,38 @@
       background: var(--neu-surface);
       border: 1px solid var(--card-border);
       box-shadow: var(--neu-emboss);
-      border-radius: 22px;
-      padding: 1.35rem 1.25rem;
-      margin-bottom: 1.4rem;
+      border-radius: 20px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
       display: none;
     }
 
     .switch-user-avatar {
-      width: 54px;
-      height: 54px;
+      width: 46px;
+      height: 46px;
       border-radius: 50%;
       background: var(--accent-gradient);
       color: #ffffff;
       font-weight: 800;
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 0.65rem auto;
-      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+      margin: 0 auto 0.45rem auto;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
     }
 
     .switch-user-name {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 700;
       color: var(--text-title);
-      margin-bottom: 0.15rem;
+      margin-bottom: 0.12rem;
     }
 
     .switch-user-handle {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--text-sub);
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
     }
 
     /* Form & Neumorphic Pill Inputs */
@@ -522,14 +651,14 @@
     .neu-input-track {
       position: relative;
       width: 100%;
-      margin-bottom: 1.15rem;
+      margin-bottom: 0.65rem;
       display: flex;
       align-items: center;
     }
 
     .neu-input-icon {
       position: absolute;
-      left: 1.25rem;
+      left: 1.05rem;
       color: var(--text-muted);
       pointer-events: none;
       display: flex;
@@ -538,15 +667,20 @@
       transition: color 0.2s ease;
     }
 
+    .neu-input-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
     .neu-input-field {
       width: 100%;
-      height: 54px;
+      height: 44px;
       border-radius: 9999px;
       background: var(--input-bg);
       border: 1.5px solid var(--input-border);
       box-shadow: var(--neu-inset);
-      padding: 0 3.25rem 0 3.25rem;
-      font-size: 0.94rem;
+      padding: 0 2.85rem 0 2.85rem;
+      font-size: 0.92rem;
       font-family: var(--font-main);
       color: var(--text-title);
       outline: none;
@@ -557,6 +691,7 @@
     .neu-input-field::placeholder {
       color: var(--text-muted);
       font-weight: 400;
+      font-size: 0.88rem;
     }
 
     .neu-input-field:focus {
@@ -571,12 +706,12 @@
 
     .neu-input-toggle-eye {
       position: absolute;
-      right: 1.15rem;
+      right: 0.95rem;
       background: transparent;
       border: none;
       color: var(--text-muted);
       cursor: pointer;
-      padding: 0.35rem;
+      padding: 0.3rem;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -585,9 +720,14 @@
       outline: none;
     }
 
+    .neu-input-toggle-eye svg {
+      width: 18px;
+      height: 18px;
+    }
+
     .neu-input-toggle-eye:hover {
       color: var(--text-title);
-      transform: scale(1.1);
+      transform: scale(1.08);
     }
 
     /* Sub-row: Remember Me & Forgot Password */
@@ -595,14 +735,14 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin: 0.25rem 0.5rem 1.4rem 0.5rem;
-      font-size: 0.88rem;
+      margin: 0.15rem 0.35rem 0.65rem 0.35rem;
+      font-size: 0.82rem;
     }
 
     .remember-label {
       display: inline-flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.5rem;
       color: var(--text-sub);
       cursor: pointer;
       user-select: none;
@@ -612,9 +752,9 @@
     .remember-label input[type="checkbox"] {
       appearance: none;
       -webkit-appearance: none;
-      width: 19px;
-      height: 19px;
-      border-radius: 6px;
+      width: 17px;
+      height: 17px;
+      border-radius: 5px;
       background: var(--input-bg);
       border: 1.5px solid var(--input-border);
       box-shadow: var(--neu-inset);
@@ -628,13 +768,13 @@
     .remember-label input[type="checkbox"]:checked {
       background: var(--accent-blue);
       border-color: var(--accent-blue);
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
     }
 
     .remember-label input[type="checkbox"]:checked::after {
       content: '';
-      width: 5px;
-      height: 9px;
+      width: 4px;
+      height: 8px;
       border: solid #ffffff;
       border-width: 0 2px 2px 0;
       transform: rotate(45deg);
@@ -645,6 +785,7 @@
       color: var(--accent-blue);
       font-weight: 600;
       text-decoration: none;
+      font-size: 0.8rem;
       transition: color 0.2s ease, text-decoration 0.2s ease;
     }
 
@@ -656,14 +797,14 @@
     /* Primary Action Pill Button ("Login" / "Sign In") */
     .btn-submit-pill {
       width: 100%;
-      height: 56px;
+      height: 46px;
       border-radius: 9999px;
       background: var(--accent-gradient);
       border: none;
       color: #ffffff;
       font-family: var(--font-main);
       font-weight: 700;
-      font-size: 1.05rem;
+      font-size: 0.96rem;
       letter-spacing: 0.3px;
       display: flex;
       align-items: center;
@@ -676,15 +817,15 @@
     }
 
     .btn-submit-pill:hover {
-      transform: translateY(-2px);
+      transform: translateY(-1.5px);
       box-shadow: 
-        0 16px 32px -4px rgba(37, 99, 235, 0.58),
-        0 6px 14px -2px rgba(37, 99, 235, 0.35);
+        0 14px 28px -4px rgba(37, 99, 235, 0.58),
+        0 5px 12px -2px rgba(37, 99, 235, 0.35);
     }
 
     .btn-submit-pill:active {
       transform: translateY(1px);
-      box-shadow: 0 6px 14px -2px rgba(37, 99, 235, 0.4);
+      box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4);
     }
 
     .btn-submit-pill:disabled {
@@ -695,9 +836,9 @@
 
     .btn-arrow-circle {
       position: absolute;
-      right: 12px;
-      width: 36px;
-      height: 36px;
+      right: 9px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.22);
       display: flex;
@@ -709,8 +850,13 @@
       transition: transform 0.25s ease;
     }
 
+    .btn-arrow-circle svg {
+      width: 16px;
+      height: 16px;
+    }
+
     .btn-submit-pill:hover .btn-arrow-circle {
-      transform: translateX(3px);
+      transform: translateX(2px);
     }
 
     /* Elegant Divider */
@@ -718,7 +864,7 @@
       width: 100%;
       display: flex;
       align-items: center;
-      margin: 1.75rem 0 1.35rem 0;
+      margin: 0.65rem 0 0.55rem 0;
     }
 
     .auth-divider-line {
@@ -728,11 +874,11 @@
     }
 
     .auth-divider-text {
-      padding: 0 1rem;
-      font-size: 0.72rem;
+      padding: 0 0.85rem;
+      font-size: 0.68rem;
       font-weight: 700;
       color: var(--text-muted);
-      letter-spacing: 2px;
+      letter-spacing: 1.6px;
       text-transform: uppercase;
     }
 
@@ -741,15 +887,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 1.25rem;
-      margin-bottom: 1.5rem;
+      gap: 0.85rem;
+      margin-bottom: 0.65rem;
       width: 100%;
     }
 
     .social-squircle {
-      width: 58px;
-      height: 58px;
-      border-radius: 18px;
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
       background: var(--neu-surface);
       border: 1px solid var(--card-border);
       box-shadow: var(--neu-emboss);
@@ -761,6 +907,11 @@
       position: relative;
       outline: none;
       padding: 0;
+    }
+
+    .social-squircle svg {
+      width: 20px;
+      height: 20px;
     }
 
     .social-squircle:hover {
@@ -776,27 +927,33 @@
     /* Dedicated Direct Google 1-Click Button */
     .btn-google-direct {
       width: 100%;
-      height: 48px;
+      height: 42px;
       border-radius: 9999px;
       background: var(--neu-surface);
       border: 1px solid var(--card-border);
       box-shadow: var(--neu-emboss);
       color: var(--text-title);
       font-family: var(--font-main);
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
+      gap: 0.65rem;
       cursor: pointer;
-      margin-bottom: 1.4rem;
+      margin-bottom: 0.65rem;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       outline: none;
     }
 
+    .btn-google-direct svg {
+      width: 19px;
+      height: 19px;
+      flex-shrink: 0;
+    }
+
     .btn-google-direct:hover {
-      transform: translateY(-2px);
+      transform: translateY(-1.5px);
       box-shadow: var(--neu-emboss-hover);
       border-color: rgba(66, 133, 244, 0.4);
     }
@@ -812,8 +969,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.65rem;
-      margin-bottom: 1.4rem;
+      gap: 0.5rem;
+      margin-bottom: 0.55rem;
       flex-wrap: wrap;
     }
 
@@ -822,14 +979,14 @@
       border: 1px solid var(--card-border);
       box-shadow: var(--neu-emboss);
       border-radius: 9999px;
-      padding: 0.4rem 0.85rem;
-      font-size: 0.76rem;
+      padding: 0.28rem 0.7rem;
+      font-size: 0.74rem;
       font-weight: 600;
       color: var(--text-sub);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
       transition: all 0.2s ease;
     }
 
@@ -840,25 +997,26 @@
     }
 
     .demo-chip-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: #10b981;
     }
 
     /* Footer Tagline & Guest Link */
     .auth-bottom-tagline {
-      font-size: 0.74rem;
+      font-size: 0.66rem;
       font-weight: 800;
-      letter-spacing: 2.2px;
+      letter-spacing: 1.8px;
       text-transform: uppercase;
       color: var(--text-muted);
-      margin-bottom: 0.85rem;
+      margin-bottom: 0.35rem;
     }
 
     .auth-switch-link {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: var(--text-sub);
+      margin-bottom: 0.25rem;
     }
 
     .auth-switch-link a {
@@ -872,8 +1030,8 @@
     }
 
     .guest-explore-row {
-      margin-top: 0.75rem;
-      font-size: 0.84rem;
+      margin-top: 0.25rem;
+      font-size: 0.8rem;
     }
 
     .guest-explore-link {
@@ -915,10 +1073,12 @@
       -webkit-backdrop-filter: blur(28px);
       border: 1.5px solid var(--card-border);
       box-shadow: var(--card-shadow);
-      border-radius: 32px;
+      border-radius: 24px;
       width: 100%;
-      max-width: 440px;
-      padding: 2.4rem 2.2rem;
+      max-width: 410px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 1.6rem 1.6rem;
       position: relative;
       animation: modalSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
@@ -989,28 +1149,110 @@
     }
 
     /* Responsive adjustments */
-    @media (max-width: 480px) {
+    @media (max-height: 720px) {
       body {
-        padding: 1.25rem 0.85rem;
-      }
-      .auth-neu-card {
-        padding: 2.25rem 1.6rem 2rem 1.6rem;
-        border-radius: 32px;
+        padding: 0.4rem;
       }
       .top-actions-bar {
-        padding: 0 1rem;
+        top: 0.6rem;
+      }
+      .brand-center-pill {
+        padding: 0.35rem 0.9rem 0.35rem 0.65rem;
+      }
+      .brand-name-shimmer {
+        font-size: 1.25rem;
       }
       .floating-logo-vessel {
-        width: 90px;
-        height: 90px;
-        border-radius: 26px;
+        width: 44px;
+        height: 44px;
+        border-radius: 13px;
+        margin-bottom: 0.3rem;
       }
       .floating-logo-img {
-        width: 70px;
-        height: 70px;
+        width: 32px;
+        height: 32px;
       }
       .auth-title {
-        font-size: 1.75rem;
+        font-size: 1.3rem;
+      }
+      .auth-subtitle {
+        display: none;
+      }
+      .auth-tab-pill-track {
+        margin-bottom: 0.5rem;
+      }
+      .btn-google-direct {
+        height: 36px;
+        margin-bottom: 0.5rem;
+      }
+      .neu-input-track {
+        margin-bottom: 0.5rem;
+      }
+      .neu-input-field {
+        height: 38px;
+        font-size: 0.86rem;
+      }
+      .form-options-row {
+        margin-bottom: 0.5rem;
+      }
+      .btn-submit-pill {
+        height: 40px;
+      }
+      .auth-divider {
+        margin: 0.45rem 0 0.35rem 0;
+      }
+      .social-btn-row {
+        margin-bottom: 0.45rem;
+      }
+      .social-squircle {
+        width: 36px;
+        height: 36px;
+      }
+      .demo-chip-bar {
+        margin-bottom: 0.35rem;
+      }
+      .auth-bottom-tagline {
+        display: none;
+      }
+      .auth-neu-card {
+        padding: 1.1rem 1.6rem 1rem 1.6rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 0.5rem;
+      }
+      .auth-neu-card {
+        padding: 1.25rem 1.35rem 1.1rem 1.35rem;
+        border-radius: 24px;
+      }
+      .top-actions-bar {
+        padding: 0 0.85rem;
+        top: 0.65rem;
+      }
+      .top-actions-bar .theme-toggle-btn {
+        right: 0.85rem;
+      }
+      .brand-name-shimmer {
+        font-size: 1.3rem;
+        letter-spacing: 1px;
+      }
+      .brand-center-pill {
+        padding: 0.45rem 1rem 0.45rem 0.75rem;
+        gap: 0.6rem;
+      }
+      .floating-logo-vessel {
+        width: 48px;
+        height: 48px;
+        border-radius: 15px;
+      }
+      .floating-logo-img {
+        width: 36px;
+        height: 36px;
+      }
+      .auth-title {
+        font-size: 1.35rem;
       }
       .ambient-corner-caption {
         display: none;
@@ -1028,11 +1270,19 @@
     <div class="wave-bottom-right"></div>
   </div>
 
-  <!-- Top Navigation & Theme Switcher -->
+  <!-- Top Navigation & Center Animated Brand Showcase -->
   <header class="top-actions-bar">
-    <a href="index.html" class="top-brand-pill" title="READORA Home Sanctuary">
-      <img src="assets/readora-3d-logo.jpg" alt="READORA Emblem" class="brand-pill-logo">
-      <span class="brand-pill-text">READORA<span class="brand-pill-dot">•</span></span>
+    <a href="index.html" class="top-brand-center" title="READORA - Return to Home Sanctuary">
+      <div class="brand-center-pill">
+        <div class="brand-logo-frame">
+          <img src="assets/readora-3d-logo.jpg" alt="READORA 3D Emblem" class="brand-logo-img">
+          <span class="brand-logo-halo"></span>
+        </div>
+        <div class="brand-title-wrap">
+          <span class="brand-name-shimmer">READORA</span>
+          <span class="brand-name-dot"></span>
+        </div>
+      </div>
     </a>
 
     <button type="button" class="theme-toggle-btn" id="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
@@ -1090,9 +1340,9 @@
         <div id="switch-name" class="switch-user-name">Harsh Bansal</div>
         <div id="switch-handle" class="switch-user-handle">@harshbansal</div>
         
-        <button type="button" id="btn-quick-continue" class="btn-submit-pill" style="height: 48px; font-size: 0.95rem; margin-bottom: 0.75rem;">
+        <button type="button" id="btn-quick-continue" class="btn-submit-pill" style="height: 42px; font-size: 0.9rem; margin-bottom: 0.5rem;">
           <span>Continue as <span id="switch-first-name">Creator</span></span>
-          <div class="btn-arrow-circle" style="width: 30px; height: 30px; right: 10px;">
+          <div class="btn-arrow-circle" style="width: 28px; height: 28px; right: 8px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
           </div>
         </button>
