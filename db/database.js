@@ -189,6 +189,18 @@ async function initDB() {
       // Column already exists
     }
 
+    // Add user preferences and website columns if not exists
+    try {
+      await db.runAsync(`ALTER TABLE users ADD COLUMN preferences_json TEXT`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      await db.runAsync(`ALTER TABLE users ADD COLUMN website TEXT`);
+    } catch (e) {
+      // Column already exists
+    }
+
     // High Performance Database Indexes
     await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
     await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_users_handle ON users(handle)`);

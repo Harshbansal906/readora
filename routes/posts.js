@@ -941,6 +941,34 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       LIMIT 10
     `, [userId]);
 
+    // 5. Followers & Audience list
+    const audienceList = await db.allAsync(`
+      SELECT u.id, u.name, u.handle, u.avatar, u.bio, f.created_at as followed_at
+      FROM follows f
+      JOIN users u ON f.follower_id = u.id
+      WHERE f.following_id = ?
+      ORDER BY f.created_at DESC
+      LIMIT 15
+    `, [userId]);
+
+    // 6. Category breakdown
+    const categoryCounts = await db.allAsync(`
+      SELECT category, COUNT(*) as count
+      FROM posts
+      WHERE author_id = ?
+      GROUP BY category
+    `, [userId]);
+
+    // 7. Last 7 days daily view activity
+    const dailyViews = await db.allAsync(`
+      SELECT DATE(created_at) as day, COUNT(*) as views
+      FROM article_views
+      WHERE post_id IN (SELECT id FROM posts WHERE author_id = ?)
+        AND created_at >= DATE('now', '-7 days')
+      GROUP BY DATE(created_at)
+      ORDER BY day ASC
+    `, [userId]);
+
     const overview = {
       totalArticles: statsRow ? statsRow.totalArticles : 0,
       totalThoughts: statsRow ? statsRow.totalThoughts : 0,
@@ -967,7 +995,10 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
         coverImage: draft.cover_image || '',
         updatedAt: draft.updated_at
       } : null,
-      recentActivity: recentActivity || []
+      recentActivity: recentActivity || [],
+      audience: audienceList || [],
+      categories: categoryCounts || [],
+      dailyViews: dailyViews || []
     });
   } catch (error) {
     console.error('Dashboard error:', error);

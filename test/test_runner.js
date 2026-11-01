@@ -523,6 +523,56 @@ async function main() {
       assert(Array.isArray(resSingle.data.related), 'Expected related articles array');
     });
 
+    // 18. Account Settings: User Preferences API
+    await runTest('18. User Preferences API (get and update appearance, font & publishing preferences)', async () => {
+      const updateRes = await request('PUT', '/api/auth/preferences', {
+        theme: 'dark',
+        readingFont: 'Lora',
+        defaultCategory: 'Technology',
+        emailNotifs: true
+      }, { Authorization: `Bearer ${userAToken}` });
+      assert(updateRes.status === 200, `Expected 200 on put preferences, got ${updateRes.status}`);
+      assert(updateRes.data.preferences.theme === 'dark', 'Theme not updated in preferences');
+      assert(updateRes.data.preferences.readingFont === 'Lora', 'Reading font not updated');
+
+      const getRes = await request('GET', '/api/auth/preferences', null, { Authorization: `Bearer ${userAToken}` });
+      assert(getRes.status === 200, 'Expected 200 on get preferences');
+      assert(getRes.data.preferences.theme === 'dark', 'Saved preference mismatch');
+    });
+
+    // 19. Account Settings: Password Change API
+    await runTest('19. Password Change & Security (current password verification and secure hash update)', async () => {
+      // Wrong current password should be rejected
+      const wrongRes = await request('POST', '/api/auth/change-password', {
+        currentPassword: 'WrongPassword123!',
+        newPassword: 'BrandNewSecurePassword456!'
+      }, { Authorization: `Bearer ${userAToken}` });
+      assert(wrongRes.status === 400, 'Expected 400 for incorrect current password');
+
+      // Valid change
+      const validRes = await request('POST', '/api/auth/change-password', {
+        currentPassword: 'Password123!',
+        newPassword: 'BrandNewSecurePassword456!'
+      }, { Authorization: `Bearer ${userAToken}` });
+      assert(validRes.status === 200, 'Expected 200 for valid password change');
+
+      // Login with new password must succeed
+      const loginRes = await request('POST', '/api/auth/login', {
+        identifier: userA.email,
+        password: 'BrandNewSecurePassword456!'
+      });
+      assert(loginRes.status === 200 && loginRes.data.success === true, 'Login with updated password failed');
+    });
+
+    // 20. Creator Dashboard: Extended Metrics & Audience
+    await runTest('20. Creator Dashboard Metrics (audience list, categories distribution, 7-day view metrics)', async () => {
+      const dashRes = await request('GET', '/api/posts/dashboard', null, { Authorization: `Bearer ${userAToken}` });
+      assert(dashRes.status === 200, 'Expected 200 for dashboard');
+      assert(Array.isArray(dashRes.data.audience), 'Expected audience array');
+      assert(Array.isArray(dashRes.data.categories), 'Expected categories array');
+      assert(Array.isArray(dashRes.data.dailyViews), 'Expected dailyViews array');
+    });
+
   } finally {
     await stopServer();
     cleanTestDb();

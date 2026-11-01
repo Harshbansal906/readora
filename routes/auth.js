@@ -569,9 +569,15 @@ router.post('/google', async (req, res) => {
 // GET /api/auth/me - Verify and fetch logged-in user profile
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await db.getAsync(`SELECT id, name, email, handle, avatar, bio, created_at FROM users WHERE id = ?`, [req.user.id]);
+    const user = await db.getAsync(`SELECT id, name, email, handle, avatar, bio, website, preferences_json, created_at FROM users WHERE id = ?`, [req.user.id]);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    // Parse preferences if any
+    let preferences = {};
+    if (user.preferences_json) {
+      try { preferences = JSON.parse(user.preferences_json); } catch (e) {}
     }
 
     // Get user stats from SQLite database
@@ -584,6 +590,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       success: true,
       user: {
         ...user,
+        preferences,
         stats: {
           thoughts: thoughtsCount ? thoughtsCount.count : 0,
           articles: articlesCount ? articlesCount.count : 0,
@@ -598,10 +605,10 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/auth/profile - Update user profile (name, bio, avatar)
+// PUT /api/auth/profile - Update user profile (name, bio, avatar, website)
 router.put('/profile', authMiddleware, async (req, res) => {
   try {
-    const { name, bio, avatar } = req.body;
+    const { name, bio, avatar, website } = req.body;
     const userId = req.user.id;
 
     if (!name || !name.trim()) {
@@ -616,10 +623,11 @@ router.put('/profile', authMiddleware, async (req, res) => {
     }
 
     const cleanAvatar = avatar || name.trim().substring(0, 2).toUpperCase();
+    const cleanWebsite = (website || '').trim();
 
     await db.runAsync(
-      `UPDATE users SET name = ?, bio = ?, avatar = ? WHERE id = ?`,
-      [name.trim(), bio ? bio.trim() : '', cleanAvatar, userId]
+      `UPDATE users SET name = ?, bio = ?, avatar = ?, website = ? WHERE id = ?`,
+      [name.trim(), bio ? bio.trim() : '', cleanAvatar, cleanWebsite, userId]
     );
 
     // Keep older posts and comments in sync with the new name/avatar
@@ -627,18 +635,140 @@ router.put('/profile', authMiddleware, async (req, res) => {
     await db.runAsync(`UPDATE comments SET author_name = ? WHERE user_id = ?`, [name.trim(), userId]);
 
     const updatedUser = await db.getAsync(
-      `SELECT id, name, email, handle, avatar, bio, created_at FROM users WHERE id = ?`,
+      `SELECT id, name, email, handle, avatar, bio, website, preferences_json, created_at FROM users WHERE id = ?`,
       [userId]
     );
+
+    let preferences = {};
+    if (updatedUser.preferences_json) {
+      try { preferences = JSON.parse(updatedUser.preferences_json); } catch (e) {}
+    }
 
     res.json({
       success: true,
       message: 'Profile updated successfully!',
-      user: updatedUser
+      user: { ...updatedUser, preferences }
     });
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ success: false, message: 'Failed to update profile.' });
+  }
+});
+
+// POST /api/auth/change-password - Secure password change from Account Settings
+router.post('/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Please provide both current and new password.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+    }
+
+    const user = await db.getAsync(`SELECT password_hash FROM users WHERE id = ?`, [userId]);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Current password does not match.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const newHash = await bcrypt.hash(newPassword, salt);
+
+    await db.runAsync(`UPDATE users SET password_hash = ? WHERE id = ?`, [newHash, userId]);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully!'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to change password.' });
+  }
+});
+
+// GET /api/auth/preferences - Fetch stored user settings & preferences
+router.get('/preferences', authMiddleware, async (req, res) => {
+  try {
+    const user = await db.getAsync(`SELECT preferences_json FROM users WHERE id = ?`, [req.user.id]);
+    let prefs = {
+      theme: 'light',
+      readingFont: 'Inter',
+      defaultCategory: 'General',
+      emailNotifs: true,
+      digestFrequency: 'weekly',
+      soundEnabled: true,
+      compactView: false
+    };
+
+    if (user && user.preferences_json) {
+      try {
+        const stored = JSON.parse(user.preferences_json);
+        prefs = { ...prefs, ...stored };
+      } catch (e) {}
+    }
+
+    res.json({ success: true, preferences: prefs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch preferences.' });
+  }
+});
+
+// PUT /api/auth/preferences - Update user settings & preferences
+router.put('/preferences', authMiddleware, async (req, res) => {
+  try {
+    const newPrefs = req.body || {};
+    const userId = req.user.id;
+
+    const user = await db.getAsync(`SELECT preferences_json FROM users WHERE id = ?`, [userId]);
+    let currentPrefs = {};
+    if (user && user.preferences_json) {
+      try { currentPrefs = JSON.parse(user.preferences_json); } catch (e) {}
+    }
+
+    const merged = { ...currentPrefs, ...newPrefs };
+    await db.runAsync(`UPDATE users SET preferences_json = ? WHERE id = ?`, [JSON.stringify(merged), userId]);
+
+    res.json({
+      success: true,
+      message: 'Preferences saved successfully!',
+      preferences: merged
+    });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({ success: false, message: 'Failed to save preferences.' });
+  }
+});
+
+// DELETE /api/auth/account - Delete user account (Danger Zone)
+router.delete('/account', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Delete user's posts, comments, likes, bookmarks, follows, notifications, drafts
+    await db.runAsync(`DELETE FROM posts WHERE author_id = ?`, [userId]);
+    await db.runAsync(`DELETE FROM comments WHERE user_id = ?`, [userId]);
+    await db.runAsync(`DELETE FROM likes WHERE user_id = ?`, [userId]);
+    await db.runAsync(`DELETE FROM bookmarks WHERE user_id = ?`, [userId]);
+    await db.runAsync(`DELETE FROM follows WHERE follower_id = ? OR following_id = ?`, [userId, userId]);
+    await db.runAsync(`DELETE FROM notifications WHERE user_id = ? OR actor_id = ?`, [userId, userId]);
+    await db.runAsync(`DELETE FROM drafts WHERE user_id = ?`, [userId]);
+    await db.runAsync(`DELETE FROM users WHERE id = ?`, [userId]);
+
+    res.json({
+      success: true,
+      message: 'Your Readora account and all associated data have been deleted.'
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete account.' });
   }
 });
 
