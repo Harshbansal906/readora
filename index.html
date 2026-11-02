@@ -10,6 +10,34 @@
 </head>
 <body>
 
+  <!-- Website Loading & Brand Reveal Experience -->
+  <div id="app-splash-loader" class="app-splash-loader" aria-label="Loading Readora">
+    <div class="splash-backdrop"></div>
+    <div class="splash-particles">
+      <span class="splash-dot dot-1"></span>
+      <span class="splash-dot dot-2"></span>
+      <span class="splash-dot dot-3"></span>
+      <span class="splash-dot dot-4"></span>
+    </div>
+    <div class="splash-content">
+      <div class="splash-logo-wrapper">
+        <div class="splash-logo-glow"></div>
+        <div class="splash-logo-card">
+          <svg class="splash-logo-svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path class="splash-stroke-spine" d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path class="splash-stroke-cover" d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <path class="splash-stroke-accent" d="M9 7h6M9 11h4"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="splash-brand-title">READORA<span class="splash-dot-brand">•</span></div>
+      <div class="splash-tagline">Where readers become creators</div>
+      <div class="splash-progress-track">
+        <div class="splash-progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Top App Navigation -->
   <header class="app-header">
     <div class="nav-inner">
@@ -175,6 +203,50 @@
 
       <div id="feed-view" class="feed-view">
       
+      <!-- Modern Visual Hero Welcome Section -->
+      <section class="feed-hero-banner" id="feed-hero-banner">
+        <div class="hero-ambient-glow"></div>
+        <div class="hero-inner-content">
+          <div class="hero-badge-pill">
+            <span class="hero-badge-pulse"></span>
+            <span>Knowledge & Creative Publishing Community</span>
+          </div>
+          <h1 class="hero-headline">
+            Where <span class="hero-gradient-text">Readers</span> Become <span class="hero-gradient-text">Creators</span>
+          </h1>
+          <p class="hero-subheadline">
+            Share profound insights, craft thoughtful long-form articles, and discover perspectives from thinkers worldwide.
+          </p>
+          <div class="hero-cta-actions">
+            <button type="button" class="hero-btn-primary" id="btn-hero-write">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+              <span>Write an Article</span>
+            </button>
+            <a href="#/explore" class="hero-btn-secondary" id="btn-hero-explore">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <span>Explore Discoveries</span>
+            </a>
+          </div>
+          <!-- Hero Quick Stats Strip -->
+          <div class="hero-metrics-strip">
+            <div class="hero-metric-item">
+              <span class="hero-metric-val" id="hero-stat-articles">0</span>
+              <span class="hero-metric-lbl">Articles Published</span>
+            </div>
+            <div class="hero-metric-divider"></div>
+            <div class="hero-metric-item">
+              <span class="hero-metric-val" id="hero-stat-thoughts">0</span>
+              <span class="hero-metric-lbl">Daily Thoughts</span>
+            </div>
+            <div class="hero-metric-divider"></div>
+            <div class="hero-metric-item">
+              <span class="hero-metric-val" id="hero-stat-creators">0</span>
+              <span class="hero-metric-lbl">Active Creators</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Instagram-Stories Style Creators Row -->
       <div class="stories-row" id="stories-row"></div>
 
@@ -488,7 +560,15 @@
   </div>
 
   <!-- Interactive Toast Notification -->
-  <div id="toast" class="toast">Action completed successfully!</div>
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <div class="toast-body">
+      <div id="toast-icon-wrap" class="toast-icon-wrap">✨</div>
+      <div id="toast-text-content" class="toast-text-content">Action completed successfully!</div>
+    </div>
+    <div class="toast-progress-track">
+      <div id="toast-progress-bar" class="toast-progress-bar"></div>
+    </div>
+  </div>
 
   <!-- ═══════════════════════════════════════════════════
        AI CHAT BOT WIDGET

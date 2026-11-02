@@ -81,9 +81,62 @@ class ReadoraApp {
     this.initTheme();
     this.initDOM();
     this.bindEvents();
+    this.initOpeningExperience();
     this.syncPromise = this.syncWithBackend();
     this.render();
     this.handleRoute();
+  }
+
+  initOpeningExperience() {
+    const splash = document.getElementById('app-splash-loader');
+    if (!splash) return;
+
+    const dismissSplash = () => {
+      splash.classList.add('splash-dismissed');
+      try { sessionStorage.setItem('readora_splash_seen', '1'); } catch (e) {}
+      setTimeout(() => {
+        splash.style.display = 'none';
+      }, 500);
+    };
+
+    // User can click anywhere on splash screen to dismiss immediately
+    splash.addEventListener('click', dismissSplash);
+
+    // If already seen in this session, dismiss in 120ms; otherwise, show smooth 680ms brand reveal
+    const seen = sessionStorage.getItem('readora_splash_seen');
+    const delay = seen ? 120 : 680;
+    setTimeout(dismissSplash, delay);
+  }
+
+  animateCounter(el, target, duration = 850) {
+    if (!el) return;
+    const end = parseInt(target, 10) || 0;
+    if (end === 0) {
+      el.textContent = '0';
+      return;
+    }
+    const startTime = performance.now();
+    const update = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out expo
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const val = Math.floor(ease * end);
+      el.textContent = val.toLocaleString();
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      } else {
+        el.textContent = end.toLocaleString();
+      }
+    };
+    requestAnimationFrame(update);
+  }
+
+  animateViewEntrance(viewEl) {
+    if (!viewEl) return;
+    viewEl.classList.remove('view-fade-in');
+    void viewEl.offsetWidth; // Force reflow
+    viewEl.classList.add('view-fade-in');
   }
 
   initTheme() {
@@ -184,9 +237,16 @@ class ReadoraApp {
           const elCreators = document.getElementById('stat-creators');
           const elThoughts = document.getElementById('stat-thoughts');
           const elArticles = document.getElementById('stat-articles');
-          if (elCreators) elCreators.textContent = statsData.stats.creators.toLocaleString();
-          if (elThoughts) elThoughts.textContent = statsData.stats.thoughts.toLocaleString();
-          if (elArticles) elArticles.textContent = statsData.stats.articles.toLocaleString();
+          if (elCreators) this.animateCounter(elCreators, statsData.stats.creators);
+          if (elThoughts) this.animateCounter(elThoughts, statsData.stats.thoughts);
+          if (elArticles) this.animateCounter(elArticles, statsData.stats.articles);
+
+          const heroCreators = document.getElementById('hero-stat-creators');
+          const heroThoughts = document.getElementById('hero-stat-thoughts');
+          const heroArticles = document.getElementById('hero-stat-articles');
+          if (heroCreators) this.animateCounter(heroCreators, statsData.stats.creators);
+          if (heroThoughts) this.animateCounter(heroThoughts, statsData.stats.thoughts);
+          if (heroArticles) this.animateCounter(heroArticles, statsData.stats.articles);
         }
       }
 
@@ -493,18 +553,37 @@ class ReadoraApp {
   showFeedView() {
     this.hideAllViews();
     const feed = document.getElementById('feed-view');
-    if (feed) feed.style.display = '';
+    if (feed) {
+      feed.style.display = '';
+      this.animateViewEntrance(feed);
+    }
     document.title = 'READORA | Where readers become creators';
     this.setNavActive();
     this.render();
+
+    // Trigger hero stats animation
+    const heroCreators = document.getElementById('hero-stat-creators');
+    const heroThoughts = document.getElementById('hero-stat-thoughts');
+    const heroArticles = document.getElementById('hero-stat-articles');
+    if (heroCreators && (heroCreators.textContent === '0' || heroCreators.textContent === '...')) {
+      const thoughtsCount = this.posts.filter(p => p.type === 'thought').length;
+      const articlesCount = this.posts.filter(p => p.type === 'article').length;
+      const creatorsCount = new Set(this.posts.map(p => p.handle || p.author)).size;
+      this.animateCounter(heroArticles, articlesCount);
+      this.animateCounter(heroThoughts, thoughtsCount);
+      this.animateCounter(heroCreators, creatorsCount);
+    }
   }
 
   showProfileView(handle) {
     this.hideAllViews();
     const prof = document.getElementById('profile-view');
-    if (prof) prof.style.display = 'flex';
+    if (prof) {
+      prof.style.display = 'flex';
+      this.animateViewEntrance(prof);
+    }
     this.setNavActive();
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     this.profileFilter = 'all';
     this.loadProfile(handle);
   }
@@ -513,12 +592,15 @@ class ReadoraApp {
     this.hideAllViews();
     const exp = document.getElementById('explore-view');
     const rSide = document.querySelector('.right-sidebar');
-    if (exp) exp.style.display = 'flex';
+    if (exp) {
+      exp.style.display = 'flex';
+      this.animateViewEntrance(exp);
+    }
     // On Explore page, hide right sidebar to eliminate duplicate widgets completely!
     if (rSide) rSide.style.display = 'none';
     document.title = 'Explore | READORA';
     this.setNavActive();
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     if (this.cachedCreators) this.renderStoriesRows(this.cachedCreators);
     this.renderExploreGrid(topicFilter);
   }
@@ -607,9 +689,10 @@ class ReadoraApp {
     const dash = document.getElementById('dashboard-view');
     if (!dash) return;
     dash.style.display = 'flex';
+    this.animateViewEntrance(dash);
     document.title = 'Creator Dashboard | READORA';
     this.setNavActive();
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     dash.innerHTML = `
       <div style="text-align:center; padding: 4rem 1rem; color: var(--text-dim);">
@@ -656,32 +739,32 @@ class ReadoraApp {
 
         <div class="dashboard-grid">
           <div class="dashboard-stat-card">
-            <div class="dashboard-stat-val" style="color: var(--accent-primary);">${esc(overview.totalArticles || 0)}</div>
+            <div id="dash-stat-articles" class="dashboard-stat-val" style="color: var(--accent-primary);">${esc(overview.totalArticles || 0)}</div>
             <div class="dashboard-stat-label">Articles</div>
             <span class="dash-metric-trend up">+${Math.max(1, overview.totalArticles || 0)} active</span>
           </div>
           <div class="dashboard-stat-card">
-            <div class="dashboard-stat-val" style="color: #8b5cf6;">${esc(overview.totalThoughts || 0)}</div>
+            <div id="dash-stat-thoughts" class="dashboard-stat-val" style="color: #8b5cf6;">${esc(overview.totalThoughts || 0)}</div>
             <div class="dashboard-stat-label">Thoughts</div>
             <span class="dash-metric-trend neutral">live stream</span>
           </div>
           <div class="dashboard-stat-card">
-            <div class="dashboard-stat-val" style="color: #10b981;">${esc(overview.totalViews || 0)}</div>
+            <div id="dash-stat-views" class="dashboard-stat-val" style="color: #10b981;">${esc(overview.totalViews || 0)}</div>
             <div class="dashboard-stat-label">Total Views</div>
             <span class="dash-metric-trend up">+18% this wk ↑</span>
           </div>
           <div class="dashboard-stat-card">
-            <div class="dashboard-stat-val" style="color: #ef4444;">${esc(overview.totalLikes || 0)}</div>
+            <div id="dash-stat-likes" class="dashboard-stat-val" style="color: #ef4444;">${esc(overview.totalLikes || 0)}</div>
             <div class="dashboard-stat-label">Total Likes</div>
             <span class="dash-metric-trend up">98% positive</span>
           </div>
           <div class="dashboard-stat-card">
-            <div class="dashboard-stat-val" style="color: #3b82f6;">${esc(overview.totalComments || 0)}</div>
+            <div id="dash-stat-comments" class="dashboard-stat-val" style="color: #3b82f6;">${esc(overview.totalComments || 0)}</div>
             <div class="dashboard-stat-label">Comments</div>
             <span class="dash-metric-trend neutral">engaged reads</span>
           </div>
           <div class="dashboard-stat-card">
-            <div class="dashboard-stat-val" style="color: #f59e0b;">${esc(overview.followersCount || 0)}</div>
+            <div id="dash-stat-followers" class="dashboard-stat-val" style="color: #f59e0b;">${esc(overview.followersCount || 0)}</div>
             <div class="dashboard-stat-label">Followers</div>
             <span class="dash-metric-trend up">+${overview.followersCount || 0} creators</span>
           </div>
@@ -1005,6 +1088,15 @@ class ReadoraApp {
         </div>
       `).join('');
     }
+
+    if (activeTab === 'overview') {
+      this.animateCounter(document.getElementById('dash-stat-articles'), overview.totalArticles || 0);
+      this.animateCounter(document.getElementById('dash-stat-thoughts'), overview.totalThoughts || 0);
+      this.animateCounter(document.getElementById('dash-stat-views'), overview.totalViews || 0);
+      this.animateCounter(document.getElementById('dash-stat-likes'), overview.totalLikes || 0);
+      this.animateCounter(document.getElementById('dash-stat-comments'), overview.totalComments || 0);
+      this.animateCounter(document.getElementById('dash-stat-followers'), overview.followersCount || 0);
+    }
   }
 
   // =========================================================================
@@ -1015,6 +1107,7 @@ class ReadoraApp {
     const sett = document.getElementById('settings-view');
     if (!sett) return;
     sett.style.display = 'flex';
+    this.animateViewEntrance(sett);
     document.title = 'Account & Settings | READORA';
     this.setNavActive();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1719,9 +1812,10 @@ class ReadoraApp {
     const saved = document.getElementById('saved-view');
     if (!saved) return;
     saved.style.display = 'flex';
+    this.animateViewEntrance(saved);
     document.title = 'Saved Articles & Reading History | READORA';
     this.setNavActive();
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     this.renderSavedView('bookmarks');
   }
 
@@ -2488,6 +2582,10 @@ class ReadoraApp {
     }
     if (this.btnWriteLongArticle) {
       this.btnWriteLongArticle.addEventListener('click', () => this.openArticleStudio());
+    }
+    const btnHeroWrite = document.getElementById('btn-hero-write');
+    if (btnHeroWrite) {
+      btnHeroWrite.addEventListener('click', () => this.openArticleStudio());
     }
     if (this.userBadge) {
       this.userBadge.addEventListener('click', () => this.openModal(this.profileModal));
@@ -3599,11 +3697,45 @@ class ReadoraApp {
     }
   }
 
-  showToast(message) {
+  showToast(message, type = 'info') {
     if (!this.toastEl) return;
-    this.toastEl.textContent = message;
+
+    // Pick a tailored icon based on message content
+    let icon = '✨';
+    if (message.includes('🌙') || message.includes('Dark')) icon = '🌙';
+    else if (message.includes('☀️') || message.includes('Light')) icon = '☀️';
+    else if (message.includes('🔖') || message.toLowerCase().includes('bookmark') || message.toLowerCase().includes('saved')) icon = '🔖';
+    else if (message.includes('❤️') || message.toLowerCase().includes('like')) icon = '❤️';
+    else if (message.includes('🗑️') || message.toLowerCase().includes('delete') || message.toLowerCase().includes('discard')) icon = '🗑️';
+    else if (message.includes('📸') || message.toLowerCase().includes('photo')) icon = '📸';
+    else if (message.includes('📖') || message.toLowerCase().includes('article')) icon = '📖';
+    else if (message.includes('🔒') || message.toLowerCase().includes('password')) icon = '🔒';
+    else if (message.includes('⚠️') || message.toLowerCase().includes('failed') || message.toLowerCase().includes('error')) icon = '⚠️';
+    else if (message.toLowerCase().includes('target') || message.toLowerCase().includes('reading')) icon = '🎯';
+    else if (message.toLowerCase().includes('copied') || message.toLowerCase().includes('link')) icon = '🔗';
+    else if (message.toLowerCase().includes('profile') || message.toLowerCase().includes('welcome')) icon = '👤';
+
+    const textEl = document.getElementById('toast-text-content');
+    const iconEl = document.getElementById('toast-icon-wrap');
+    const barEl = document.getElementById('toast-progress-bar');
+
+    if (textEl) textEl.textContent = message;
+    else this.toastEl.textContent = message;
+    if (iconEl) iconEl.textContent = icon;
+
+    if (this._toastTimeout) clearTimeout(this._toastTimeout);
+
+    // Reset progress bar animation
+    if (barEl) {
+      barEl.style.transition = 'none';
+      barEl.style.width = '100%';
+      void barEl.offsetWidth; // Force reflow
+      barEl.style.transition = 'width 3s linear';
+      barEl.style.width = '0%';
+    }
+
     this.toastEl.classList.add('show');
-    setTimeout(() => {
+    this._toastTimeout = setTimeout(() => {
       this.toastEl.classList.remove('show');
     }, 3000);
   }
