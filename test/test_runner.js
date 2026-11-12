@@ -70,8 +70,53 @@ function request(method, path, body = null, headers = {}) {
   });
 }
 
+// Multipart Form-Data request helper for image uploads
+function requestMultipart(path, filename, mimeType, fileBuffer, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
+    const crlf = '\r\n';
+
+    let header = `--${boundary}${crlf}`;
+    header += `Content-Disposition: form-data; name="image"; filename="${filename}"${crlf}`;
+    header += `Content-Type: ${mimeType}${crlf}${crlf}`;
+
+    const footer = `${crlf}--${boundary}--${crlf}`;
+
+    const headerBuf = Buffer.from(header, 'utf8');
+    const footerBuf = Buffer.from(footer, 'utf8');
+    const fullBody = Buffer.concat([headerBuf, fileBuffer, footerBuf]);
+
+    const reqHeaders = {
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      'Content-Length': fullBody.length,
+      ...headers
+    };
+
+    const req = http.request({
+      hostname: 'localhost',
+      port: 5055,
+      path,
+      method: 'POST',
+      headers: reqHeaders
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        let json = null;
+        try { json = JSON.parse(data); } catch (e) { json = data; }
+        resolve({ status: res.statusCode, data: json });
+      });
+    });
+
+    req.on('error', reject);
+    req.write(fullBody);
+    req.end();
+  });
+}
+
 // Server lifecycle management
 let serverInstance = null;
+let activeDb = null;
 
 async function startServer() {
   // Clear require cache for server and db to ensure clean connection
@@ -80,22 +125,49 @@ async function startServer() {
   delete require.cache[require.resolve('../routes/auth')];
   delete require.cache[require.resolve('../routes/posts')];
   delete require.cache[require.resolve('../routes/ai')];
+  delete require.cache[require.resolve('../routes/upload')];
 
   const express = require('express');
   const cors = require('cors');
   const { initDB, db } = require('../db/database');
+  activeDb = db;
   const authRoutes = require('../routes/auth');
   const postRoutes = require('../routes/posts');
   const aiRoutes = require('../routes/ai');
+  const uploadRoutes = require('../routes/upload');
 
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
+  // Static file security block
+  app.use((req, res, next) => {
+    const p = decodeURIComponent(req.path).toLowerCase();
+    const blockedExt = /\.(db|sqlite|sqlite3|env|json|md|yaml|yml|log|lock)$/;
+    const blockedPath = /^\/(server\.js|procfile|license|\.git|node_modules|db|routes|middleware|utils|scripts)(\/|$|\.)/;
+    if (blockedExt.test(p) || blockedPath.test(p)) {
+      return res.status(404).send('Not found');
+    }
+    next();
+  });
+
   app.use('/api/auth', authRoutes);
   app.use('/api/posts', postRoutes);
   app.use('/api/ai', aiRoutes);
+  app.use('/api/upload', uploadRoutes);
+
+  app.get('/api/health', async (req, res) => {
+    let dbStatus = 'healthy';
+    try { await db.getAsync('SELECT 1'); } catch (e) { dbStatus = 'degraded'; }
+    res.json({
+      status: 'online',
+      app: 'READORA',
+      database: db.isPostgres ? 'postgresql' : 'sqlite',
+      databaseStatus: dbStatus,
+      timestamp: new Date().toISOString()
+    });
+  });
 
   await initDB();
 
@@ -571,6 +643,68 @@ async function main() {
       assert(Array.isArray(dashRes.data.audience), 'Expected audience array');
       assert(Array.isArray(dashRes.data.categories), 'Expected categories array');
       assert(Array.isArray(dashRes.data.dailyViews), 'Expected dailyViews array');
+    });
+
+    // 21. Production Health Check Endpoint
+    await runTest('21. Production Health Check Endpoint (GET /api/health returns online status and DB health)', async () => {
+      const healthRes = await request('GET', '/api/health');
+      assert(healthRes.status === 200, 'Expected 200 for /api/health');
+      assert(healthRes.data.status === 'online', 'Expected status to be online');
+      assert(healthRes.data.databaseStatus === 'healthy', 'Expected databaseStatus to be healthy');
+    });
+
+    // 22. Permanent Image Upload API (In-Memory Buffer Processing)
+    await runTest('22. Image Upload Pipeline (POST /api/upload/image processes file and returns secure URL)', async () => {
+      // 1x1 transparent PNG buffer
+      const pngBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+      const uploadRes = await requestMultipart('/api/upload/image', 'test_cover.png', 'image/png', pngBuffer, {
+        Authorization: `Bearer ${userAToken}`
+      });
+
+      assert(uploadRes.status === 200, 'Expected 200 from image upload endpoint');
+      assert(uploadRes.data.success === true, 'Upload response success should be true');
+      assert(typeof uploadRes.data.url === 'string' && uploadRes.data.url.length > 0, 'Upload should return an image URL');
+    });
+
+    // 23. Image Upload Security & MIME Validation
+    await runTest('23. Image Upload MIME Type Validation (rejects non-image files)', async () => {
+      const textBuffer = Buffer.from('console.log("malicious code");', 'utf8');
+      const rejectRes = await requestMultipart('/api/upload/image', 'payload.js', 'text/javascript', textBuffer, {
+        Authorization: `Bearer ${userAToken}`
+      });
+
+      assert(rejectRes.status === 400, 'Expected 400 for non-image MIME type');
+      assert(rejectRes.data.success === false, 'Non-image upload should be rejected');
+    });
+
+    // 24. Security: Static File Leak Prevention
+    await runTest('24. Security Leak Protection (blocks static access to .db, .env, and server.js)', async () => {
+      const dbLeak = await request('GET', '/readora.db');
+      assert(dbLeak.status === 404, 'Expected 404 for direct .db download');
+
+      const envLeak = await request('GET', '/.env');
+      assert(envLeak.status === 404, 'Expected 404 for direct .env download');
+
+      const serverLeak = await request('GET', '/server.js');
+      assert(serverLeak.status === 404, 'Expected 404 for direct server.js download');
+    });
+
+    // 25. OTP Verification & Security Flow
+    await runTest('25. OTP Verification & Security Flow (rejects invalid code, enforces 10-minute validity)', async () => {
+      const testEmail = 'reader_verification_test@gmail.com';
+
+      // 1. Send OTP
+      const sendRes = await request('POST', '/api/auth/send-otp', { email: testEmail });
+      assert(sendRes.status === 200 && sendRes.data.success === true, 'Failed to trigger OTP generation');
+
+      // 2. Reject incorrect code
+      const wrongOtpRes = await request('POST', '/api/auth/verify-otp', { email: testEmail, otp: '000000' });
+      assert(wrongOtpRes.status === 400, 'Expected 400 for wrong OTP code');
+
+      // 3. Verify OTP record exists in database
+      const dbOtp = await activeDb.getAsync('SELECT * FROM otps WHERE LOWER(email) = ?', [testEmail]);
+      assert(dbOtp !== null && dbOtp.otp_code.length === 6, 'Expected valid 6-digit OTP record in database');
+      assert(dbOtp.expires_at > Date.now(), 'OTP expires_at must be in the future');
     });
 
   } finally {

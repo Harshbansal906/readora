@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken');
 
+const isProd = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || 'readora_super_secret_jwt_key_2026_creator_sanctuary';
+
+if (isProd && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'readora_super_secret_jwt_key_2026_creator_sanctuary')) {
+  console.warn('⚠️ SECURITY WARNING: In production, JWT_SECRET should be set to a strong unique secret in environment variables.');
+}
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;

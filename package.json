@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test/test_runner.js"
+    "test": "node test/test_runner.js",
+    "db:migrate": "node scripts/migrate_sqlite_to_pg.js"
   },
   "keywords": [
     "readora",
@@ -22,11 +23,16 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.7.4",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.5.0",
     "nodemailer": "^9.0.5",
+    "pg": "^8.23.1",
     "sqlite3": "^5.1.7"
   }
 }

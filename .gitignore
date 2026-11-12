@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 
 # Environment Variables & Private Secrets
@@ -10,6 +10,7 @@ node_modules/
 *.db
 *.sqlite
 *.sqlite3
+*.backup
 
 # Logs
 logs/

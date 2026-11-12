@@ -3,11 +3,32 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const dns = require('dns').promises;
+const rateLimit = require('express-rate-limit');
 const { db } = require('../db/database');
 const { authMiddleware, JWT_SECRET } = require('../middleware/authMiddleware');
 const { sendVerificationEmail } = require('../utils/mailer');
 
 const IS_PROD = process.env.NODE_ENV === 'production';
+const isTest = process.env.NODE_ENV === 'test';
+
+// Brute-force protection rate limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  skip: () => isTest,
+  message: { success: false, message: 'Too many authentication attempts from this IP. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 6,
+  skip: () => isTest,
+  message: { success: false, message: 'Too many verification code requests. Please wait 15 minutes before requesting again.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 // Helper function to verify if an email has a real, active mail server (MX records)
 async function isEmailDomainValid(email) {
@@ -56,7 +77,7 @@ function recordFailedAttempt(key) {
 }
 
 // 1. POST /api/auth/send-otp - Step 1: Check Real Email Validity, Duplicates & Send Code
-router.post('/send-otp', async (req, res) => {
+router.post('/send-otp', otpLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -221,7 +242,7 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // 4. POST /api/auth/complete-signup - Step 3: Set Password and Create Creator Account
-router.post('/complete-signup', async (req, res) => {
+router.post('/complete-signup', authLimiter, async (req, res) => {
   try {
     const { name, email, password, verificationToken, handle, bio } = req.body;
 
@@ -295,7 +316,7 @@ router.post('/complete-signup', async (req, res) => {
 // ---------------------------------------------------------------
 
 // POST /api/auth/forgot-password - Step 1: email a 6-digit reset code
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', otpLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -395,7 +416,7 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // Legacy POST /api/auth/signup - Direct Signup with built-in auto-safety
-router.post('/signup', async (req, res) => {
+router.post('/signup', authLimiter, async (req, res) => {
   try {
     const { name, email, password, handle, bio } = req.body;
 
@@ -449,7 +470,7 @@ router.post('/signup', async (req, res) => {
 });
 
 // POST /api/auth/login - User Login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { identifier, password } = req.body; // identifier can be email or username
 
@@ -513,6 +534,13 @@ router.post('/google', async (req, res) => {
 
     // Check if user exists with this email
     let user = await db.getAsync(`SELECT * FROM users WHERE LOWER(email) = ?`, [cleanEmail]);
+
+    if (user && IS_PROD && user.password_hash && !user.password_hash.startsWith('g_oauth_')) {
+      return res.status(403).json({
+        success: false,
+        message: 'This account was registered with a password. Please sign in using your email and password.'
+      });
+    }
 
     if (!user) {
       // Auto-create account (Direct Google Sign Up)

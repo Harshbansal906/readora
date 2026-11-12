@@ -1,85 +1,147 @@
-# 🚀 READORA - Deployment & Custom Domain Setup Guide
+# 🚀 READORA — Production Deployment & Operations Guide
 
-This guide walks you step-by-step through running **READORA** locally, deploying it to the cloud for free with automatic SSL (`https://`), and connecting your custom domain.
+This guide provides end-to-end instructions for deploying **READORA** to production with high availability, automatic SSL (`https://`), managed PostgreSQL database persistence, Cloudinary permanent media storage, and Resend transactional email delivery.
 
 ---
 
-## Part 1: Run & Test Locally (On Your Laptop)
+## Architecture Overview
 
-1. Open PowerShell or Command Prompt.
-2. Navigate to your project folder:
+```
+[ User Browser / Mobile ]
+         │
+         ▼
+[ Render Web Service (Node.js/Express) ] ── (Port 5000 / HTTPS)
+         │
+         ├───▶ [ Render Managed PostgreSQL Database ] (Permanent Data Storage)
+         │
+         ├───▶ [ Cloudinary CDN ] (Permanent Image Storage & Optimization)
+         │
+         ├───▶ [ Resend HTTP REST API ] (High-Deliverability Verification Emails)
+         │
+         └───▶ [ Google Gemini API ] (AI Writing Assistant & Summarization)
+```
+
+---
+
+## Option 1: 1-Click Blueprint Deployment on Render (Recommended)
+
+Render Blueprints use [`render.yaml`](./render.yaml) to automatically provision both the **Web Service** and the **Free Managed PostgreSQL Database**, seamlessly wiring their connection strings together.
+
+### Step 1: Push Code to GitHub
+Ensure your repository is pushed to GitHub:
+```bash
+git add .
+git commit -m "feat: prepare production deployment with PostgreSQL and Cloudinary"
+git push origin main
+```
+
+### Step 2: Deploy Blueprint on Render
+1. Log in to your [Render Dashboard](https://dashboard.render.com).
+2. Click **New +** in the top navigation bar and select **Blueprint**.
+3. Connect your GitHub repository (`Harshbansal906/readora`).
+4. Render will detect `render.yaml` and display:
+   - **Service**: `readora` (Node Web Service)
+   - **Database**: `readora-db` (PostgreSQL Database)
+5. Click **Apply**.
+6. Within 2–3 minutes, both the database and web service will be live!
+
+---
+
+## Option 2: Migrating Existing SQLite Data to PostgreSQL
+
+If you have existing posts, users, comments, or likes in your local `readora.db` that you want in production:
+
+1. Copy the **External Connection String** of your Render PostgreSQL database from the Render Dashboard (or your Supabase connection string).
+2. In your local terminal, run the safe migration script:
    ```bash
-   cd "C:\Users\Harsh bansal\OneDrive\Desktop\frontend"
+   DATABASE_URL="postgresql://readora:YOUR_PASSWORD@YOUR_HOST:5432/readora" npm run db:migrate
    ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-4. Start the server:
-   ```bash
-   npm start
-   ```
-5. Open your browser and go to:
-   👉 **`http://localhost:5000`**
-
-*(Note: You can also double click `index.html` anytime to preview it offline without starting the server!)*
+3. The script will:
+   - Create all 10 tables, constraints, foreign keys, and indexes in PostgreSQL.
+   - Stream rows from `readora.db` into PostgreSQL with `ON CONFLICT DO NOTHING`.
+   - Verify row count parity and output a data integrity report.
+   - **Safety Guarantee**: Your local `readora.db` remains 100% untouched.
 
 ---
 
-## Part 2: Push to GitHub (Ready for 1-Click Deployment)
+## 3. Configuring Cloud Services (Free Tiers)
 
-1. Go to [GitHub.com](https://github.com) and create a **New Repository** (e.g., `readora`).
-2. In your terminal inside `frontend` folder, run:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial launch of Readora platform"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_GITHUB_USERNAME/readora.git
-   git push -u origin main
-   ```
+### A. Permanent Image Storage (Cloudinary)
+Render's web instances use ephemeral filesystems. To ensure user photos and article cover images are permanently stored:
+1. Create a free account at [Cloudinary.com](https://cloudinary.com).
+2. Go to your Cloudinary Dashboard and find:
+   - **Cloud Name**
+   - **API Key**
+   - **API Secret**
+3. In Render Web Service > **Environment**:
+   - `CLOUDINARY_CLOUD_NAME` = your cloud name
+   - `CLOUDINARY_API_KEY` = your API key
+   - `CLOUDINARY_API_SECRET` = your API secret
 
----
+### B. High-Deliverability Email (Resend)
+Cloud hosts frequently block outbound SMTP ports (25/465/587). Using HTTP-based Resend ensures 100% reliable OTP delivery:
+1. Create a free account at [Resend.com](https://resend.com).
+2. Generate an API Key (starts with `re_`).
+3. In Render Web Service > **Environment**:
+   - `RESEND_API_KEY` = `re_xxxxxxxxxxxx`
+   - `FROM_EMAIL` = `READORA <onboarding@resend.dev>` (or your custom domain address)
 
-## Part 3: Deploy to Cloud for FREE (Using Render.com)
-
-[Render](https://render.com) gives you free web hosting with automatic continuous deployment from GitHub:
-
-1. Sign up / Log in to [Render.com](https://render.com) using your GitHub account.
-2. Click **New +** > **Web Service**.
-3. Select your `readora` repository.
-4. Set the following settings:
-   - **Name**: `readora` (or any name you like)
-   - **Runtime**: `Node`
-   - **Build Command**: `npm install`
-   - **Start Command**: `node server.js`
-   - **Instance Type**: `Free`
-5. Click **Deploy Web Service**.
-6. Within 1-2 minutes, Render will provide you with a live URL (e.g., `https://readora.onrender.com`).
+### C. Google Gemini AI (Optional)
+To enable the AI Writing Polish, Auto-Summarize, and floating Chat Assistant:
+1. Get a free API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. In Render Web Service > **Environment**:
+   - `GEMINI_API_KEY` = your API key
 
 ---
 
-## Part 4: Connect Your Custom Domain (GoDaddy, Hostinger, Namecheap)
+## 4. Custom Domain & SSL Setup
 
-Once you buy your domain (e.g., `readora.in`, `readora.app`, or `readora.com`):
-
-### 1. In Render Dashboard:
-- Go to your Web Service > **Settings** > **Custom Domains**.
-- Click **Add Custom Domain** and enter your domain (e.g., `www.yourdomain.com` and `yourdomain.com`).
-
-### 2. In Your Domain Registrar (GoDaddy / Hostinger / Namecheap DNS Management):
-Add these two DNS records:
-
-| Type | Name / Host | Target / Value | TTL |
-| :--- | :--- | :--- | :--- |
-| **CNAME** | `www` | `readora.onrender.com` *(your render URL)* | Automatic / 1 Hour |
-| **A** | `@` | `216.24.57.1` *(Render's IP shown on screen)* | Automatic / 1 Hour |
-
-Render will automatically issue a **Free SSL Certificate (`https://`)** for your domain within a few minutes!
+Once your application is deployed on Render:
+1. In the Render Dashboard, navigate to your web service > **Settings** > **Custom Domains**.
+2. Click **Add Custom Domain** and enter your domain (e.g. `readora.app` or `www.readora.app`).
+3. In your domain registrar (GoDaddy, Namecheap, Hostinger, Cloudflare):
+   - Add a **CNAME** record:
+     - Name: `www`
+     - Value: `readora.onrender.com`
+   - Add an **A** record:
+     - Name: `@`
+     - Value: `216.24.57.1` (or the IP displayed by Render)
+4. Render will automatically provision and renew a free **Let's Encrypt SSL Certificate** (`https://`).
 
 ---
 
-## 🌟 Default Admin / Demo Credentials
+## 5. Backup, Export & Disaster Recovery
 
-- **Email / Username**: `harsh@readora.app` or `harshbansal`
-- **Password**: `readora123`
+### Creating a Local Backup:
+Before major updates or database migrations, run:
+```bash
+node -e "require('fs').copyFileSync('readora.db', 'readora.db.' + Date.now() + '.backup')"
+```
+
+### Exporting User Content via App:
+Users and administrators can download a full JSON archive of all published content anytime from:
+👉 **Account & Settings > Danger Zone & Data > Export Your Publication Archive**
+
+### Restoring PostgreSQL Database:
+If restoring a PostgreSQL dump on Render:
+```bash
+psql "YOUR_POSTGRES_DATABASE_URL" < backup.sql
+```
+
+---
+
+## 6. Health & Monitoring
+
+Readora includes an automated health check endpoint used by Render to monitor uptime:
+- **Health Check URL**: `https://your-app.onrender.com/api/health`
+- **Response Format**:
+  ```json
+  {
+    "status": "online",
+    "app": "READORA",
+    "tagline": "Where readers become creators.",
+    "database": "postgresql",
+    "databaseStatus": "healthy",
+    "timestamp": "2026-11-12T22:00:00.000Z"
+  }
+  ```

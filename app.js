@@ -16,10 +16,12 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
-// Only allow normal web links for images
+// Allow secure web links and safe image data URIs
 function safeUrl(url) {
   const u = String(url || '').trim();
-  return /^https?:\/\//i.test(u) ? u : '';
+  if (/^https?:\/\//i.test(u)) return u;
+  if (/^data:image\/(jpeg|png|webp|gif);base64,[a-z0-9+/=]+$/i.test(u)) return u;
+  return '';
 }
 
 function profileLink(handle) {
@@ -391,7 +393,7 @@ class ReadoraApp {
   async toggleFollow(creatorId) {
     if (!this.currentUser) {
       this.showToast('Please log in to follow creators!');
-      setTimeout(() => { window.location.href = 'practise.html'; }, 1000);
+      setTimeout(() => { window.location.href = 'login.html'; }, 1000);
       return;
     }
     try {
@@ -1121,7 +1123,7 @@ class ReadoraApp {
             Customize your creator profile, reading preferences, light & dark theme, and security credentials.
           </p>
           <div style="display:flex; justify-content:center; gap:0.75rem;">
-            <a href="practise.html" class="btn-auth-primary" style="width:auto; padding:0.65rem 1.6rem; text-decoration:none;">Log In</a>
+            <a href="login.html" class="btn-auth-primary" style="width:auto; padding:0.65rem 1.6rem; text-decoration:none;">Log In</a>
             <a href="account.html" class="btn-dash-action" style="padding:0.65rem 1.4rem; text-decoration:none;">Create Account</a>
           </div>
         </div>
@@ -2210,7 +2212,7 @@ class ReadoraApp {
     }
     localStorage.removeItem('readora_token');
     localStorage.removeItem('readora_current_user');
-    window.location.href = 'practise.html?switched=true';
+    window.location.href = 'login.html?switched=true';
   }
 
   initDOM() {
@@ -2264,7 +2266,7 @@ class ReadoraApp {
   goToMyProfile() {
     if (!this.currentUser || !this.currentUser.handle) {
       this.showToast('Please log in to see your profile.');
-      setTimeout(() => { window.location.href = 'practise.html'; }, 1000);
+      setTimeout(() => { window.location.href = 'login.html'; }, 1000);
       return;
     }
     if (window.location.hash === profileLink(this.currentUser.handle)) {
@@ -2420,7 +2422,7 @@ class ReadoraApp {
         if (this.currentUser) {
           this.logout();
         } else {
-          window.location.href = 'practise.html';
+          window.location.href = 'login.html';
         }
       });
     }
@@ -2498,11 +2500,36 @@ class ReadoraApp {
     if (this.photoUrlInput) {
       this.photoUrlInput.addEventListener('input', () => {
         const url = this.photoUrlInput.value.trim();
-        if (url && /^https?:\/\//i.test(url)) {
+        if (url && (/^https?:\/\//i.test(url) || /^data:image\//i.test(url))) {
           if (this.photoPreviewImg) this.photoPreviewImg.src = url;
           if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'block';
         } else {
           if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'none';
+        }
+      });
+    }
+
+    // Real File Upload for Thought Composer
+    const photoFileInput = document.getElementById('photo-file-input');
+    const photoSpinner = document.getElementById('photo-upload-spinner');
+    if (photoFileInput) {
+      photoFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          await this.uploadImageFile(file, photoSpinner, this.photoUrlInput, this.photoPreviewImg, this.photoPreviewBox);
+        }
+      });
+    }
+
+    // Real File Upload for Article Studio Cover Image
+    const articleCoverFileInput = document.getElementById('article-cover-file-input');
+    const articleCoverInput = document.getElementById('article-cover-input');
+    const articleCoverSpinner = document.getElementById('article-cover-spinner');
+    if (articleCoverFileInput) {
+      articleCoverFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          await this.uploadImageFile(file, articleCoverSpinner, articleCoverInput);
         }
       });
     }
@@ -2719,7 +2746,7 @@ class ReadoraApp {
   requireLogin(message) {
     if (this.currentUser) return true;
     this.showToast(message || 'Please log in first!');
-    setTimeout(() => { window.location.href = 'practise.html'; }, 1200);
+    setTimeout(() => { window.location.href = 'login.html'; }, 1200);
     return false;
   }
 
@@ -2966,6 +2993,56 @@ class ReadoraApp {
       }
     } catch (e) {
       this.showToast('Network error while updating post.');
+    }
+  }
+
+  async uploadImageFile(file, spinnerEl, inputEl, previewImgEl = null, previewBoxEl = null) {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      this.showToast('Please select a valid image file (JPEG, PNG, WEBP, GIF).', 'warning');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.showToast('Image exceeds maximum allowed size of 5MB.', 'warning');
+      return;
+    }
+
+    if (!this.token) {
+      this.showToast('Please log in to upload images.', 'warning');
+      return;
+    }
+
+    if (spinnerEl) spinnerEl.style.display = 'block';
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await fetch(`${this.apiBase}/api/upload/image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token}`
+        },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Image upload failed.');
+      }
+
+      if (inputEl) inputEl.value = data.url;
+      if (previewImgEl) previewImgEl.src = data.url;
+      if (previewBoxEl) previewBoxEl.style.display = 'block';
+
+      this.showToast(data.provider === 'cloudinary' ? '📸 Image uploaded to Cloudinary!' : '📸 Image processed successfully!');
+    } catch (err) {
+      console.error('Image upload error:', err);
+      this.showToast(err.message || 'Image upload failed. Please try again.', 'error');
+    } finally {
+      if (spinnerEl) spinnerEl.style.display = 'none';
     }
   }
 
