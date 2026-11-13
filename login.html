@@ -1321,7 +1321,7 @@
       <!-- Segmented Tab: Sign In / Create Account -->
       <div class="auth-tab-pill-track" role="tablist">
         <button type="button" class="tab-pill-btn active" id="tab-sign-in" onclick="switchAuthMode('signin')">Sign In</button>
-        <button type="button" class="tab-pill-btn" id="tab-sign-up" onclick="switchAuthMode('signup')">Sign Up</button>
+        <button type="button" class="tab-pill-btn" id="tab-sign-up" onclick="window.location.href='account.html'">Sign Up</button>
       </div>
 
       <!-- Live Feedback Alert Box -->
@@ -1496,7 +1496,7 @@
       <div class="auth-bottom-tagline">READ • WRITE • GROW TOGETHER</div>
 
       <div class="auth-switch-link" id="auth-switch-prompt">
-        Don't have an account? <a href="#" onclick="switchAuthMode('signup'); return false;">Sign Up ➔</a>
+        Don't have an account? <a href="account.html">Create Account ➔</a>
       </div>
 
       <div class="guest-explore-row">
@@ -1698,9 +1698,13 @@
         : `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
     }
 
-    // Switch between Sign In and Sign Up within the same gorgeous 3D card
+    // Switch between Sign In and Sign Up (Create Account navigates to multi-step OTP sanctuary)
     function switchAuthMode(mode) {
-      currentAuthMode = mode;
+      if (mode === 'signup') {
+        window.location.href = 'account.html';
+        return;
+      }
+      currentAuthMode = 'signin';
       const tabSignIn = document.getElementById('tab-sign-in');
       const tabSignUp = document.getElementById('tab-sign-up');
       const titleEl = document.getElementById('auth-main-title');
@@ -1717,27 +1721,15 @@
       if (switchCard) switchCard.style.display = 'none';
       document.getElementById('main-auth-form').style.display = 'block';
 
-      if (mode === 'signup') {
-        tabSignIn.classList.remove('active');
-        tabSignUp.classList.add('active');
-        titleEl.textContent = 'Create Account';
-        subEl.textContent = 'Join the creator network';
-        btnLabel.textContent = 'Sign Up';
-        if (googleLabel) googleLabel.textContent = 'Sign Up with Google';
-        signupNameTrack.style.display = 'flex';
-        optionsRow.style.display = 'none';
-        switchPrompt.innerHTML = `Already have an account? <a href="#" onclick="switchAuthMode('signin'); return false;">Log In ➔</a>`;
-      } else {
-        tabSignIn.classList.add('active');
-        tabSignUp.classList.remove('active');
-        titleEl.textContent = 'Welcome Back';
-        subEl.textContent = 'Sign in to continue';
-        btnLabel.textContent = 'Login';
-        if (googleLabel) googleLabel.textContent = 'Continue with Google';
-        signupNameTrack.style.display = 'none';
-        optionsRow.style.display = 'flex';
-        switchPrompt.innerHTML = `Don't have an account? <a href="#" onclick="switchAuthMode('signup'); return false;">Sign Up ➔</a>`;
-      }
+      tabSignIn.classList.add('active');
+      tabSignUp.classList.remove('active');
+      titleEl.textContent = 'Welcome Back';
+      subEl.textContent = 'Sign in to continue';
+      btnLabel.textContent = 'Login';
+      if (googleLabel) googleLabel.textContent = 'Continue with Google';
+      if (signupNameTrack) signupNameTrack.style.display = 'none';
+      if (optionsRow) optionsRow.style.display = 'flex';
+      if (switchPrompt) switchPrompt.innerHTML = `Don't have an account? <a href="account.html">Create Account ➔</a>`;
     }
 
     // Feedback Notifications
@@ -1769,7 +1761,7 @@
       }
     }
 
-    // Form Submission: Login or Direct Sign Up
+    // Form Submission: Login
     async function handleFormSubmit(e) {
       e.preventDefault();
       const identifier = document.getElementById('auth-identifier').value.trim();
@@ -1778,66 +1770,45 @@
       const btnLabel = document.getElementById('btn-submit-label');
 
       if (!identifier || !password) {
-        showFeedback('Please fill in all required fields.');
+        showFeedback('Please fill in both identifier and password.');
         return false;
       }
 
       hideFeedback();
       submitBtn.disabled = true;
-      btnLabel.textContent = currentAuthMode === 'signup' ? 'Creating Account...' : 'Signing in...';
+      btnLabel.textContent = 'Signing in...';
 
-      if (currentAuthMode === 'signup') {
-        // Direct Sign Up flow
-        const name = document.getElementById('auth-name').value.trim() || identifier.split('@')[0];
-        const email = identifier.includes('@') ? identifier : `${identifier.replace(/^@/, '')}@readora.app`;
-        const handle = identifier.startsWith('@') ? identifier : '@' + identifier.split('@')[0];
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+        const data = await res.json();
+        submitBtn.disabled = false;
+        btnLabel.textContent = 'Login';
 
-        try {
-          const res = await fetch(`${API_BASE}/api/auth/signup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password, handle })
-          });
-          const data = await res.json();
-          submitBtn.disabled = false;
-          btnLabel.textContent = 'Sign Up';
+        if (res.ok && data.success) {
+          localStorage.setItem('readora_token', data.token);
+          localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+          localStorage.setItem('readora_last_user', JSON.stringify({
+            name: data.user.name,
+            handle: data.user.handle,
+            avatar: data.user.avatar || data.user.name.substring(0, 2).toUpperCase()
+          }));
 
-          if (res.ok && data.success) {
-            localStorage.setItem('readora_token', data.token);
-            localStorage.setItem('readora_current_user', JSON.stringify(data.user));
-            showFeedback('🎉 Account created successfully! Redirecting...', 'success');
-            setTimeout(() => { window.location.href = 'index.html'; }, 600);
-          } else {
-            showFeedback(data.message || 'Signup failed. Please try a different email or username.');
-          }
-        } catch (err) {
-          submitBtn.disabled = false;
-          btnLabel.textContent = 'Sign Up';
-          showFeedback('Server connection error. Make sure server is running on http://localhost:5000.');
+          showFeedback('✨ Success! Welcome back to your sanctuary...', 'success');
+          setTimeout(() => { window.location.href = 'index.html'; }, 450);
+        } else {
+          showFeedback(data.message || 'Invalid username or password.');
         }
-      } else {
-        // Sign In Flow
-        try {
-          const res = await fetch(`${API_BASE}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identifier, password })
-          });
-          const data = await res.json();
-          submitBtn.disabled = false;
-          btnLabel.textContent = 'Login';
-
-          if (res.ok && data.success) {
-            localStorage.setItem('readora_token', data.token);
-            localStorage.setItem('readora_current_user', JSON.stringify(data.user));
-            localStorage.setItem('readora_last_user', JSON.stringify({
-              name: data.user.name,
-              handle: data.user.handle,
-              avatar: data.user.avatar || data.user.name.substring(0, 2).toUpperCase()
-            }));
-
-            showFeedback('✨ Success! Welcome back to your sanctuary...', 'success');
-            setTimeout(() => { window.location.href = 'index.html'; }, 450);
+      } catch (err) {
+        submitBtn.disabled = false;
+        btnLabel.textContent = 'Login';
+        showFeedback('Server connection error. Make sure server is running on http://localhost:5000.');
+      }
+      return false;
+    }
           } else {
             showFeedback(data.message || 'Invalid username or password.');
           }

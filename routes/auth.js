@@ -79,7 +79,7 @@ function recordFailedAttempt(key) {
 // 1. POST /api/auth/send-otp - Step 1: Check Real Email Validity, Duplicates & Send Code
 router.post('/send-otp', otpLimiter, async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, handle } = req.body;
 
     if (!email || !email.includes('@')) {
       return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
@@ -103,6 +103,19 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
         success: false,
         message: 'An account with this email already exists. Please log in instead.'
       });
+    }
+
+    // Check handle if provided in advance
+    if (handle && handle.trim()) {
+      let checkHandle = handle.trim().toLowerCase();
+      if (!checkHandle.startsWith('@')) checkHandle = '@' + checkHandle;
+      const existingHandle = await db.getAsync(`SELECT id FROM users WHERE LOWER(handle) = ?`, [checkHandle]);
+      if (existingHandle) {
+        return res.status(400).json({
+          success: false,
+          message: `Username "${checkHandle}" is already taken. Please choose another username.`
+        });
+      }
     }
 
     // Generate secure 6-digit OTP
@@ -132,13 +145,15 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       console.log('=====================================================');
       return res.json({
         success: true,
-        message: `Email could not be sent (${mailErr.message}) DEV MODE: your code is printed in the server terminal window.`
+        message: `Verification code generated! (DEV MODE code: ${otpCode})`,
+        devOtp: otpCode
       });
     }
 
     res.json({
       success: true,
-      message: `A 6-digit confirmation code has been sent to ${cleanEmail}. Please check your inbox (and spam folder)!`
+      message: `A 6-digit confirmation code has been sent to ${cleanEmail}. Please check your inbox (and spam folder)!`,
+      devOtp: !IS_PROD ? otpCode : undefined
     });
   } catch (error) {
     console.error('Send OTP error:', error);
@@ -250,10 +265,12 @@ router.post('/complete-signup', authLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields and verification token are required.' });
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+
     // Verify token
     try {
       const decoded = jwt.verify(verificationToken, JWT_SECRET);
-      if (decoded.email !== email.toLowerCase().trim() || !decoded.isVerified) {
+      if (decoded.email !== cleanEmail || !decoded.isVerified) {
         return res.status(400).json({ success: false, message: 'Invalid verification session. Please verify email again.' });
       }
     } catch (e) {
@@ -264,12 +281,28 @@ router.post('/complete-signup', authLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
     }
 
-    let cleanHandle = handle ? (handle.startsWith('@') ? handle.toLowerCase().trim() : '@' + handle.toLowerCase().trim()) : '@' + name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    // Check if email is already taken
+    const existingUser = await db.getAsync(`SELECT id FROM users WHERE LOWER(email) = ?`, [cleanEmail]);
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'An account with this email already exists. Please log in.' });
+    }
 
-    // Check if handle is already taken
-    const existingHandle = await db.getAsync(`SELECT id FROM users WHERE LOWER(handle) = ?`, [cleanHandle]);
-    if (existingHandle) {
-      return res.status(400).json({ success: false, message: `Username "${cleanHandle}" is already taken. Please choose another username.` });
+    let cleanHandle;
+    if (handle && handle.trim()) {
+      cleanHandle = handle.trim().toLowerCase();
+      if (!cleanHandle.startsWith('@')) cleanHandle = '@' + cleanHandle;
+      const existingHandle = await db.getAsync(`SELECT id FROM users WHERE LOWER(handle) = ?`, [cleanHandle]);
+      if (existingHandle) {
+        return res.status(400).json({ success: false, message: `Username "${cleanHandle}" is already taken. Please choose another username.` });
+      }
+    } else {
+      let baseHandle = '@' + name.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 20);
+      cleanHandle = baseHandle;
+      let counter = 1;
+      while (await db.getAsync(`SELECT id FROM users WHERE LOWER(handle) = ?`, [cleanHandle])) {
+        cleanHandle = `${baseHandle}_${counter}`;
+        counter++;
+      }
     }
 
     const userId = 'usr_' + Date.now();
@@ -279,13 +312,13 @@ router.post('/complete-signup', authLimiter, async (req, res) => {
     await db.runAsync(`
       INSERT INTO users (id, name, email, handle, password_hash, avatar, bio)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [userId, name, email.toLowerCase().trim(), cleanHandle, passwordHash, avatar, bio || 'Reader and creator on Readora.']);
+    `, [userId, name, cleanEmail, cleanHandle, passwordHash, avatar, bio || 'Reader and creator on Readora.']);
 
     // Clear used OTPs
-    await db.runAsync(`DELETE FROM otps WHERE LOWER(email) = ?`, [email.toLowerCase().trim()]);
+    await db.runAsync(`DELETE FROM otps WHERE LOWER(email) = ?`, [cleanEmail]);
 
     const token = jwt.sign(
-      { id: userId, name, email: email.toLowerCase().trim(), handle: cleanHandle, avatar },
+      { id: userId, name, email: cleanEmail, handle: cleanHandle, avatar },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -297,7 +330,7 @@ router.post('/complete-signup', authLimiter, async (req, res) => {
       user: {
         id: userId,
         name,
-        email: email.toLowerCase().trim(),
+        email: cleanEmail,
         handle: cleanHandle,
         avatar,
         bio: bio || 'Reader and creator on Readora.'
@@ -418,6 +451,14 @@ router.post('/reset-password', async (req, res) => {
 // Legacy POST /api/auth/signup - Direct Signup with built-in auto-safety
 router.post('/signup', authLimiter, async (req, res) => {
   try {
+    // In production, force all new creators to complete the 3-step OTP verification flow
+    if (IS_PROD) {
+      return res.status(403).json({
+        success: false,
+        message: 'Direct signup is disabled. Please verify your email via OTP to create a verified Readora account.'
+      });
+    }
+
     const { name, email, password, handle, bio } = req.body;
 
     if (!name || !email || !password) {

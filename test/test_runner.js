@@ -690,21 +690,59 @@ async function main() {
     });
 
     // 25. OTP Verification & Security Flow
-    await runTest('25. OTP Verification & Security Flow (rejects invalid code, enforces 10-minute validity)', async () => {
-      const testEmail = 'reader_verification_test@gmail.com';
+    await runTest('25. OTP Real User Verification & Complete Signup Flow', async () => {
+      const testEmail = 'real_reader_test@gmail.com';
 
-      // 1. Send OTP
-      const sendRes = await request('POST', '/api/auth/send-otp', { email: testEmail });
+      // 1. Reject fake / invalid email domains
+      const fakeEmailRes = await request('POST', '/api/auth/send-otp', { email: 'fakeuser@test.com' });
+      assert(fakeEmailRes.status === 400, 'Expected 400 for fake/placeholder email domain');
+
+      // 2. Send OTP to a valid real email
+      const sendRes = await request('POST', '/api/auth/send-otp', { email: testEmail, handle: '@real_reader' });
       assert(sendRes.status === 200 && sendRes.data.success === true, 'Failed to trigger OTP generation');
 
-      // 2. Reject incorrect code
+      // 3. Reject incorrect code
       const wrongOtpRes = await request('POST', '/api/auth/verify-otp', { email: testEmail, otp: '000000' });
       assert(wrongOtpRes.status === 400, 'Expected 400 for wrong OTP code');
 
-      // 3. Verify OTP record exists in database
+      // 4. Verify OTP record exists in database
       const dbOtp = await activeDb.getAsync('SELECT * FROM otps WHERE LOWER(email) = ?', [testEmail]);
       assert(dbOtp !== null && dbOtp.otp_code.length === 6, 'Expected valid 6-digit OTP record in database');
       assert(dbOtp.expires_at > Date.now(), 'OTP expires_at must be in the future');
+
+      // 5. Verify the correct OTP code
+      const verifyRes = await request('POST', '/api/auth/verify-otp', { email: testEmail, otp: dbOtp.otp_code });
+      assert(verifyRes.status === 200 && verifyRes.data.success === true, 'Failed to verify correct OTP code');
+      assert(verifyRes.data.verificationToken, 'Expected signed verificationToken upon successful OTP verification');
+
+      const verificationToken = verifyRes.data.verificationToken;
+
+      // 6. Reject complete-signup without verificationToken
+      const noTokenRes = await request('POST', '/api/auth/complete-signup', {
+        name: 'Real Reader',
+        email: testEmail,
+        password: 'Password123!'
+      });
+      assert(noTokenRes.status === 400, 'Expected 400 when attempting to complete signup without token');
+
+      // 7. Complete signup with verified token (sets password)
+      const completeRes = await request('POST', '/api/auth/complete-signup', {
+        name: 'Real Reader',
+        email: testEmail,
+        password: 'Password123!',
+        verificationToken,
+        handle: '@real_reader'
+      });
+      assert(completeRes.status === 201 && completeRes.data.success === true, 'Failed to complete signup with verified OTP');
+      assert(completeRes.data.token, 'Expected JWT session token after completing signup');
+
+      // 8. Verify the newly created creator can log in with their password
+      const loginRes = await request('POST', '/api/auth/login', {
+        identifier: testEmail,
+        password: 'Password123!'
+      });
+      assert(loginRes.status === 200 && loginRes.data.success === true, 'New real user failed to log in with set password');
+      assert(loginRes.data.user.handle === '@real_reader', 'Handle mismatch on newly created real user');
     });
 
   } finally {

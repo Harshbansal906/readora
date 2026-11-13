@@ -101,12 +101,12 @@ readora/
 │   └── posts.js             # Thoughts, articles, likes, bookmarks, comments & stats
 ├── utils/
 │   └── mailer.js            # Nodemailer transport & HTML verification templates
-├── account.html             # Multi-step OTP registration UI
+├── account.html             # Multi-step Real User OTP registration UI
 ├── app.js                   # Client-side core application controller
 ├── DEPLOYMENT_GUIDE.md      # Comprehensive production deployment walkthrough
 ├── index.html               # Main platform feed, composer, modals & widgets
+├── login.html               # Sign-in & guest access portal
 ├── package.json             # Project dependencies & startup scripts
-├── practise.html            # Sign-in & guest access portal
 ├── Procfile                 # Production web process definition
 ├── render.yaml              # Render Cloud deployment blueprint
 ├── style.css                # Dark crimson aesthetic design system

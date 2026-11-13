@@ -864,6 +864,254 @@
       .auth-neu-card { padding: 1.15rem 1.2rem 1rem 1.2rem; border-radius: 22px; }
       .ambient-corner-caption { display: none; }
     }
+
+    /* ================= Multi-step OTP Verification Flow ================= */
+    .auth-steps-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      margin: 1.1rem 0 1.35rem 0;
+      padding: 0 0.5rem;
+    }
+    .auth-steps-line {
+      position: absolute;
+      top: 16px;
+      left: 32px;
+      right: 32px;
+      height: 3px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 999px;
+      z-index: 1;
+    }
+    .auth-steps-progress {
+      position: absolute;
+      top: 16px;
+      left: 32px;
+      height: 3px;
+      background: var(--accent-gradient);
+      border-radius: 999px;
+      z-index: 2;
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 0%;
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+    }
+    .auth-step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+      position: relative;
+      z-index: 3;
+    }
+    .auth-step-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: var(--neu-surface);
+      box-shadow: var(--neu-emboss);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+      transition: all 0.3s ease;
+    }
+    .auth-step-item.active .auth-step-circle {
+      background: var(--accent-gradient);
+      color: #ffffff;
+      box-shadow: var(--accent-shadow);
+      transform: scale(1.1);
+    }
+    .auth-step-item.completed .auth-step-circle {
+      background: #10b981;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+    .auth-step-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-muted);
+      transition: color 0.3s ease;
+    }
+    .auth-step-item.active .auth-step-label {
+      color: var(--accent-blue);
+      font-weight: 700;
+    }
+    .auth-step-item.completed .auth-step-label {
+      color: #10b981;
+    }
+
+    .real-user-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: rgba(37, 99, 235, 0.08);
+      border: 1px solid rgba(37, 99, 235, 0.22);
+      border-radius: 12px;
+      padding: 0.75rem 0.95rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.82rem;
+      color: var(--text-body);
+      line-height: 1.35;
+      text-align: left;
+    }
+    .real-user-badge svg {
+      flex-shrink: 0;
+      color: var(--accent-blue);
+    }
+
+    .otp-boxes-wrapper {
+      display: flex;
+      gap: 0.55rem;
+      justify-content: center;
+      margin: 1.25rem 0 1rem 0;
+    }
+    .otp-box-digit {
+      width: 46px;
+      height: 54px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 800;
+      font-family: var(--font-main), monospace;
+      background: var(--neu-surface);
+      box-shadow: var(--neu-inset);
+      border: 1.5px solid var(--input-border);
+      color: var(--text-title);
+      outline: none;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-sizing: border-box;
+    }
+    .otp-box-digit:focus {
+      border-color: var(--accent-blue);
+      box-shadow: var(--neu-inset-focus);
+      transform: translateY(-2px);
+    }
+    .otp-box-digit.filled {
+      border-color: rgba(37, 99, 235, 0.5);
+    }
+    .otp-box-digit.error {
+      border-color: #ef4444;
+      color: #ef4444;
+      animation: otpShake 0.4s ease;
+    }
+    @keyframes otpShake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+
+    .otp-resend-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0.85rem 0 1.25rem 0;
+      font-size: 0.82rem;
+      color: var(--text-sub);
+    }
+    .btn-resend-link {
+      background: transparent;
+      border: none;
+      color: var(--accent-blue);
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.82rem;
+      padding: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-resend-link:disabled {
+      color: var(--text-muted);
+      cursor: not-allowed;
+      font-weight: 500;
+    }
+
+    .dev-otp-hint {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px dashed rgba(245, 158, 11, 0.4);
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.8rem;
+      color: #b45309;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.85rem;
+    }
+    [data-theme="dark"] .dev-otp-hint {
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    .btn-dev-fill {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .verified-email-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #059669;
+      border-radius: 999px;
+      padding: 0.4rem 0.95rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 1.15rem;
+    }
+    [data-theme="dark"] .verified-email-badge {
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.25);
+    }
+
+    .pw-strength-box {
+      margin: -0.25rem 0 0.85rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .pw-strength-track {
+      height: 4px;
+      background: var(--input-bg);
+      border-radius: 2px;
+      overflow: hidden;
+      display: flex;
+    }
+    .pw-strength-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: 2px;
+      transition: all 0.3s ease;
+    }
+    .pw-strength-desc {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+    }
+
+    .edit-email-btn {
+      color: var(--accent-blue);
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-decoration: underline;
+      cursor: pointer;
+      display: inline-block;
+      margin-top: 0.25rem;
+    }
   </style>
 </head>
 <body>
@@ -911,7 +1159,7 @@
       </a>
 
       <h1 class="auth-title" id="auth-main-title">Create Account</h1>
-      <p class="auth-subtitle" id="auth-main-subtitle">Join the creator network</p>
+      <p class="auth-subtitle" id="auth-main-subtitle">Join the verified creator network</p>
 
       <!-- Segmented Tab -->
       <div class="auth-tab-pill-track" role="tablist">
@@ -925,51 +1173,159 @@
         <span id="auth-feedback-text"></span>
       </div>
 
-      <!-- Direct Google Sign-Up Button -->
-      <button type="button" class="btn-google-direct" onclick="openGoogleModal()" id="btn-direct-google-main" title="Direct Google Sign Up">
-        <svg width="20" height="20" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-        </svg>
-        <span id="btn-google-label">Sign Up with Google</span>
-      </button>
-
-      <!-- Form -->
-      <form class="auth-form" id="main-auth-form" onsubmit="return handleFormSubmit(event)" novalidate>
+      <!-- 3-Step Progress Indicator -->
+      <div class="auth-steps-bar" role="progressbar" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1">
+        <div class="auth-steps-line"></div>
+        <div class="auth-steps-progress" id="steps-progress-fill" style="width: 0%;"></div>
         
-        <div class="neu-input-track" id="signup-name-track">
-          <span class="neu-input-icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-          </span>
-          <input type="text" id="auth-name" class="neu-input-field" placeholder="Full Name (e.g. Harsh Bansal)" autocomplete="name">
+        <div class="auth-step-item active" id="step-badge-1">
+          <div class="auth-step-circle" id="step-circle-1">1</div>
+          <div class="auth-step-label">1. Email</div>
         </div>
-
-        <div class="neu-input-track">
-          <span class="neu-input-icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path></svg>
-          </span>
-          <input type="text" id="auth-identifier" class="neu-input-field" placeholder="Email Address or @username" autocomplete="username" required>
+        <div class="auth-step-item" id="step-badge-2">
+          <div class="auth-step-circle" id="step-circle-2">2</div>
+          <div class="auth-step-label">2. OTP</div>
         </div>
-
-        <div class="neu-input-track">
-          <span class="neu-input-icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          </span>
-          <input type="password" id="auth-password" class="neu-input-field" placeholder="Password (min 6 characters)" autocomplete="new-password" required minlength="6">
-          <button type="button" class="neu-input-toggle-eye" onclick="togglePasswordVisibility('auth-password', this)" title="Toggle Password Visibility">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-          </button>
+        <div class="auth-step-item" id="step-badge-3">
+          <div class="auth-step-circle" id="step-circle-3">3</div>
+          <div class="auth-step-label">3. Password</div>
         </div>
+      </div>
 
-        <button type="submit" id="btn-submit-main" class="btn-submit-pill">
-          <span id="btn-submit-label">Sign Up</span>
-          <div class="btn-arrow-circle">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+      <!-- ================= STEP 1: Full Name & Real Email (NO Password) ================= -->
+      <div id="step-1-view">
+        <div class="real-user-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <div>
+            <strong style="color: var(--text-title); display: block; font-size: 0.85rem;">Real User Verification</strong>
+            <span style="font-size: 0.78rem; opacity: 0.88;">We will verify your real email via a 6-digit confirmation code. No passwords required on step 1.</span>
           </div>
-        </button>
-      </form>
+        </div>
+
+        <form class="auth-form" id="form-step-1" onsubmit="return handleStep1Submit(event)" novalidate>
+          <div class="neu-input-track">
+            <span class="neu-input-icon">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </span>
+            <input type="text" id="reg-name" class="neu-input-field" placeholder="Full Name (e.g. Harsh Bansal)" autocomplete="name" required>
+          </div>
+
+          <div class="neu-input-track">
+            <span class="neu-input-icon">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path></svg>
+            </span>
+            <input type="email" id="reg-email" class="neu-input-field" placeholder="Real Email Address (e.g. name@gmail.com)" autocomplete="email" required>
+          </div>
+
+          <div class="neu-input-track">
+            <span class="neu-input-icon">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+            </span>
+            <input type="text" id="reg-handle" class="neu-input-field" placeholder="Username (e.g. @harshbansal - optional)" autocomplete="off">
+          </div>
+
+          <button type="submit" id="btn-step-1" class="btn-submit-pill">
+            <span id="btn-step-1-label">Send Verification Code</span>
+            <div class="btn-arrow-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+            </div>
+          </button>
+        </form>
+      </div>
+
+      <!-- ================= STEP 2: 6-Digit OTP Verification ================= -->
+      <div id="step-2-view" style="display: none;">
+        <p style="font-size: 0.86rem; color: var(--text-sub); text-align: center; margin-bottom: 0.2rem;">
+          Enter the 6-digit confirmation code sent to:
+        </p>
+        <div style="font-size: 0.96rem; font-weight: 800; color: var(--text-title); text-align: center;">
+          <span id="step-2-target-email">name@gmail.com</span>
+        </div>
+        <div style="text-align: center; margin-bottom: 0.85rem;">
+          <a href="#" class="edit-email-btn" onclick="goToStep(1); return false;">Edit email address</a>
+        </div>
+
+        <div id="dev-otp-banner" class="dev-otp-hint" style="display: none;">
+          <span>💡 Dev Mode Code: <strong id="dev-otp-code"></strong></span>
+          <button type="button" class="btn-dev-fill" onclick="fillDevOtp()">Auto-Fill</button>
+        </div>
+
+        <form id="form-step-2" onsubmit="return handleStep2Submit(event)" novalidate>
+          <div class="otp-boxes-wrapper" id="otp-inputs-grid">
+            <input type="text" maxlength="1" class="otp-box-digit" data-idx="0" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code" autofocus>
+            <input type="text" maxlength="1" class="otp-box-digit" data-idx="1" inputmode="numeric" pattern="[0-9]">
+            <input type="text" maxlength="1" class="otp-box-digit" data-idx="2" inputmode="numeric" pattern="[0-9]">
+            <input type="text" maxlength="1" class="otp-box-digit" data-idx="3" inputmode="numeric" pattern="[0-9]">
+            <input type="text" maxlength="1" class="otp-box-digit" data-idx="4" inputmode="numeric" pattern="[0-9]">
+            <input type="text" maxlength="1" class="otp-box-digit" data-idx="5" inputmode="numeric" pattern="[0-9]">
+          </div>
+
+          <div class="otp-resend-row">
+            <span>Expires in: <strong id="otp-timer-display" style="color: var(--accent-blue);">10:00</strong></span>
+            <button type="button" id="btn-resend-otp" class="btn-resend-link" disabled onclick="resendOtpCode()">Resend Code (45s)</button>
+          </div>
+
+          <button type="submit" id="btn-step-2" class="btn-submit-pill">
+            <span id="btn-step-2-label">Verify Code</span>
+            <div class="btn-arrow-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+          </button>
+        </form>
+      </div>
+
+      <!-- ================= STEP 3: Set Password & Enter ================= -->
+      <div id="step-3-view" style="display: none;">
+        <div style="text-align: center;">
+          <div class="verified-email-badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Verified: <strong id="step-3-verified-email"></strong></span>
+          </div>
+        </div>
+
+        <p style="font-size: 0.84rem; color: var(--text-sub); text-align: center; margin-bottom: 1.15rem;">
+          Your email is verified! Now choose a strong password to complete your account.
+        </p>
+
+        <form class="auth-form" id="form-step-3" onsubmit="return handleStep3Submit(event)" novalidate>
+          <div class="neu-input-track">
+            <span class="neu-input-icon">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </span>
+            <input type="password" id="reg-password" class="neu-input-field" placeholder="Create Password (min 6 characters)" autocomplete="new-password" required minlength="6" oninput="updatePasswordStrength(this.value)">
+            <button type="button" class="neu-input-toggle-eye" onclick="togglePasswordVisibility('reg-password', this)" title="Toggle Visibility">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </div>
+
+          <div class="pw-strength-box">
+            <div class="pw-strength-track">
+              <div class="pw-strength-bar" id="pw-strength-bar"></div>
+            </div>
+            <div class="pw-strength-desc">
+              <span>Password Strength</span>
+              <span id="pw-strength-text" style="font-weight: 700;">Enter password</span>
+            </div>
+          </div>
+
+          <div class="neu-input-track">
+            <span class="neu-input-icon">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </span>
+            <input type="password" id="reg-confirm-password" class="neu-input-field" placeholder="Confirm Password" autocomplete="new-password" required minlength="6">
+            <button type="button" class="neu-input-toggle-eye" onclick="togglePasswordVisibility('reg-confirm-password', this)" title="Toggle Visibility">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </div>
+
+          <button type="submit" id="btn-step-3" class="btn-submit-pill">
+            <span id="btn-step-3-label">Enter Sanctuary & Start Reading</span>
+            <div class="btn-arrow-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+            </div>
+          </button>
+        </form>
+      </div>
 
       <!-- Divider -->
       <div class="auth-divider">
@@ -1095,6 +1451,20 @@
     const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
     let currentAuthMode = 'signup';
 
+    // Registration state
+    const regState = {
+      name: '',
+      email: '',
+      handle: '',
+      verificationToken: null,
+      devOtp: null,
+      currentStep: 1,
+      resendTimer: null,
+      expiryTimer: null,
+      resendSeconds: 45,
+      expirySeconds: 600
+    };
+
     function initTheme() {
       const savedTheme = localStorage.getItem('readora_theme') || 'light';
       applyTheme(savedTheme);
@@ -1147,52 +1517,461 @@
       box.style.display = 'flex';
     }
 
-    async function handleFormSubmit(e) {
-      e.preventDefault();
-      const name = document.getElementById('auth-name').value.trim();
-      const identifier = document.getElementById('auth-identifier').value.trim();
-      const password = document.getElementById('auth-password').value;
-      const submitBtn = document.getElementById('btn-submit-main');
-      const btnLabel = document.getElementById('btn-submit-label');
+    function hideFeedback() {
+      const box = document.getElementById('auth-feedback-box');
+      if (box) box.style.display = 'none';
+    }
 
-      if (!identifier || !password) {
-        showFeedback('Please provide both username/email and password.');
+    // ================= Multi-Step Wizard Engine =================
+    function goToStep(step) {
+      regState.currentStep = step;
+      hideFeedback();
+
+      const v1 = document.getElementById('step-1-view');
+      const v2 = document.getElementById('step-2-view');
+      const v3 = document.getElementById('step-3-view');
+      const titleEl = document.getElementById('auth-main-title');
+      const subEl = document.getElementById('auth-main-subtitle');
+      const progressFill = document.getElementById('steps-progress-fill');
+
+      const b1 = document.getElementById('step-badge-1');
+      const b2 = document.getElementById('step-badge-2');
+      const b3 = document.getElementById('step-badge-3');
+      const c1 = document.getElementById('step-circle-1');
+      const c2 = document.getElementById('step-circle-2');
+      const c3 = document.getElementById('step-circle-3');
+
+      // Hide all views
+      v1.style.display = 'none';
+      v2.style.display = 'none';
+      v3.style.display = 'none';
+
+      // Reset badge classes
+      [b1, b2, b3].forEach(b => b.className = 'auth-step-item');
+      c1.textContent = '1';
+      c2.textContent = '2';
+      c3.textContent = '3';
+
+      if (step === 1) {
+        v1.style.display = 'block';
+        titleEl.textContent = 'Create Account';
+        subEl.textContent = 'Join the verified creator network';
+        progressFill.style.width = '0%';
+        b1.classList.add('active');
+        document.getElementById('reg-name').focus();
+      } else if (step === 2) {
+        v2.style.display = 'block';
+        titleEl.textContent = 'Verify Email';
+        subEl.textContent = 'Only real users can enter Readora';
+        progressFill.style.width = '50%';
+        b1.classList.add('completed');
+        c1.innerHTML = '✓';
+        b2.classList.add('active');
+        setupOtpInputHandlers();
+        focusFirstOtpDigit();
+      } else if (step === 3) {
+        v3.style.display = 'block';
+        titleEl.textContent = 'Set Password';
+        subEl.textContent = 'Complete your sanctuary profile';
+        progressFill.style.width = '100%';
+        b1.classList.add('completed');
+        c1.innerHTML = '✓';
+        b2.classList.add('completed');
+        c2.innerHTML = '✓';
+        b3.classList.add('active');
+        document.getElementById('reg-password').focus();
+      }
+    }
+
+    // STEP 1: Submit Name & Real Email -> Sends OTP
+    async function handleStep1Submit(e) {
+      if (e) e.preventDefault();
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const handle = document.getElementById('reg-handle').value.trim();
+      const btn = document.getElementById('btn-step-1');
+      const label = document.getElementById('btn-step-1-label');
+
+      if (!name) {
+        showFeedback('Please enter your full name.');
+        document.getElementById('reg-name').focus();
         return false;
       }
 
-      submitBtn.disabled = true;
-      btnLabel.textContent = 'Creating Account...';
+      if (!email || !email.includes('@')) {
+        showFeedback('Please provide a real, valid email address.');
+        document.getElementById('reg-email').focus();
+        return false;
+      }
 
-      const email = identifier.includes('@') ? identifier : `${identifier.replace(/^@/, '')}@readora.app`;
-      const handle = identifier.startsWith('@') ? identifier : '@' + identifier.split('@')[0];
-      const displayName = name || identifier.split('@')[0];
+      hideFeedback();
+      btn.disabled = true;
+      label.textContent = 'Sending Verification Code...';
 
       try {
-        const res = await fetch(`${API_BASE}/api/auth/signup`, {
+        const res = await fetch(`${API_BASE}/api/auth/send-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: displayName, email, password, handle })
+          body: JSON.stringify({ email, handle })
         });
         const data = await res.json();
-        submitBtn.disabled = false;
-        btnLabel.textContent = 'Sign Up';
+        btn.disabled = false;
+        label.textContent = 'Send Verification Code';
 
         if (res.ok && data.success) {
-          localStorage.setItem('readora_token', data.token);
-          localStorage.setItem('readora_current_user', JSON.stringify(data.user));
-          showFeedback('🎉 Account created successfully! Redirecting...', 'success');
-          setTimeout(() => { window.location.href = 'index.html'; }, 600);
+          regState.name = name;
+          regState.email = email.toLowerCase().trim();
+          regState.handle = handle;
+          regState.devOtp = data.devOtp || null;
+
+          document.getElementById('step-2-target-email').textContent = regState.email;
+
+          // Dev hint banner if dev mode
+          const devBanner = document.getElementById('dev-otp-banner');
+          const devCode = document.getElementById('dev-otp-code');
+          if (data.devOtp && devBanner && devCode) {
+            devCode.textContent = data.devOtp;
+            devBanner.style.display = 'flex';
+          } else if (devBanner) {
+            devBanner.style.display = 'none';
+          }
+
+          showFeedback('✨ 6-digit confirmation code dispatched! Please check your inbox.', 'success');
+          goToStep(2);
+          startOtpTimers();
         } else {
-          showFeedback(data.message || 'Registration failed. Try another handle or email.');
+          showFeedback(data.message || 'Could not send verification code. Please check your email.');
         }
       } catch (err) {
-        submitBtn.disabled = false;
-        btnLabel.textContent = 'Sign Up';
-        showFeedback('Server connection error. Make sure server is running.');
+        btn.disabled = false;
+        label.textContent = 'Send Verification Code';
+        showFeedback('Connection error. Please make sure the Readora server is running.');
       }
       return false;
     }
 
+    // OTP Handlers & Auto-advance
+    function setupOtpInputHandlers() {
+      const digits = document.querySelectorAll('.otp-box-digit');
+      digits.forEach((input, index) => {
+        // Prevent duplicate listener bindings
+        if (input.dataset.bound) return;
+        input.dataset.bound = 'true';
+
+        input.addEventListener('input', (e) => {
+          const val = e.target.value.replace(/[^0-9]/g, '');
+          e.target.value = val;
+          if (val) {
+            e.target.classList.add('filled');
+            e.target.classList.remove('error');
+            if (index < digits.length - 1) {
+              digits[index + 1].focus();
+            } else {
+              // All 6 filled -> trigger submission automatically!
+              handleStep2Submit();
+            }
+          } else {
+            e.target.classList.remove('filled');
+          }
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Backspace' && !e.target.value && index > 0) {
+            digits[index - 1].focus();
+            digits[index - 1].value = '';
+            digits[index - 1].classList.remove('filled');
+          }
+        });
+
+        input.addEventListener('paste', (e) => {
+          e.preventDefault();
+          const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
+          const cleanDigits = pasteData.replace(/[^0-9]/g, '').slice(0, 6);
+          if (cleanDigits.length > 0) {
+            cleanDigits.split('').forEach((d, i) => {
+              if (digits[i]) {
+                digits[i].value = d;
+                digits[i].classList.add('filled');
+                digits[i].classList.remove('error');
+              }
+            });
+            const nextIdx = Math.min(cleanDigits.length, 5);
+            digits[nextIdx].focus();
+            if (cleanDigits.length === 6) {
+              handleStep2Submit();
+            }
+          }
+        });
+      });
+    }
+
+    function focusFirstOtpDigit() {
+      setTimeout(() => {
+        const first = document.querySelector('.otp-box-digit[data-idx="0"]');
+        if (first) {
+          first.focus();
+          first.select();
+        }
+      }, 100);
+    }
+
+    function getEnteredOtp() {
+      const digits = document.querySelectorAll('.otp-box-digit');
+      let code = '';
+      digits.forEach(d => { code += d.value.trim(); });
+      return code;
+    }
+
+    function fillDevOtp() {
+      if (!regState.devOtp) return;
+      const digits = document.querySelectorAll('.otp-box-digit');
+      regState.devOtp.split('').forEach((d, i) => {
+        if (digits[i]) {
+          digits[i].value = d;
+          digits[i].classList.add('filled');
+        }
+      });
+      handleStep2Submit();
+    }
+
+    // Resend & Expiry Timers
+    function startOtpTimers() {
+      clearInterval(regState.resendTimer);
+      clearInterval(regState.expiryTimer);
+
+      regState.resendSeconds = 45;
+      regState.expirySeconds = 600; // 10 minutes
+
+      const resendBtn = document.getElementById('btn-resend-otp');
+      const timerDisplay = document.getElementById('otp-timer-display');
+
+      if (resendBtn) {
+        resendBtn.disabled = true;
+        resendBtn.textContent = `Resend Code (${regState.resendSeconds}s)`;
+      }
+
+      regState.resendTimer = setInterval(() => {
+        regState.resendSeconds--;
+        if (regState.resendSeconds <= 0) {
+          clearInterval(regState.resendTimer);
+          if (resendBtn) {
+            resendBtn.disabled = false;
+            resendBtn.textContent = 'Resend Code';
+          }
+        } else if (resendBtn) {
+          resendBtn.textContent = `Resend Code (${regState.resendSeconds}s)`;
+        }
+      }, 1000);
+
+      regState.expiryTimer = setInterval(() => {
+        regState.expirySeconds--;
+        if (regState.expirySeconds <= 0) {
+          clearInterval(regState.expiryTimer);
+          if (timerDisplay) timerDisplay.textContent = 'Expired';
+          showFeedback('Verification code has expired. Please click "Resend Code".');
+        } else if (timerDisplay) {
+          const mins = Math.floor(regState.expirySeconds / 60);
+          const secs = regState.expirySeconds % 60;
+          timerDisplay.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+      }, 1000);
+    }
+
+    async function resendOtpCode() {
+      const resendBtn = document.getElementById('btn-resend-otp');
+      if (resendBtn) resendBtn.disabled = true;
+      hideFeedback();
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: regState.email, handle: regState.handle })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          regState.devOtp = data.devOtp || null;
+          const devBanner = document.getElementById('dev-otp-banner');
+          const devCode = document.getElementById('dev-otp-code');
+          if (data.devOtp && devBanner && devCode) {
+            devCode.textContent = data.devOtp;
+            devBanner.style.display = 'flex';
+          }
+          showFeedback('✨ A new verification code has been dispatched to your email!', 'success');
+          startOtpTimers();
+        } else {
+          showFeedback(data.message || 'Could not resend code. Please try again.');
+          if (resendBtn) resendBtn.disabled = false;
+        }
+      } catch (err) {
+        showFeedback('Connection error while resending code.');
+        if (resendBtn) resendBtn.disabled = false;
+      }
+    }
+
+    // STEP 2: Verify the 6-Digit OTP Code
+    async function handleStep2Submit(e) {
+      if (e) e.preventDefault();
+      const otpCode = getEnteredOtp();
+      const btn = document.getElementById('btn-step-2');
+      const label = document.getElementById('btn-step-2-label');
+      const digitBoxes = document.querySelectorAll('.otp-box-digit');
+
+      if (otpCode.length !== 6) {
+        showFeedback('Please enter all 6 digits of your verification code.');
+        digitBoxes.forEach(d => { if (!d.value) d.classList.add('error'); });
+        return false;
+      }
+
+      hideFeedback();
+      btn.disabled = true;
+      label.textContent = 'Verifying Code...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: regState.email, otp: otpCode })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        label.textContent = 'Verify Code';
+
+        if (res.ok && data.success) {
+          regState.verificationToken = data.verificationToken;
+          clearInterval(regState.resendTimer);
+          clearInterval(regState.expiryTimer);
+
+          document.getElementById('step-3-verified-email').textContent = regState.email;
+          showFeedback('🎉 Email verified successfully! Now set your secret password.', 'success');
+          goToStep(3);
+        } else {
+          digitBoxes.forEach(d => d.classList.add('error'));
+          showFeedback(data.message || 'Invalid verification code. Please check and try again.');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        label.textContent = 'Verify Code';
+        showFeedback('Server connection error while verifying code.');
+      }
+      return false;
+    }
+
+    // Password Strength Meter
+    function updatePasswordStrength(pw) {
+      const bar = document.getElementById('pw-strength-bar');
+      const text = document.getElementById('pw-strength-text');
+      if (!bar || !text) return;
+
+      if (!pw) {
+        bar.style.width = '0%';
+        bar.style.background = 'transparent';
+        text.textContent = 'Enter password';
+        text.style.color = 'var(--text-muted)';
+        return;
+      }
+
+      let score = 0;
+      if (pw.length >= 6) score++;
+      if (pw.length >= 9) score++;
+      if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+      if (/[0-9]/.test(pw) || /[^A-Za-z0-9]/.test(pw)) score++;
+
+      if (score <= 1) {
+        bar.style.width = '25%';
+        bar.style.background = '#ef4444';
+        text.textContent = 'Weak (min 6 chars)';
+        text.style.color = '#ef4444';
+      } else if (score === 2) {
+        bar.style.width = '50%';
+        bar.style.background = '#f59e0b';
+        text.textContent = 'Fair';
+        text.style.color = '#f59e0b';
+      } else if (score === 3) {
+        bar.style.width = '75%';
+        bar.style.background = '#3b82f6';
+        text.textContent = 'Good';
+        text.style.color = '#3b82f6';
+      } else {
+        bar.style.width = '100%';
+        bar.style.background = '#10b981';
+        text.textContent = 'Strong & Secure';
+        text.style.color = '#10b981';
+      }
+    }
+
+    // STEP 3: Set Password & Finalize Real Creator Account
+    async function handleStep3Submit(e) {
+      if (e) e.preventDefault();
+      const password = document.getElementById('reg-password').value;
+      const confirmPassword = document.getElementById('reg-confirm-password').value;
+      const btn = document.getElementById('btn-step-3');
+      const label = document.getElementById('btn-step-3-label');
+
+      if (!password || password.length < 6) {
+        showFeedback('Password must be at least 6 characters long.');
+        document.getElementById('reg-password').focus();
+        return false;
+      }
+
+      if (password !== confirmPassword) {
+        showFeedback('Passwords do not match. Please re-type your password.');
+        document.getElementById('reg-confirm-password').focus();
+        return false;
+      }
+
+      if (!regState.verificationToken) {
+        showFeedback('Verification token missing. Please restart email verification.');
+        goToStep(1);
+        return false;
+      }
+
+      hideFeedback();
+      btn.disabled = true;
+      label.textContent = 'Creating Account & Entering...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/complete-signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: regState.name,
+            email: regState.email,
+            password,
+            verificationToken: regState.verificationToken,
+            handle: regState.handle
+          })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        label.textContent = 'Enter Sanctuary & Start Reading';
+
+        if (res.ok && data.success) {
+          localStorage.setItem('readora_token', data.token);
+          localStorage.setItem('readora_current_user', JSON.stringify(data.user));
+          localStorage.setItem('readora_last_user', JSON.stringify({
+            name: data.user.name,
+            handle: data.user.handle,
+            avatar: data.user.avatar || data.user.name.substring(0, 2).toUpperCase()
+          }));
+
+          showFeedback(`🎉 Account created! Welcome to your sanctuary, ${data.user.name}!`, 'success');
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 600);
+        } else {
+          showFeedback(data.message || 'Account creation failed. Please try again.');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        label.textContent = 'Enter Sanctuary & Start Reading';
+        showFeedback('Server connection error while finalizing account.');
+      }
+      return false;
+    }
+
+    // Google Modal Handlers
     function openGoogleModal() {
       const modal = document.getElementById('google-modal');
       if (modal) modal.style.display = 'flex';
@@ -1252,6 +2031,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       initTheme();
+      goToStep(1);
     });
   </script>
 </body>
