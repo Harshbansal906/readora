@@ -28,22 +28,48 @@ function profileLink(handle) {
   return '#/u/' + encodeURIComponent(handle || '');
 }
 
-// Lightweight, safe markdown formatter with zero external dependencies and strict XSS protection
+function extractHeadings(str) {
+  if (!str) return [];
+  const lines = str.split('\n');
+  const headings = [];
+  let hCount = 0;
+  for (const line of lines) {
+    const m = line.match(/^(#{1,3})\s+(.+)$/);
+    if (m) {
+      hCount++;
+      headings.push({
+        id: `editorial-heading-${hCount}`,
+        level: m[1].length,
+        text: m[2].trim()
+      });
+    }
+  }
+  return headings;
+}
+
+// Editorial grade, safe markdown formatter with zero external dependencies and strict XSS protection
 function renderSafeMarkdown(str) {
   if (!str) return '';
   let html = esc(str);
 
-  // Headings
-  html = html.replace(/^### (.*$)/gim, '<h3 style="font-family:var(--font-brand); font-size:1.25rem; font-weight:700; color:var(--text-main); margin:1.25rem 0 0.5rem 0;">$1</h3>');
-  html = html.replace(/^## (.*$)/gim, '<h2 style="font-family:var(--font-brand); font-size:1.5rem; font-weight:800; color:var(--text-main); margin:1.5rem 0 0.5rem 0;">$1</h2>');
-  html = html.replace(/^# (.*$)/gim, '<h1 style="font-family:var(--font-brand); font-size:1.85rem; font-weight:800; color:var(--text-main); margin:1.75rem 0 0.75rem 0;">$1</h1>');
+  // Headings with stable IDs for Table of Contents
+  let hCount = 0;
+  html = html.replace(/^### (.*$)/gim, (_, t) => {
+    return `<h3 id="editorial-heading-${++hCount}" class="reader-heading-3">${t}</h3>`;
+  });
+  html = html.replace(/^## (.*$)/gim, (_, t) => {
+    return `<h2 id="editorial-heading-${++hCount}" class="reader-heading-2">${t}</h2>`;
+  });
+  html = html.replace(/^# (.*$)/gim, (_, t) => {
+    return `<h2 id="editorial-heading-${++hCount}" class="reader-heading-2">${t}</h2>`;
+  });
 
   // Blockquotes
-  html = html.replace(/^\&gt; (.*$)/gim, '<blockquote style="border-left: 3px solid var(--accent-primary); padding-left: 1rem; color: var(--text-muted); font-style: italic; margin: 1rem 0;">$1</blockquote>');
+  html = html.replace(/^\&gt; (.*$)/gim, '<blockquote class="reader-blockquote">$1</blockquote>');
 
   // Code blocks & inline code
-  html = html.replace(/```([\s\S]*?)```/gm, '<pre style="background:var(--bg-subtle); padding:0.75rem 1rem; border-radius:8px; font-size:0.9rem; overflow-x:auto; border:1px solid var(--border-color); margin:1rem 0;"><code>$1</code></pre>');
-  html = html.replace(/`([^`]+)`/g, '<code style="background:var(--bg-subtle); padding:0.15rem 0.35rem; border-radius:4px; font-size:0.9em; border:1px solid var(--border-color);">$1</code>');
+  html = html.replace(/```([\s\S]*?)```/gm, '<pre class="reader-pre"><code>$1</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code class="reader-code">$1</code>');
 
   // Bold & Italic
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
@@ -53,8 +79,8 @@ function renderSafeMarkdown(str) {
   html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent-primary); text-decoration:underline;">$1</a>');
 
   // Lists
-  html = html.replace(/^\s*-\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: disc;">$1</li>');
-  html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: decimal;">$1</li>');
+  html = html.replace(/^\s*-\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: disc; margin-bottom: 0.35rem;">$1</li>');
+  html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: decimal; margin-bottom: 0.35rem;">$1</li>');
 
   // Paragraph breaks
   html = html.replace(/\n\n+/g, '<br><br>');
@@ -3418,7 +3444,7 @@ class ReadoraApp {
     }
 
     if (!post) {
-      this.showToast('Article not found.');
+      this.showToast('Story not found.');
       return;
     }
 
@@ -3446,101 +3472,328 @@ class ReadoraApp {
     const contentBox = document.getElementById('read-article-container');
     if (!contentBox) return;
 
-    // Reset and attach scroll listener to reading progress bar
+    // Sticky Top Bar Title Snippet
+    const navTitleEl = document.getElementById('reader-nav-title');
+    if (navTitleEl) {
+      navTitleEl.textContent = post.title || 'Readora Story';
+      navTitleEl.classList.remove('visible');
+    }
+
+    // Parse Headings & Populate Table of Contents
+    const rawBody = post.fullContent || post.content || post.excerpt || '';
+    const headings = extractHeadings(rawBody);
+    const tocNav = document.getElementById('reader-toc-nav');
+    const tocSidebar = document.getElementById('reader-toc-sidebar');
+    if (tocNav) {
+      if (headings.length > 0) {
+        if (tocSidebar) tocSidebar.style.display = 'block';
+        tocNav.innerHTML = headings.map(h => `
+          <a href="#${h.id}" class="reader-toc-link ${h.level === 3 ? 'toc-sub' : ''}" data-heading-id="${h.id}">${esc(h.text)}</a>
+        `).join('');
+
+        tocNav.querySelectorAll('.reader-toc-link').forEach(link => {
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetEl = document.getElementById(link.dataset.headingId);
+            if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        });
+      } else {
+        if (tocSidebar) tocSidebar.style.display = 'none';
+        tocNav.innerHTML = '';
+      }
+    }
+
+    // Reading Scroll Container & Reading Progress
+    const scrollContainer = document.getElementById('reader-scroll-container') || contentBox;
     const bar = document.getElementById('reading-progress-bar');
     if (bar) bar.style.width = '0%';
-    contentBox.scrollTop = 0;
+    scrollContainer.scrollTop = 0;
 
-    contentBox.onscroll = () => {
-      if (!bar) return;
-      const maxScroll = contentBox.scrollHeight - contentBox.clientHeight;
-      if (maxScroll > 0) {
-        const progress = (contentBox.scrollTop / maxScroll) * 100;
+    scrollContainer.onscroll = () => {
+      const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      if (maxScroll > 0 && bar) {
+        const progress = (scrollContainer.scrollTop / maxScroll) * 100;
         bar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+      }
+
+      // Title in top bar appears once user scrolls past 180px
+      if (navTitleEl) {
+        if (scrollContainer.scrollTop > 180) {
+          navTitleEl.classList.add('visible');
+        } else {
+          navTitleEl.classList.remove('visible');
+        }
+      }
+
+      // Highlight active heading in TOC
+      if (headings.length > 0 && tocNav) {
+        const scrollPos = scrollContainer.scrollTop + 140;
+        let activeId = headings[0].id;
+        for (const h of headings) {
+          const el = document.getElementById(h.id);
+          if (el && el.offsetTop <= scrollPos) {
+            activeId = h.id;
+          }
+        }
+        tocNav.querySelectorAll('.reader-toc-link').forEach(link => {
+          link.classList.toggle('active', link.dataset.headingId === activeId);
+        });
       }
     };
 
     const cover = safeUrl(post.coverImage);
     const catClass = this.getCategoryClass(post.category);
     const initials = post.avatar || (post.author ? post.author.substring(0, 2).toUpperCase() : 'CR');
+    const isOwner = this.isPostAuthor(post);
+    const postComments = post.comments || [];
 
+    // Render Full Distraction-Free Article Content
     contentBox.innerHTML = `
-      <div style="margin-bottom: 1.5rem;">
-        <span class="card-tag ${catClass}" style="margin-bottom: 0.5rem; display: inline-block;">${esc(post.category || 'Article')}</span>
-        <h1 style="font-family: var(--font-brand); font-size: 2.1rem; font-weight: 800; color: var(--text-main); line-height: 1.25; margin-bottom: 0.6rem;">${esc(post.title)}</h1>
-        ${post.subtitle ? `<p style="font-size: 1.15rem; color: var(--text-dim); margin-bottom: 1.1rem; line-height: 1.5;">${esc(post.subtitle)}</p>` : ''}
-
-        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-          <a class="author-link" href="${profileLink(post.handle)}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
-            <div class="author-avatar">${esc(initials)}</div>
-            <div>
-              <div class="author-name" style="font-weight: 700; color: var(--text-main);">${esc(post.author)}</div>
-              <div style="font-size: 0.8rem; color: var(--text-dim);">${esc(post.timestamp || 'Recently')} • ${esc(post.readTime || '3 min read')} • 👁️ ${esc(post.views || 0)} views</div>
-            </div>
-          </a>
-        </div>
+      <div class="reader-category-strip">
+        <span class="reader-category-badge">${esc(post.category || 'Story')}</span>
+        <span class="reader-meta-time">${esc(post.readTime || '4 min read')}</span>
+        <span style="color:var(--text-dim); font-size: 0.8rem;">•</span>
+        <span class="reader-meta-time">${esc(post.timestamp || 'Published recently')}</span>
       </div>
 
-      ${cover ? `<img src="${esc(cover)}" alt="Cover" style="width: 100%; max-height: 380px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 1.75rem;" onerror="this.style.display='none';" />` : ''}
+      <h1 class="reader-article-title">${esc(post.title)}</h1>
+      ${post.subtitle ? `<div class="reader-article-subtitle">${esc(post.subtitle)}</div>` : ''}
 
-      <div style="font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.85; color: var(--text-main); margin-bottom: 2rem;">
-        ${renderSafeMarkdown(post.fullContent || post.content || post.excerpt)}
-      </div>
-
-      <!-- Action bar inside article modal -->
-      <div class="card-actions-bar" style="margin-top: 1.5rem; padding: 0.75rem 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
-        <div class="action-buttons-group">
-          <button class="card-action-btn btn-like ${post.likedByUser ? 'liked' : ''}" data-id="${esc(post.id)}" title="Like">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.likedByUser ? '#ef4444' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-            <span>${esc(post.likes || 0)}</span>
-          </button>
-          <button class="card-action-btn btn-share" data-id="${esc(post.id)}" title="Share Article">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-          </button>
-        </div>
-        <button class="card-action-btn btn-bookmark ${post.bookmarkedByUser ? 'bookmarked' : ''}" data-id="${esc(post.id)}" title="Save">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.bookmarkedByUser ? '#f59e0b' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-        </button>
-      </div>
-
-      <!-- About the Author Box -->
-      <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-top: 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-        <div style="display: flex; align-items: center; gap: 0.85rem;">
-          <div class="author-avatar" style="width: 48px; height: 48px; font-size: 1.2rem;">${esc(initials)}</div>
+      <div class="reader-author-strip">
+        <a class="reader-author-left author-link" href="${profileLink(post.handle)}">
+          <div class="reader-author-avatar">${esc(initials)}</div>
           <div>
-            <div style="font-weight: 700; color: var(--text-main); font-size: 1rem;">Written by ${esc(post.author)}</div>
-            <div style="font-size: 0.82rem; color: var(--text-dim);">${esc(post.handle)}</div>
+            <div class="reader-author-name">${esc(post.author)}</div>
+            <div class="reader-author-meta">
+              <span>${esc(post.handle)}</span>
+              <span>•</span>
+              <span>👁️ ${esc(post.views || 0)} views</span>
+            </div>
+          </div>
+        </a>
+
+        ${!isOwner ? `
+          <button type="button" class="btn-reader-follow" data-author-id="${esc(post.author_id || post.handle)}">
+            + Follow
+          </button>
+        ` : ''}
+      </div>
+
+      ${cover ? `
+        <div class="reader-hero-cover-wrap">
+          <img src="${esc(cover)}" alt="Story Cover" class="reader-hero-cover" onerror="this.parentElement.style.display='none';" />
+        </div>
+      ` : ''}
+
+      <div class="reader-prose" id="reader-prose-body">
+        ${renderSafeMarkdown(rawBody)}
+      </div>
+
+      <!-- Floating Interaction Bar -->
+      <div class="reader-floating-actions">
+        <div class="reader-action-group">
+          <button type="button" class="reader-action-pill btn-reader-like ${post.likedByUser ? 'liked' : ''}" title="Clap / Applaud">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="${post.likedByUser ? '#e11d48' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <span class="reader-like-count">${esc(post.likes || 0)}</span>
+          </button>
+
+          <button type="button" class="reader-action-pill btn-reader-scroll-discuss" title="Jump to comments">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span class="reader-comment-count">${postComments.length}</span>
+          </button>
+        </div>
+
+        <div class="reader-action-group">
+          <button type="button" class="reader-action-pill btn-reader-bookmark ${post.bookmarkedByUser ? 'bookmarked' : ''}" title="Save story">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="${post.bookmarkedByUser ? 'var(--accent-primary)' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+            <span>Save</span>
+          </button>
+          <button type="button" class="reader-action-pill btn-reader-share" title="Share story link">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+            <span>Share</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Author Bio Footer Card -->
+      <div class="reader-author-bio-card">
+        <div class="reader-bio-avatar">${esc(initials)}</div>
+        <div class="reader-bio-info">
+          <div class="reader-bio-eyebrow">WRITTEN BY</div>
+          <div class="reader-bio-name">${esc(post.author)}</div>
+          <div class="reader-bio-text">
+            Writer and thinker on Readora publishing essays, observations, and deep dives.
+          </div>
+          <div class="reader-bio-actions">
+            <a href="${profileLink(post.handle)}" class="btn-dash-action" style="text-decoration:none;">View Publication ➔</a>
+            ${!isOwner ? `
+              <button type="button" class="btn-reader-follow" data-author-id="${esc(post.author_id || post.handle)}">
+                + Follow
+              </button>
+            ` : ''}
           </div>
         </div>
-        <a href="${profileLink(post.handle)}" class="btn-dash-action" style="text-decoration:none;">View Profile ➔</a>
       </div>
+
+      <!-- Interactive Comments Discussion -->
+      <section class="reader-comments-section" id="reader-comments-section">
+        <div class="reader-comments-header">
+          <h2 class="reader-comments-title">Discussion (<span id="reader-comments-num">${postComments.length}</span>)</h2>
+        </div>
+
+        <div class="reader-comment-input-box">
+          <textarea id="reader-comment-input" class="reader-comment-textarea" placeholder="What are your thoughts on this story? Share your perspective..."></textarea>
+          <div class="reader-comment-footer">
+            <button type="button" id="btn-reader-submit-comment" class="composer-btn-publish" style="padding: 0.45rem 1.15rem; font-size: 0.85rem;">
+              Respond
+            </button>
+          </div>
+        </div>
+
+        <div class="reader-comments-stream" id="reader-comments-stream">
+          ${postComments.length === 0 ? `
+            <div style="text-align:center; padding: 2rem 1rem; color: var(--text-dim); font-size: 0.9rem;">
+              No responses yet. Be the first to spark a conversation!
+            </div>
+          ` : postComments.map(c => {
+            const canDelete = this.currentUser && (
+              isOwner ||
+              (c.author_id && c.author_id === this.currentUser.id) ||
+              (c.user_id && c.user_id === this.currentUser.id) ||
+              (c.author && this.currentUser.name && c.author === this.currentUser.name)
+            );
+            return `
+              <div class="reader-comment-card" data-comment-id="${esc(c.id)}">
+                <div class="reader-comment-meta">
+                  <span class="reader-comment-author">${esc(c.author || 'Reader')}</span>
+                  <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span class="reader-comment-time">${esc(c.created_at ? timeAgo(c.created_at) : 'Recently')}</span>
+                    ${canDelete && c.id ? `
+                      <button type="button" class="btn-delete-reader-comment" data-comment-id="${esc(c.id)}" title="Delete response" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:1.1rem; line-height:1;">&times;</button>
+                    ` : ''}
+                  </div>
+                </div>
+                <p class="reader-comment-body">${esc(c.text)}</p>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </section>
 
       <!-- Related Reads -->
       ${related && related.length > 0 ? `
-        <div class="related-articles-section">
-          <div class="related-articles-title">Related Stories & Insights</div>
-          <div class="related-articles-grid">
+        <section class="reader-related-section">
+          <h2 class="reader-related-title">Recommended Stories</h2>
+          <div class="reader-related-grid">
             ${related.map(rel => `
-              <div class="related-article-card" data-rel-id="${esc(rel.id)}">
-                <span class="card-tag ${this.getCategoryClass(rel.category)}" style="margin-bottom: 0.35rem;">${esc(rel.category || 'Article')}</span>
-                <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem; margin-bottom: 0.35rem; line-height: 1.3;">${esc(rel.title)}</div>
-                <div style="font-size: 0.78rem; color: var(--text-dim);">${esc(rel.author)} • ${esc(rel.readTime || '3 min read')}</div>
+              <div class="reader-related-card" data-rel-id="${esc(rel.id)}">
+                <span class="card-tag ${this.getCategoryClass(rel.category)}" style="margin-bottom: 0.5rem; display: inline-block;">${esc(rel.category || 'Article')}</span>
+                <div style="font-family: var(--font-serif); font-weight: 700; color: var(--text-main); font-size: 1.05rem; margin-bottom: 0.4rem; line-height: 1.35;">${esc(rel.title)}</div>
+                <div style="font-size: 0.8rem; color: var(--text-dim);">${esc(rel.author)} • ${esc(rel.readTime || '3 min read')}</div>
               </div>
             `).join('')}
           </div>
-        </div>
+        </section>
       ` : ''}
     `;
 
-    // Wire actions inside the article modal
-    const likeBtn = contentBox.querySelector('.btn-like');
-    if (likeBtn) likeBtn.addEventListener('click', () => this.toggleLike(post.id));
-    const bmBtn = contentBox.querySelector('.btn-bookmark');
-    if (bmBtn) bmBtn.addEventListener('click', () => this.toggleBookmark(post.id));
-    const shareBtn = contentBox.querySelector('.btn-share');
-    if (shareBtn) shareBtn.addEventListener('click', () => this.sharePost(post));
+    // Wire Top Actions
+    const fontToggleBtn = document.getElementById('reader-btn-font-toggle');
+    if (fontToggleBtn) {
+      fontToggleBtn.onclick = () => {
+        const prose = document.getElementById('reader-prose-body');
+        if (!prose) return;
+        if (!prose.classList.contains('font-size-comfortable') && !prose.classList.contains('font-size-large')) {
+          prose.classList.add('font-size-comfortable');
+        } else if (prose.classList.contains('font-size-comfortable')) {
+          prose.classList.remove('font-size-comfortable');
+          prose.classList.add('font-size-large');
+        } else {
+          prose.classList.remove('font-size-large');
+        }
+      };
+    }
 
-    contentBox.querySelectorAll('.related-article-card').forEach(card => {
+    const topBmBtn = document.getElementById('reader-btn-bookmark');
+    if (topBmBtn) {
+      topBmBtn.classList.toggle('bookmarked', !!post.bookmarkedByUser);
+      topBmBtn.onclick = async () => {
+        await this.toggleBookmark(post.id);
+        topBmBtn.classList.toggle('bookmarked', !!post.bookmarkedByUser);
+        const inBm = contentBox.querySelector('.btn-reader-bookmark');
+        if (inBm) inBm.classList.toggle('bookmarked', !!post.bookmarkedByUser);
+      };
+    }
+
+    const topShareBtn = document.getElementById('reader-btn-share');
+    if (topShareBtn) {
+      topShareBtn.onclick = () => this.sharePost(post);
+    }
+
+    // Wire In-Canvas Actions
+    const likeBtn = contentBox.querySelector('.btn-reader-like');
+    if (likeBtn) {
+      likeBtn.addEventListener('click', async () => {
+        await this.toggleLike(post.id);
+        likeBtn.classList.toggle('liked', !!post.likedByUser);
+        const countSpan = likeBtn.querySelector('.reader-like-count');
+        if (countSpan) countSpan.textContent = post.likes || 0;
+      });
+    }
+
+    const inBmBtn = contentBox.querySelector('.btn-reader-bookmark');
+    if (inBmBtn) {
+      inBmBtn.addEventListener('click', async () => {
+        await this.toggleBookmark(post.id);
+        inBmBtn.classList.toggle('bookmarked', !!post.bookmarkedByUser);
+        if (topBmBtn) topBmBtn.classList.toggle('bookmarked', !!post.bookmarkedByUser);
+      });
+    }
+
+    const inShareBtn = contentBox.querySelector('.btn-reader-share');
+    if (inShareBtn) {
+      inShareBtn.addEventListener('click', () => this.sharePost(post));
+    }
+
+    const scrollDiscussBtn = contentBox.querySelector('.btn-reader-scroll-discuss');
+    if (scrollDiscussBtn) {
+      scrollDiscussBtn.addEventListener('click', () => {
+        const sec = document.getElementById('reader-comments-section');
+        if (sec) sec.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+
+    // Wire Follow Buttons
+    contentBox.querySelectorAll('.btn-reader-follow').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (post.author_id) await this.toggleFollow(post.author_id);
+      });
+    });
+
+    // Wire Comment Submission inside Reader
+    const submitCommentBtn = document.getElementById('btn-reader-submit-comment');
+    const commentInput = document.getElementById('reader-comment-input');
+    if (submitCommentBtn && commentInput) {
+      submitCommentBtn.addEventListener('click', async () => {
+        const val = commentInput.value.trim();
+        if (!val) return;
+        await this.addComment(post.id, commentInput);
+        // Refresh comments in reader view
+        this.openFullArticle(post.id, false);
+      });
+    }
+
+    // Wire Comment Deletion inside Reader
+    contentBox.querySelectorAll('.btn-delete-reader-comment').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await this.deleteComment(post.id, btn.dataset.commentId);
+        this.openFullArticle(post.id, false);
+      });
+    });
+
+    // Wire Related Story Clicks
+    contentBox.querySelectorAll('.reader-related-card').forEach(card => {
       card.addEventListener('click', () => {
         this.openFullArticle(card.dataset.relId);
       });
@@ -3827,6 +4080,82 @@ class ReadoraApp {
   render() {
     if (!this.postsContainer) return;
 
+    // Populate Editorial Lead Story and Numbered Trending Strip if available
+    const leadSec = document.getElementById('editorial-lead-section');
+    const trendGrid = document.getElementById('editorial-trending-grid');
+    const discoveryMasthead = document.getElementById('editorial-discovery-masthead');
+
+    if (discoveryMasthead) {
+      if (this.currentFilter !== 'all' || this.activeSearchQuery) {
+        discoveryMasthead.style.display = 'none';
+      } else {
+        discoveryMasthead.style.display = 'flex';
+      }
+    }
+
+    const articles = this.posts.filter(p => p.type === 'article');
+    if (leadSec && articles.length > 0) {
+      const lead = articles[0];
+      const leadCover = safeUrl(lead.coverImage) || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=1000&auto=format&fit=crop';
+      const initials = lead.avatar || (lead.author ? lead.author.substring(0, 2).toUpperCase() : 'CR');
+      leadSec.innerHTML = `
+        <div class="lead-story-inner">
+          <div class="lead-story-media btn-lead-open" data-id="${esc(lead.id)}">
+            <img src="${esc(leadCover)}" class="lead-story-img" alt="Lead Cover" onerror="this.style.display='none';" />
+          </div>
+          <div class="lead-story-content">
+            <div class="lead-story-eyebrow">
+              <span class="lead-badge">FEATURED ESSAY</span>
+              <span class="lead-category">${esc(lead.category || 'Thought Leadership')}</span>
+            </div>
+            <h2 class="lead-story-title btn-lead-open" data-id="${esc(lead.id)}">${esc(lead.title)}</h2>
+            <p class="lead-story-excerpt">${esc(lead.subtitle || lead.excerpt)}</p>
+            <div class="lead-story-author-bar">
+              <a class="lead-author-left author-link" href="${profileLink(lead.handle)}">
+                <div class="author-avatar" style="width:36px; height:36px; font-size:0.85rem;">${esc(initials)}</div>
+                <div>
+                  <div style="font-weight:700; font-size:0.88rem; color:var(--text-main);">${esc(lead.author)}</div>
+                  <div style="font-size:0.75rem; color:var(--text-dim);">${esc(lead.readTime || '4 min read')} • ${esc(lead.timestamp || 'Today')}</div>
+                </div>
+              </a>
+              <button type="button" class="lead-read-btn btn-lead-open" data-id="${esc(lead.id)}">
+                <span>Read Story</span> ➔
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      leadSec.querySelectorAll('.btn-lead-open').forEach(btn => {
+        btn.addEventListener('click', () => this.openFullArticle(btn.dataset.id));
+      });
+    }
+
+    if (trendGrid && articles.length > 1) {
+      const topTrends = articles.slice(1, 4);
+      trendGrid.innerHTML = topTrends.map((t, idx) => {
+        const initials = t.avatar || (t.author ? t.author.substring(0, 2).toUpperCase() : 'CR');
+        const numStr = String(idx + 1).padStart(2, '0');
+        return `
+          <div class="trending-card-item btn-trend-open" data-id="${esc(t.id)}">
+            <span class="trending-card-num">${numStr}</span>
+            <div class="trending-card-info">
+              <div class="trending-card-author">
+                <div class="author-avatar" style="width:20px; height:20px; font-size:0.65rem;">${esc(initials)}</div>
+                <span class="trending-card-author-name">${esc(t.author)}</span>
+              </div>
+              <h3 class="trending-card-title">${esc(t.title)}</h3>
+              <div class="trending-card-meta">${esc(t.category || 'Article')} • ${esc(t.readTime || '3 min read')}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      trendGrid.querySelectorAll('.btn-trend-open').forEach(card => {
+        card.addEventListener('click', () => this.openFullArticle(card.dataset.id));
+      });
+    }
+
     let filtered = this.posts.filter(post => {
       if (this.currentFilter === 'thoughts' && post.type !== 'thought') return false;
       if (this.currentFilter === 'articles' && post.type !== 'article') return false;
@@ -3850,8 +4179,8 @@ class ReadoraApp {
 
     if (filtered.length === 0) {
       let icon = '✍️';
-      let title = 'No posts found';
-      let text = 'Try selecting a different filter or be the first to share your thoughts!';
+      let title = 'No stories found';
+      let text = 'Try selecting a different filter or be the first to publish a story!';
       if (this.currentFilter === 'following') {
         icon = '👥';
         title = this.token ? 'Your Following feed is empty' : 'Log in to see your Following feed';
@@ -3860,13 +4189,13 @@ class ReadoraApp {
           : 'Posts from the creators you follow will appear here once you log in.';
       } else if (this.currentFilter === 'saved') {
         icon = '🔖';
-        title = 'No saved posts yet';
-        text = 'Tap the bookmark on any post to keep it here.';
+        title = 'No saved stories yet';
+        text = 'Tap the bookmark on any story to keep it in your personal reading list.';
       }
       this.postsContainer.innerHTML = `
-        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg);">
+        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-card);">
           <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${icon}</div>
-          <h3 style="color: #fff; font-size: 1.25rem; margin-bottom: 0.35rem;">${title}</h3>
+          <h3 style="color: var(--text-main); font-size: 1.25rem; margin-bottom: 0.35rem;">${title}</h3>
           <p style="color: var(--text-dim); font-size: 0.9rem;">${text}</p>
         </div>
       `;
@@ -4016,11 +4345,11 @@ class ReadoraApp {
 
   renderThoughtCard(post) {
     return `
-      <article class="thought-card" data-id="${esc(post.id)}">
+      <article class="thought-card editorial-card-thought" data-id="${esc(post.id)}">
         ${this.renderCardHeader(post, '', 'Delete Thought')}
 
-        <div class="thought-canvas">
-          <p class="thought-text">${esc(post.content)}</p>
+        <div class="thought-quote-container">
+          <p class="thought-quote-text">"${esc(post.content)}"</p>
         </div>
 
         ${this.renderActionBar(post)}
@@ -4048,29 +4377,33 @@ class ReadoraApp {
 
   renderArticleCard(post) {
     const cover = safeUrl(post.coverImage);
+    const catClass = this.getCategoryClass(post.category);
     return `
-      <article class="thought-card article-card" data-id="${esc(post.id)}">
-        <div style="padding: 0 0 0.5rem 0;">
-          <div class="article-badge-row">
-            <span>📖 In-Depth Read</span>
-            <span>•</span>
-            <span>${esc(post.readTime || '3 min read')}</span>
+      <article class="thought-card editorial-card-standard" data-id="${esc(post.id)}">
+        <div class="standard-card-layout">
+          <div class="standard-card-left">
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+              <span class="card-tag ${catClass}">${esc(post.category || 'Article')}</span>
+              <span style="font-size:0.75rem; color:var(--text-dim);">•</span>
+              <span style="font-size:0.78rem; color:var(--text-dim); font-weight:500;">${esc(post.readTime || '3 min read')}</span>
+            </div>
+
+            ${this.renderCardHeader(post, '', 'Delete Story')}
+
+            <h2 class="standard-card-title btn-read-article" data-id="${esc(post.id)}">${esc(post.title)}</h2>
+            ${post.subtitle ? `<div class="standard-card-subtitle">${esc(post.subtitle)}</div>` : ''}
+            <p class="standard-card-excerpt">${esc(post.excerpt)}</p>
+
+            ${this.renderActionBar(post)}
           </div>
+
+          ${cover ? `
+            <div class="standard-card-right btn-read-article" data-id="${esc(post.id)}">
+              <img src="${esc(cover)}" class="standard-card-thumb" alt="Cover" loading="lazy" onerror="this.parentElement.style.display='none';" />
+            </div>
+          ` : ''}
         </div>
 
-        ${this.renderCardHeader(post, '', 'Delete Article')}
-
-        <div class="article-content-body">
-          ${cover ? `<img src="${esc(cover)}" class="article-card-cover" alt="Article Cover" loading="lazy" onerror="this.onerror=null; this.style.display='none';" />` : ''}
-          <h2 class="article-title">${esc(post.title)}</h2>
-          ${post.subtitle ? `<div class="article-subtitle" style="font-size: 0.95rem; color: var(--text-dim); margin-bottom: 0.75rem; font-style: italic;">${esc(post.subtitle)}</div>` : ''}
-          <p class="article-excerpt">${esc(post.excerpt)}</p>
-          <div class="read-more-btn btn-read-article" data-id="${esc(post.id)}">
-            Read Full Article ➔
-          </div>
-        </div>
-
-        ${this.renderActionBar(post)}
         ${this.renderCommentsDrawer(post)}
       </article>
     `;
