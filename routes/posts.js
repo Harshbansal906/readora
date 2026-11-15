@@ -85,11 +85,17 @@ async function formatPosts(rawPosts, currentUserId) {
 // (so a renamed profile is respected immediately), guests fall back to what the request says.
 async function resolveAuthor(req, body) {
   if (req.user) {
-    const u = await db.getAsync(`SELECT id, name, handle, avatar FROM users WHERE id = ?`, [req.user.id]);
+    const u = await db.getAsync(`SELECT id, name, handle, avatar, avatar_url FROM users WHERE id = ?`, [req.user.id]);
     if (u) {
-      return { id: u.id, name: u.name, handle: u.handle, avatar: u.avatar || (u.name || 'CR').substring(0, 2).toUpperCase() };
+      return { 
+        id: u.id, 
+        name: u.name, 
+        handle: u.handle, 
+        avatar: u.avatar || (u.name || 'CR').substring(0, 2).toUpperCase(),
+        avatar_url: u.avatar_url || null
+      };
     }
-    return { id: req.user.id, name: req.user.name, handle: req.user.handle, avatar: req.user.avatar };
+    return { id: req.user.id, name: req.user.name, handle: req.user.handle, avatar: req.user.avatar, avatar_url: req.user.avatar_url || null };
   }
   return {
     id: 'usr_guest_' + Date.now(),
@@ -160,7 +166,7 @@ router.get(['/user/:handle', '/profile/:handle'], optionalAuthMiddleware, async 
     if (!handle.startsWith('@')) handle = '@' + handle;
 
     const user = await db.getAsync(
-      `SELECT id, name, handle, avatar, bio, created_at FROM users WHERE LOWER(handle) = ?`,
+      `SELECT id, name, handle, avatar, avatar_url, bio, created_at FROM users WHERE LOWER(handle) = ?`,
       [handle]
     );
     if (!user) {
@@ -192,6 +198,7 @@ router.get(['/user/:handle', '/profile/:handle'], optionalAuthMiddleware, async 
         name: user.name,
         handle: user.handle,
         avatar: user.avatar || (user.name || 'CR').substring(0, 2).toUpperCase(),
+        avatar_url: user.avatar_url || null,
         bio: user.bio || '',
         joinedAt: user.created_at,
         isMe: !!currentUserId && currentUserId === user.id,

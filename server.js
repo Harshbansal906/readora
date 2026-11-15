@@ -14,6 +14,7 @@ const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 const aiRoutes = require('./routes/ai');
 const uploadRoutes = require('./routes/upload');
+const userRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,6 +54,7 @@ app.use(express.static(path.join(__dirname)));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
 

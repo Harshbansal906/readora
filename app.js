@@ -660,6 +660,10 @@ class ReadoraApp {
       const saved = document.getElementById('saved-view');
       if (saved) saved.style.display = 'block';
       this.renderSaved();
+    } else if (hash === '#/settings') {
+      const sett = document.getElementById('settings-view');
+      if (sett) sett.style.display = 'block';
+      this.renderSettings();
     } else {
       const feed = document.getElementById('feed-view');
       if (feed) feed.style.display = 'block';
@@ -672,6 +676,13 @@ class ReadoraApp {
     const home = document.getElementById('nav-home-btn');
     const explore = document.getElementById('nav-explore-btn');
     const saved = document.getElementById('nav-saved-btn');
+    const settings = document.getElementById('nav-settings-btn');
+
+    if (home) home.classList.toggle('active', !hash || hash === '#/');
+    if (explore) explore.classList.toggle('active', hash === '#/explore');
+    if (saved) saved.classList.toggle('active', hash === '#/saved');
+    if (settings) settings.classList.toggle('active', hash === '#/settings');
+  }
 
     if (home) home.classList.toggle('active', !hash || hash === '#/');
     if (explore) explore.classList.toggle('active', hash === '#/explore');
@@ -1202,6 +1213,244 @@ class ReadoraApp {
           : '<div class="editorial-empty-state"><p class="empty-state-text">No essays published under this author handle yet.</p></div>'}
       </div>
     `;
+  }
+
+  async renderSettings() {
+    const settView = document.getElementById('settings-view');
+    if (!settView) return;
+
+    if (!this.currentUser) {
+      settView.innerHTML = `
+        <div class="editorial-empty-state" style="padding: 3rem 1rem;">
+          <h3 class="empty-state-title">Account Login Required</h3>
+          <p class="empty-state-text">Please sign in to access your author profile and settings.</p>
+          <a href="login.html" class="empty-state-action" style="display:inline-block; margin-top:1rem; text-decoration:none;">Log In to Readora →</a>
+        </div>
+      `;
+      return;
+    }
+
+    const initials = (this.currentUser.name || 'CR').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const avatarImgHtml = this.currentUser.avatar_url
+      ? `<img id="settings-avatar-img" src="${esc(this.currentUser.avatar_url)}" alt="Profile photo of ${esc(this.currentUser.name)}" style="width:96px; height:96px; border-radius:var(--radius-sm); object-fit:cover; border:1px solid var(--rule);" />`
+      : `<div id="settings-avatar-img" class="user-monogram" style="width:96px; height:96px; font-size:1.8rem; border-radius:var(--radius-sm); border:1px solid var(--rule); display:flex; align-items:center; justify-content:center; background:var(--bg-paper-subtle); color:var(--accent); font-family:var(--font-serif);">${esc(initials)}</div>`;
+
+    settView.innerHTML = `
+      <div style="padding-bottom:1.5rem; margin-bottom:2rem; border-bottom:1px solid var(--rule);">
+        <h2 style="font-family:var(--font-serif); font-size:2.2rem; font-weight:500; margin-bottom:0.35rem;">
+          ${esc(t('nav_settings', 'Account Settings'))}
+        </h2>
+        <p style="color:var(--ink-muted); font-size:0.95rem;">
+          Manage your editorial profile, language preferences, and privacy controls.
+        </p>
+      </div>
+
+      <!-- Section: Profile Picture -->
+      <section style="margin-bottom:2.5rem; padding-bottom:2rem; border-bottom:1px solid var(--rule);">
+        <h3 style="font-family:var(--font-serif); font-size:1.4rem; font-weight:500; margin-bottom:1rem;">Profile Picture</h3>
+        <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap;">
+          <div id="settings-avatar-preview-wrap">
+            ${avatarImgHtml}
+          </div>
+          <div>
+            <input type="file" id="settings-avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
+              <button type="button" id="btn-pick-avatar" class="btn-icon-quiet" style="padding:0.5rem 1rem; border:1px solid var(--rule); font-size:0.85rem;">
+                Choose Photo
+              </button>
+              <button type="button" id="btn-save-avatar" class="btn-write-primary" style="padding:0.5rem 1rem; font-size:0.85rem; display:none;">
+                Save Photo
+              </button>
+              <button type="button" id="btn-remove-avatar" class="btn-icon-quiet" style="padding:0.5rem 1rem; border:1px solid var(--rule); color:var(--accent); font-size:0.85rem; ${this.currentUser.avatar_url ? '' : 'display:none;'}">
+                Remove Photo
+              </button>
+            </div>
+            <p style="font-size:0.8rem; color:var(--ink-muted); margin:0;">
+              JPEG, PNG, or WebP. Max 2MB. Square-cropped automatically into 512px and 128px high-density WebP.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Regional & Language Preferences -->
+      <section style="margin-bottom:2.5rem; padding-bottom:2rem; border-bottom:1px solid var(--rule);">
+        <h3 style="font-family:var(--font-serif); font-size:1.4rem; font-weight:500; margin-bottom:1rem;">Language & Regional Settings</h3>
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; font-size:0.85rem; font-weight:500; margin-bottom:0.5rem; color:var(--ink-secondary);">Interface Language</label>
+          <div style="display:flex; gap:0.75rem;">
+            <button type="button" id="btn-lang-en" class="filter-text-btn ${currentLang === 'en' ? 'active' : ''}">English</button>
+            <button type="button" id="btn-lang-hi" class="filter-text-btn ${currentLang === 'hi' ? 'active' : ''}">हिन्दी (Hindi)</button>
+          </div>
+        </div>
+        <div style="font-size:0.85rem; color:var(--ink-muted); margin-top:0.75rem;">
+          Default timezone: <strong>Asia/Kolkata (IST, UTC+05:30)</strong>. Timestamps stored in UTC and rendered in Indian Standard Time with Indian digit grouping (e.g. 1,00,000).
+        </div>
+      </section>
+
+      <!-- Section: Blocked Authors -->
+      <section style="margin-bottom:2.5rem; padding-bottom:2rem; border-bottom:1px solid var(--rule);">
+        <h3 style="font-family:var(--font-serif); font-size:1.4rem; font-weight:500; margin-bottom:1rem;">Blocked Writers</h3>
+        <div id="settings-blocked-list" style="font-size:0.9rem; color:var(--ink-muted);">
+          Loading blocked writers...
+        </div>
+      </section>
+
+      <!-- Section: Session & Danger Zone -->
+      <section style="margin-bottom:2.5rem;">
+        <h3 style="font-family:var(--font-serif); font-size:1.4rem; font-weight:500; margin-bottom:1rem; color:var(--accent);">Session</h3>
+        <button type="button" id="btn-settings-logout" class="btn-icon-quiet" style="padding:0.6rem 1.2rem; border:1px solid var(--accent); color:var(--accent); font-size:0.9rem;">
+          Log Out of Readora
+        </button>
+      </section>
+    `;
+
+    // Wire up Avatar File Input & Preview
+    let pendingAvatarFile = null;
+    const fileInput = document.getElementById('settings-avatar-file-input');
+    const pickBtn = document.getElementById('btn-pick-avatar');
+    const saveBtn = document.getElementById('btn-save-avatar');
+    const removeBtn = document.getElementById('btn-remove-avatar');
+    const previewWrap = document.getElementById('settings-avatar-preview-wrap');
+
+    if (pickBtn && fileInput) {
+      pickBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+          alert('Image exceeds 2MB limit. Please choose a smaller file.');
+          return;
+        }
+        pendingAvatarFile = file;
+        const objectUrl = URL.createObjectURL(file);
+        if (previewWrap) {
+          previewWrap.innerHTML = `<img src="${objectUrl}" alt="Profile photo preview of ${esc(this.currentUser.name)}" style="width:96px; height:96px; border-radius:var(--radius-sm); object-fit:cover; border:1px solid var(--accent);" />`;
+        }
+        if (saveBtn) saveBtn.style.display = 'inline-block';
+      });
+    }
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        if (!pendingAvatarFile) return;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Uploading...';
+        const formData = new FormData();
+        formData.append('avatar', pendingAvatarFile);
+        try {
+          const res = await fetch(`${this.apiBase}/api/users/avatar`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${this.token}` },
+            body: formData
+          });
+          const data = await res.json();
+          if (data.success) {
+            this.currentUser.avatar_url = data.avatarUrl;
+            localStorage.setItem('readora_current_user', JSON.stringify(this.currentUser));
+            this.updateUserUI();
+            this.showToast('Profile photo updated.');
+            this.renderSettings();
+          } else {
+            alert(data.message || 'Failed to upload avatar.');
+          }
+        } catch (err) {
+          alert('Upload failed. Please check network connection.');
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Photo';
+        }
+      });
+    }
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', async () => {
+        if (!confirm('Remove profile photo and revert to monogram initials?')) return;
+        try {
+          const res = await fetch(`${this.apiBase}/api/users/avatar`, {
+            method: 'DELETE',
+            headers: this.authHeaders()
+          });
+          const data = await res.json();
+          if (data.success) {
+            this.currentUser.avatar_url = null;
+            localStorage.setItem('readora_current_user', JSON.stringify(this.currentUser));
+            this.updateUserUI();
+            this.showToast('Profile photo removed.');
+            this.renderSettings();
+          }
+        } catch (e) {
+          alert('Failed to remove photo.');
+        }
+      });
+    }
+
+    // Language switch
+    const btnEn = document.getElementById('btn-lang-en');
+    const btnHi = document.getElementById('btn-lang-hi');
+    if (btnEn) {
+      btnEn.addEventListener('click', () => {
+        setLanguage('en');
+        this.renderSettings();
+      });
+    }
+    if (btnHi) {
+      btnHi.addEventListener('click', () => {
+        setLanguage('hi');
+        this.renderSettings();
+      });
+    }
+
+    // Blocked list
+    try {
+      const bRes = await fetch(`${this.apiBase}/api/users/blocked`, { headers: this.authHeaders() });
+      if (bRes.ok) {
+        const bData = await bRes.json();
+        const listEl = document.getElementById('settings-blocked-list');
+        if (listEl) {
+          if (bData.success && bData.blockedUsers && bData.blockedUsers.length > 0) {
+            listEl.innerHTML = bData.blockedUsers.map(u => `
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0; border-bottom:1px solid var(--rule);">
+                <div>
+                  <strong>${esc(u.name)}</strong> (${esc(u.handle)})
+                </div>
+                <button type="button" class="btn-icon-quiet" style="font-size:0.8rem; border:1px solid var(--rule); padding:0.3rem 0.6rem;" onclick="window.readoraApp.unblockUser('${esc(u.id)}')">
+                  Unblock
+                </button>
+              </div>
+            `).join('');
+          } else {
+            listEl.textContent = t('blocked_empty', 'You have not blocked any users.');
+          }
+        }
+      }
+    } catch (e) {}
+
+    // Logout
+    const logoutBtn = document.getElementById('btn-settings-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('readora_token');
+        localStorage.removeItem('readora_current_user');
+        window.location.hash = '#/';
+        window.location.reload();
+      });
+    }
+  }
+
+  async unblockUser(targetUserId) {
+    try {
+      const res = await fetch(`${this.apiBase}/api/users/${targetUserId}/block`, {
+        method: 'DELETE',
+        headers: this.authHeaders()
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast('User unblocked.');
+        this.renderSettings();
+      }
+    } catch (e) {
+      this.showToast('Failed to unblock.');
+    }
   }
 }
 
