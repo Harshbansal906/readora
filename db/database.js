@@ -279,6 +279,34 @@ async function initPostgres() {
   await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)`);
   await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC)`);
   await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_article_views_post ON article_views(post_id)`);
+
+  // Phase 3, 4, 6, 7 & 10 PostgreSQL Migrations
+  try { await db.runAsync(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(16) DEFAULT 'en'`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS language VARCHAR(16) DEFAULT 'en'`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS payload TEXT`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMP WITH TIME ZONE`); } catch(e) {}
+
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS friendships (
+      requester_id VARCHAR(64) NOT NULL,
+      addressee_id VARCHAR(64) NOT NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (requester_id, addressee_id),
+      CHECK (requester_id != addressee_id)
+    )
+  `);
+
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS blocks (
+      blocker_id VARCHAR(64) NOT NULL,
+      blocked_id VARCHAR(64) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (blocker_id, blocked_id),
+      CHECK (blocker_id != blocked_id)
+    )
+  `);
 }
 
 // SQLite Table Initialization
@@ -423,6 +451,80 @@ async function initSqlite() {
   await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)`);
   await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC)`);
   await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_article_views_post ON article_views(post_id)`);
+
+  // Phase 3, 4, 6, 7 & 10 PostgreSQL Migrations
+  try { await db.runAsync(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(16) DEFAULT 'en'`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS language VARCHAR(16) DEFAULT 'en'`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS payload TEXT`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMP WITH TIME ZONE`); } catch(e) {}
+
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS friendships (
+      requester_id VARCHAR(64) NOT NULL,
+      addressee_id VARCHAR(64) NOT NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (requester_id, addressee_id),
+      CHECK (requester_id != addressee_id)
+    )
+  `);
+
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS blocks (
+      blocker_id VARCHAR(64) NOT NULL,
+      blocked_id VARCHAR(64) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (blocker_id, blocked_id),
+      CHECK (blocker_id != blocked_id)
+    )
+  `);
+
+  // Phase 3, 4, 6, 7 & 10 Migrations (safe to run on existing tables)
+  try { await db.runAsync(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE posts ADD COLUMN language TEXT DEFAULT 'en'`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE notifications ADD COLUMN payload TEXT`); } catch(e) {}
+  try { await db.runAsync(`ALTER TABLE notifications ADD COLUMN read_at DATETIME`); } catch(e) {}
+
+  // Friendships Table (Phase 6)
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS friendships (
+      requester_id TEXT NOT NULL,
+      addressee_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending', -- 'pending' or 'accepted'
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (requester_id, addressee_id),
+      CHECK (requester_id != addressee_id)
+    )
+  `);
+  await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id, status)`);
+
+  // Blocks Table (Phase 6)
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS blocks (
+      blocker_id TEXT NOT NULL,
+      blocked_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (blocker_id, blocked_id),
+      CHECK (blocker_id != blocked_id)
+    )
+  `);
+  await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id)`);
+
+  // FTS5 Virtual Table for Fast Search (Phase 10)
+  try {
+    await db.runAsync(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
+        id UNINDEXED,
+        title,
+        subtitle,
+        content,
+        category,
+        author_name
+      )
+    `);
+  } catch(e) {}
 }
 
 async function seedInitialData() {

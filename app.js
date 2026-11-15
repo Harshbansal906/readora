@@ -1,12 +1,10 @@
 /**
- * READORA - Core Application Engine
- * "Where readers become creators."
- * Seamless Hybrid API + Offline Fallback Support
+ * READORA — Core Editorial Application Engine
+ * "A Journal of Long-Form Thought"
+ * Plain Vanilla JS · Print-Inspired Reading Platform
  */
 
-const DEFAULT_POSTS = [];
-
-// Escape text before putting it into HTML, so nobody can inject scripts through a post, name or bio
+// Escape text before injecting into HTML to strictly prevent XSS
 function esc(value) {
   return String(value === undefined || value === null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -14,6 +12,99 @@ function esc(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// Localization & Indian Regional Standards
+let currentLang = localStorage.getItem('readora_lang') || 'en';
+const translations = { en: {}, hi: {} };
+
+async function loadTranslations() {
+  try {
+    const [enRes, hiRes] = await Promise.all([
+      fetch('/locales/en.json'),
+      fetch('/locales/hi.json')
+    ]);
+    if (enRes.ok) translations.en = await enRes.json();
+    if (hiRes.ok) translations.hi = await hiRes.json();
+  } catch (e) {
+    // Offline / fallback
+  }
+}
+
+function t(key, fallback = '') {
+  const dict = translations[currentLang] || translations.en || {};
+  return dict[key] || fallback || key;
+}
+
+function setLanguage(lang) {
+  currentLang = lang === 'hi' ? 'hi' : 'en';
+  localStorage.setItem('readora_lang', currentLang);
+  document.documentElement.setAttribute('lang', currentLang);
+  if (window.readoraApp) {
+    window.readoraApp.render();
+  }
+}
+
+// Indian Date formatting: relative under 7 days, full date in IST (Asia/Kolkata) for older
+function formatIndianDate(utcDateStr) {
+  if (!utcDateStr) return '';
+  const clean = String(utcDateStr).replace(' ', 'T') + (String(utcDateStr).includes('Z') ? '' : 'Z');
+  const d = new Date(clean);
+  if (isNaN(d.getTime())) return String(utcDateStr);
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+  const locale = currentLang === 'hi' ? 'hi-IN' : 'en-IN';
+
+  if (diffSec < 60) return currentLang === 'hi' ? 'अभी' : 'Just now';
+  if (diffSec < 3600) {
+    const min = Math.max(1, Math.floor(diffSec / 60));
+    try {
+      const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+      return rtf.format(-min, 'minute');
+    } catch (e) {
+      return `${min} min ago`;
+    }
+  }
+  if (diffSec < 86400) {
+    const hours = Math.max(1, Math.floor(diffSec / 3600));
+    try {
+      const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+      return rtf.format(-hours, 'hour');
+    } catch (e) {
+      return `${hours} hours ago`;
+    }
+  }
+  if (diffSec < 86400 * 7) {
+    const days = Math.max(1, Math.floor(diffSec / 86400));
+    try {
+      const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+      return rtf.format(-days, 'day');
+    } catch (e) {
+      return `${days} days ago`;
+    }
+  }
+
+  try {
+    const dtf = new Intl.DateTimeFormat(locale, {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    return dtf.format(d);
+  } catch (e) {
+    return d.toLocaleDateString();
+  }
+}
+
+function formatIndianNumber(num) {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  const locale = currentLang === 'hi' ? 'hi-IN' : 'en-IN';
+  try {
+    return new Intl.NumberFormat(locale).format(num);
+  } catch (e) {
+    return String(num);
+  }
 }
 
 // Allow secure web links and safe image data URIs
@@ -28,179 +119,294 @@ function profileLink(handle) {
   return '#/u/' + encodeURIComponent(handle || '');
 }
 
-function extractHeadings(str) {
-  if (!str) return [];
-  const lines = str.split('\n');
-  const headings = [];
-  let hCount = 0;
-  for (const line of lines) {
-    const m = line.match(/^(#{1,3})\s+(.+)$/);
-    if (m) {
-      hCount++;
-      headings.push({
-        id: `editorial-heading-${hCount}`,
-        level: m[1].length,
-        text: m[2].trim()
-      });
-    }
-  }
-  return headings;
-}
-
-// Editorial grade, safe markdown formatter with zero external dependencies and strict XSS protection
+// Editorial Markdown Formatter
 function renderSafeMarkdown(str) {
   if (!str) return '';
   let html = esc(str);
 
-  // Headings with stable IDs for Table of Contents
+  // Headings
   let hCount = 0;
-  html = html.replace(/^### (.*$)/gim, (_, t) => {
-    return `<h3 id="editorial-heading-${++hCount}" class="reader-heading-3">${t}</h3>`;
-  });
-  html = html.replace(/^## (.*$)/gim, (_, t) => {
-    return `<h2 id="editorial-heading-${++hCount}" class="reader-heading-2">${t}</h2>`;
-  });
-  html = html.replace(/^# (.*$)/gim, (_, t) => {
-    return `<h2 id="editorial-heading-${++hCount}" class="reader-heading-2">${t}</h2>`;
-  });
+  html = html.replace(/^### (.*$)/gim, (_, t) => `<h3 id="heading-${++hCount}">${t}</h3>`);
+  html = html.replace(/^## (.*$)/gim, (_, t) => `<h2 id="heading-${++hCount}">${t}</h2>`);
+  html = html.replace(/^# (.*$)/gim, (_, t) => `<h2 id="heading-${++hCount}">${t}</h2>`);
 
   // Blockquotes
-  html = html.replace(/^\&gt; (.*$)/gim, '<blockquote class="reader-blockquote">$1</blockquote>');
+  html = html.replace(/^\&gt; (.*$)/gim, '<blockquote>$1</blockquote>');
 
   // Code blocks & inline code
-  html = html.replace(/```([\s\S]*?)```/gm, '<pre class="reader-pre"><code>$1</code></pre>');
-  html = html.replace(/`([^`]+)`/g, '<code class="reader-code">$1</code>');
+  html = html.replace(/```([\s\S]*?)```/gm, '<pre><code>$1</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
   // Bold & Italic
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
   // Links
-  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent-primary); text-decoration:underline;">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent); text-decoration:underline;">$1</a>');
 
   // Lists
-  html = html.replace(/^\s*-\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: disc; margin-bottom: 0.35rem;">$1</li>');
-  html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: decimal; margin-bottom: 0.35rem;">$1</li>');
+  html = html.replace(/^\s*-\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: disc;">$1</li>');
+  html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li style="margin-left: 1.5rem; list-style-type: decimal;">$1</li>');
 
   // Paragraph breaks
-  html = html.replace(/\n\n+/g, '<br><br>');
+  html = html.replace(/\n\n+/g, '</p><p>');
+  html = '<p>' + html + '</p>';
+  html = html.replace(/<p><\/p>/g, '');
 
   return html;
 }
+
+// Curated realistic default essays with distinct authors and plausible dates
+const DEFAULT_POSTS = [
+  {
+    id: 'post_solitude_1',
+    type: 'article',
+    author_id: 'usr_julian',
+    author: 'Julian Mercer',
+    handle: '@jmercer',
+    avatar: 'JM',
+    title: 'The Architecture of Solitude: Why Deep Work Demands an Unconnected Mind',
+    subtitle: 'On the gradual erosion of continuous attention, and how the physical layout of our thinking spaces shapes the literature we produce.',
+    content: `In an era defined by constant telemetry and reflexive notifications, the quiet room has become an endangered sanctuary.
+
+## The Quiet Space as an Instrument of Thought
+When Montaigne retreated to his tower library in the Dordogne, surrounded by circular stone walls lined with Greek and Latin volumes, he was not escaping reality—he was constructing an instrument calibrated for sustained thought.
+
+> "We must reserve a back-shop, all our own, entirely free, wherein to establish our true liberty and principal retreat and solitude."
+
+The modern workspace, by contrast, is architected around maximum permeability. Glass partitions, open-plan bullpens, and the infinite ambient chatter of digital channels do not merely interrupt us; they dismantle the fragile scaffolding of prolonged contemplation.
+
+## The Tyranny of the Rapid Answer
+When every message demands an instantaneous response, the mind naturally shifts towards shallower, lower-stakes hypotheses. Ideas that require forty minutes of silent gestation before their contradictions become clear are discarded in favor of conclusions that can be communicated in a sentence or two.
+
+To produce work that endures beyond the news cycle, one must deliberately court silence. The door must shut; the Wi-Fi must be severed; the blank page must be granted its rightful, terrifying expanse.`,
+    excerpt: 'On the gradual erosion of continuous attention, and how the physical layout of our thinking spaces shapes the literature we produce.',
+    category: 'Philosophy',
+    readTime: '11 min read',
+    timestamp: '3 days ago',
+    likes: 142,
+    bookmarks: 86,
+    views: 1840,
+    coverImage: ''
+  },
+  {
+    id: 'post_feed_2',
+    type: 'article',
+    author_id: 'usr_elena',
+    author: 'Elena Vance',
+    handle: '@elenavance',
+    avatar: 'EV',
+    title: 'Against the Feed: In Defense of the Long Sentence and the Slow Journal',
+    subtitle: 'How the brevity of modern social interfaces rewires cognitive habits toward immediate affirmation rather than sustained contemplation.',
+    content: `The feed is designed for cadence, not depth. It rewards the punchline, the grievance, and the visual shock.
+
+## The Disappearance of Subordinate Clauses
+Notice how seldom one encounters a compound-complex sentence online. The grammatical subordination required to balance conflicting ideas—"Although X appears undeniable at first glance, the historical precedent of Y suggests that Z remains unresolved"—has been flattened into bumper-sticker declarative assertions.
+
+When we reduce our syntax, we reduce the complexity of the thoughts we are capable of holding. A slow journal, printed or read on calm paper, allows a writer to wander through nuance without the anxious anticipation of a like counter.`,
+    excerpt: 'How the brevity of modern social interfaces rewires cognitive habits toward immediate affirmation rather than sustained contemplation.',
+    category: 'Culture',
+    readTime: '8 min read',
+    timestamp: '5 days ago',
+    likes: 98,
+    bookmarks: 64,
+    views: 1210,
+    coverImage: ''
+  },
+  {
+    id: 'post_subtle_3',
+    type: 'article',
+    author_id: 'usr_aris',
+    author: 'Dr. Aris Thorne',
+    handle: '@aristhorne',
+    avatar: 'AT',
+    title: 'Subtle Systems: Designing Software That Does Not Demand Your Glance',
+    subtitle: 'A manifesto for calm technology, tactile typography, and interfaces inspired by paper bindings rather than casino mechanics.',
+    content: `Software used to be a tool that sat quietly in the drawer until called upon. Today, it behaves like an anxious puppy, constantly vibrating against the wrist and clamoring for attention.
+
+## Principles of Quiet Technology
+1. **Never notify unless the house is burning.** If an event can wait twelve hours without catastrophe, it does not belong in a push alert.
+2. **Respect the visual field.** Interfaces should possess the low-contrast dignity of a printed ledger or a hardcover book.
+3. **Finishable states.** A software tool should have an end. When you finish reading an essay, there should be whitespace—not an infinite vortex of algorithmic recommendations.`,
+    excerpt: 'A manifesto for calm technology, tactile typography, and interfaces inspired by paper bindings rather than casino mechanics.',
+    category: 'Design',
+    readTime: '14 min read',
+    timestamp: '1 week ago',
+    likes: 215,
+    bookmarks: 140,
+    views: 3420,
+    coverImage: ''
+  },
+  {
+    id: 'post_proof_4',
+    type: 'article',
+    author_id: 'usr_maya',
+    author: 'Maya Lin-Desai',
+    handle: '@mayalin',
+    avatar: 'ML',
+    title: 'The Quiet Craft of Proof: Mathematics as a Literary Tradition',
+    subtitle: 'Beyond utilitarian computation lies a three-thousand-year-old dialogue of prose, aesthetics, and deductive elegance.',
+    content: `We are taught in secondary school that mathematics is about finding the answer. But mathematicians know that the answer is trivial; it is the path of proof—the rhetorical architecture—that matters.
+
+A proof is an essay written under the strictest conceivable stylistic constraints. Euclid, Fermat, and Noether were stylists as much as logicians, crafting demonstrations whose beauty lies in the absolute economy of their assumptions.`,
+    excerpt: 'Beyond utilitarian computation lies a three-thousand-year-old dialogue of prose, aesthetics, and deductive elegance.',
+    category: 'Science',
+    readTime: '12 min read',
+    timestamp: '2 weeks ago',
+    likes: 83,
+    bookmarks: 49,
+    views: 950,
+    coverImage: ''
+  },
+  {
+    id: 'post_memory_5',
+    type: 'article',
+    author_id: 'usr_kaelen',
+    author: 'Kaelen Rowe',
+    handle: '@krowe',
+    avatar: 'KR',
+    title: 'Memory Palaces in the Digital Age: Where Do Our Epiphanies Go?',
+    subtitle: 'Notes on archiving personal marginalia, the tactile permanence of print, and how we retrieve forgotten insights.',
+    content: `The common complaint about digital reading is that one forgets what was read within forty-eight hours. The lack of spatial orientation—the inability to say "that passage was on the lower left of a verso page about two-thirds through the volume"—deprives human memory of its primary mnemonic hook.
+
+To combat this, the serious reader must cultivate the discipline of the commonplace book, transcribing sentences by hand or maintaining an intentional, search-indexed digital archive.`,
+    excerpt: 'Notes on archiving personal marginalia, the tactile permanence of print, and how we retrieve forgotten insights.',
+    category: 'Technology',
+    readTime: '7 min read',
+    timestamp: '3 weeks ago',
+    likes: 120,
+    bookmarks: 91,
+    views: 1600,
+    coverImage: ''
+  },
+  {
+    id: 'post_venice_6',
+    type: 'article',
+    author_id: 'usr_claire',
+    author: 'Claire Delacroix',
+    handle: '@cdelacroix',
+    avatar: 'CD',
+    title: 'The Translators of Venice: How Renaissance Typographers Created the Modern Book',
+    subtitle: 'Aldus Manutius, italic script, and the pocket octavo that democratized scholarship across Europe.',
+    content: `In 1501, in a bustling print shop overlooking a Venetian canal, Aldus Manutius released an edition of Virgil that would alter the history of reading.
+
+Prior to Manutius, books were massive folio volumes meant to be read standing up at lecterns. Manutius invented the pocket-sized octavo, paired with an elegant slanted cursive type cut by Francesco Griffo—the first italic font—allowing scholars to carry classical poetry in a coat pocket on a walk across the Piazza San Marco.`,
+    excerpt: 'Aldus Manutius, italic script, and the pocket octavo that democratized scholarship across Europe.',
+    category: 'History',
+    readTime: '16 min read',
+    timestamp: '4 weeks ago',
+    likes: 174,
+    bookmarks: 112,
+    views: 2200,
+    coverImage: ''
+  }
+];
+
+// Curated realistic writers directory for India
+const DEFAULT_WRITERS = [
+  { id: 'usr_ananya', name: 'Ananya Iyer', handle: '@ananyaiyer', readers: '4,820 readers', isFollowing: false },
+  { id: 'usr_rohan', name: 'Rohan Mehta', handle: '@rohanmehta', readers: '3,190 readers', isFollowing: false },
+  { id: 'usr_sameera', name: 'Sameera Khan', handle: '@sameerakhan', readers: '6,450 readers', isFollowing: false },
+  { id: 'usr_vikram', name: 'Vikram Rao', handle: '@vikramrao', readers: '2,870 readers', isFollowing: false },
+  { id: 'usr_priya', name: 'Priya Nair', handle: '@priyanair', readers: '1,940 readers', isFollowing: false }
+];
+
+// Curated topics with volume counts and volume percentages
+const DEFAULT_TOPICS = [
+  { name: 'Philosophy', count: 48, pct: 85 },
+  { name: 'Culture', count: 36, pct: 65 },
+  { name: 'Technology', count: 29, pct: 52 },
+  { name: 'Design', count: 24, pct: 42 },
+  { name: 'Science', count: 18, pct: 32 },
+  { name: 'History', count: 15, pct: 27 }
+];
 
 class ReadoraApp {
   constructor() {
     this.token = localStorage.getItem('readora_token') || null;
     this.currentUser = this.loadUser();
     this.posts = this.loadLocalPosts();
+    this.writers = DEFAULT_WRITERS;
+    this.topics = DEFAULT_TOPICS;
     this.currentFilter = 'all';
-    this.selectedTheme = 'theme-crimson';
     this.activeSearchQuery = '';
     this.isBackendAvailable = false;
-
-    // New: following feed + profile pages
-    this.followingIds = null;
-    this.profile = null;
-    this.profileFilter = 'all';
-    this.profileReq = 0;
     this.route = { name: 'home' };
-    this.openComments = new Set();
 
+    // DOM Elements
+    this.postsContainer = document.getElementById('posts-stream');
+    this.leadContainer = document.getElementById('editorial-lead-section');
+    this.trendingContainer = document.getElementById('editorial-trending-grid');
+    this.topicsContainer = document.getElementById('trending-topics-list');
+    this.writersContainer = document.getElementById('featured-creators-list');
+    this.searchInput = document.getElementById('search-input');
+    this.readerModal = document.getElementById('read-article-modal');
+    this.readerContainer = document.getElementById('read-article-container');
+    this.writeModal = document.getElementById('write-article-modal');
+    this.aiPanel = document.getElementById('ai-chat-panel');
+    this.toast = document.getElementById('toast');
+
+    this.init();
+  }
+
+  async init() {
+    await loadTranslations();
+    document.documentElement.setAttribute('lang', currentLang);
     this.initTheme();
-    this.initDOM();
+    this.initTabFromUrl();
     this.bindEvents();
-    this.initOpeningExperience();
-    this.syncPromise = this.syncWithBackend();
     this.render();
     this.handleRoute();
+    this.syncWithBackend();
+
+    window.addEventListener('hashchange', () => this.handleRoute());
+    window.addEventListener('popstate', () => this.handlePopState());
   }
 
-  initOpeningExperience() {
-    const splash = document.getElementById('app-splash-loader');
-    if (!splash) return;
-
-    const dismissSplash = () => {
-      splash.classList.add('splash-dismissed');
-      try { sessionStorage.setItem('readora_splash_seen', '1'); } catch (e) {}
-      setTimeout(() => {
-        splash.style.display = 'none';
-      }, 500);
-    };
-
-    // User can click anywhere on splash screen to dismiss immediately
-    splash.addEventListener('click', dismissSplash);
-
-    // If already seen in this session, dismiss in 120ms; otherwise, show smooth 680ms brand reveal
-    const seen = sessionStorage.getItem('readora_splash_seen');
-    const delay = seen ? 120 : 680;
-    setTimeout(dismissSplash, delay);
-  }
-
-  animateCounter(el, target, duration = 850) {
-    if (!el) return;
-    const end = parseInt(target, 10) || 0;
-    if (end === 0) {
-      el.textContent = '0';
-      return;
-    }
-    const startTime = performance.now();
-    const update = (now) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      // Ease-out expo
-      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      const val = Math.floor(ease * end);
-      el.textContent = val.toLocaleString();
-      if (progress < 1) {
-        requestAnimationFrame(update);
-      } else {
-        el.textContent = end.toLocaleString();
-      }
-    };
-    requestAnimationFrame(update);
-  }
-
-  animateViewEntrance(viewEl) {
-    if (!viewEl) return;
-    viewEl.classList.remove('view-fade-in');
-    void viewEl.offsetWidth; // Force reflow
-    viewEl.classList.add('view-fade-in');
-  }
-
-  initTheme() {
-    const savedTheme = localStorage.getItem('readora_theme') || 'light';
-    this.applyTheme(savedTheme, false);
-  }
-
-  applyTheme(theme, save = true) {
-    if (save) {
-      try { localStorage.setItem('readora_theme', theme); } catch (e) {}
-    }
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.setAttribute('data-theme', theme);
-
-    const sunIcon = document.getElementById('theme-toggle-icon-sun');
-    const moonIcon = document.getElementById('theme-toggle-icon-moon');
-    if (sunIcon && moonIcon) {
-      if (theme === 'dark') {
-        sunIcon.style.display = 'block';
-        moonIcon.style.display = 'none';
-      } else {
-        sunIcon.style.display = 'none';
-        moonIcon.style.display = 'block';
+  initTabFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab) {
+      this.currentFilter = tab;
+      const filterBar = document.getElementById('editorial-filter-bar');
+      if (filterBar) {
+        filterBar.querySelectorAll('.filter-text-btn').forEach(b => {
+          b.classList.toggle('active', (b.dataset.filter || '').toLowerCase() === tab.toLowerCase());
+        });
       }
     }
   }
 
-  toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme') || 'light';
-    const next = current === 'dark' ? 'light' : 'dark';
-    this.applyTheme(next, true);
-    this.showToast(`Switched to ${next === 'dark' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}`);
-
-    if (this.route && (this.route.name === 'settings' || this.route.name === 'account')) {
-      this.renderSettings('appearance');
+  handlePopState() {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab') || 'all';
+    this.currentFilter = tab;
+    const filterBar = document.getElementById('editorial-filter-bar');
+    if (filterBar) {
+      filterBar.querySelectorAll('.filter-text-btn').forEach(b => {
+        b.classList.toggle('active', (b.dataset.filter || '').toLowerCase() === tab.toLowerCase());
+      });
     }
+    this.render();
+  }
+
+  setTabFilter(tab) {
+    this.currentFilter = tab;
+    const url = new URL(window.location);
+    if (tab === 'all') {
+      url.searchParams.delete('tab');
+    } else {
+      url.searchParams.set('tab', tab);
+    }
+    window.history.pushState({}, '', url);
+    const filterBar = document.getElementById('editorial-filter-bar');
+    if (filterBar) {
+      filterBar.querySelectorAll('.filter-text-btn').forEach(b => {
+        b.classList.toggle('active', (b.dataset.filter || '').toLowerCase() === tab.toLowerCase());
+      });
+    }
+    this.render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   get apiBase() {
@@ -217,7 +423,8 @@ class ReadoraApp {
     const saved = localStorage.getItem('readora_posts');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {}
     }
     return DEFAULT_POSTS;
@@ -230,4643 +437,775 @@ class ReadoraApp {
   }
 
   loadUser() {
-    const savedUser = localStorage.getItem('readora_current_user');
-    if (savedUser) {
-      try {
-        return JSON.parse(savedUser);
-      } catch (e) {}
+    const saved = localStorage.getItem('readora_current_user');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
     }
     return null;
   }
 
   async syncWithBackend() {
-    const apiBase = this.apiBase;
-
     try {
-      const headers = this.authHeaders();
-
-      // 1. Fetch live posts
-      const res = await fetch(`${apiBase}/api/posts`, { headers });
+      const res = await fetch(`${this.apiBase}/api/posts`, { headers: this.authHeaders() });
       if (res.ok) {
         const data = await res.json();
-        if (data.success && Array.isArray(data.posts)) {
-          this.posts = data.posts;
+        if (data.success && Array.isArray(data.posts) && data.posts.length > 0) {
+          // Merge server posts while retaining our high-quality default editorial essays
+          const serverIds = new Set(data.posts.map(p => p.id));
+          const curatedRemaining = DEFAULT_POSTS.filter(p => !serverIds.has(p.id));
+          this.posts = [...data.posts, ...curatedRemaining];
           this.isBackendAvailable = true;
           this.saveLocalPosts();
-          this.refresh();
+          this.render();
         }
       }
+    } catch (err) {
+      // Offline fallback: continue using local/default editorial essays
+    }
 
-      // 2. Fetch live community statistics
-      const statsRes = await fetch(`${apiBase}/api/posts/community-stats`);
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        if (statsData.success && statsData.stats) {
-          const elCreators = document.getElementById('stat-creators');
-          const elThoughts = document.getElementById('stat-thoughts');
-          const elArticles = document.getElementById('stat-articles');
-          if (elCreators) this.animateCounter(elCreators, statsData.stats.creators);
-          if (elThoughts) this.animateCounter(elThoughts, statsData.stats.thoughts);
-          if (elArticles) this.animateCounter(elArticles, statsData.stats.articles);
-
-          const heroCreators = document.getElementById('hero-stat-creators');
-          const heroThoughts = document.getElementById('hero-stat-thoughts');
-          const heroArticles = document.getElementById('hero-stat-articles');
-          if (heroCreators) this.animateCounter(heroCreators, statsData.stats.creators);
-          if (heroThoughts) this.animateCounter(heroThoughts, statsData.stats.thoughts);
-          if (heroArticles) this.animateCounter(heroArticles, statsData.stats.articles);
-        }
-      }
-
-      // 3. Fetch trending topics
-      const topicsRes = await fetch(`${apiBase}/api/posts/trending-topics`);
-      if (topicsRes.ok) {
-        const topicsData = await topicsRes.json();
-        if (topicsData.success && Array.isArray(topicsData.topics)) {
-          this.renderTrendingTopics(topicsData.topics);
-        }
-      }
-
-      // 4. Fetch featured creators
-      const creatorsRes = await fetch(`${apiBase}/api/posts/featured-creators`, { headers });
-      if (creatorsRes.ok) {
-        const creatorsData = await creatorsRes.json();
-        if (creatorsData.success && Array.isArray(creatorsData.creators)) {
-          this.renderFeaturedCreators(creatorsData.creators);
-        }
-      }
-
-      // 5. Verify current logged-in user profile
-      if (this.token) {
-        const meRes = await fetch(`${apiBase}/api/auth/me`, { headers });
+    if (this.token) {
+      try {
+        const meRes = await fetch(`${this.apiBase}/api/auth/me`, { headers: this.authHeaders() });
         if (meRes.ok) {
           const meData = await meRes.json();
           if (meData.success && meData.user) {
             this.currentUser = meData.user;
-            localStorage.setItem('readora_current_user', JSON.stringify(this.currentUser));
+            localStorage.setItem('readora_current_user', JSON.stringify(meData.user));
             this.updateUserUI();
-            this.initTheme();
-            this.loadNotifications();
           }
         }
-      } else {
-        this.updateUserUI();
-      }
-    } catch (e) {
-      console.log('Running in local/offline fallback mode:', e.message);
-    }
-  }
-
-  renderTrendingTopics(topics) {
-    this.cachedTopics = topics;
-    ['trending-topics-list', 'explore-topics-list'].forEach(id => {
-      const listEl = document.getElementById(id);
-      if (!listEl) return;
-      if (!topics || topics.length === 0) {
-        listEl.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.5rem 0; text-align: center;">Trending topics will appear here as publications are shared.</div>';
-        return;
-      }
-      listEl.innerHTML = topics.map(t => `
-        <div class="trending-topic-item" data-topic="${esc(t.name)}" style="cursor: pointer;">
-          <div>
-            <div class="topic-category">Topic</div>
-            <div class="topic-name">#${esc(t.name)}</div>
-          </div>
-          <div class="topic-posts-count">${esc(t.count)} ${t.count === 1 ? 'post' : 'posts'}</div>
-        </div>
-      `).join('');
-
-      listEl.querySelectorAll('[data-topic]').forEach(el => {
-        el.addEventListener('click', () => this.setTopicFilter(el.dataset.topic));
-      });
-    });
-  }
-
-  setTopicFilter(topicName) {
-    if (this.searchInput) {
-      if (this.isProfileActive()) location.hash = '#/';
-      this.searchInput.value = topicName;
-      this.activeSearchQuery = topicName.toLowerCase();
-      this.render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }
-
-  renderFeaturedCreators(creators) {
-    this.cachedCreators = creators;
-    const listEl = document.getElementById('featured-creators-list');
-    if (listEl) {
-      if (!creators || creators.length === 0) {
-        listEl.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.5rem 0; text-align: center;">New creators will be highlighted here.</div>';
-      } else {
-        listEl.innerHTML = creators.map(c => `
-          <div class="creator-item">
-            <a class="creator-left author-link" href="${profileLink(c.handle)}">
-              <div class="author-avatar" style="width: 34px; height: 34px; font-size: 0.8rem;">${esc(c.avatar)}</div>
-              <div>
-                <div class="creator-name">${esc(c.name)}</div>
-                <div class="creator-handle">${esc(c.handle)} • ${esc(c.followers)} ${c.followers === 1 ? 'follower' : 'followers'}</div>
-              </div>
-            </a>
-            <button class="btn-follow ${c.isFollowing ? 'following' : ''}" data-follow-id="${esc(c.id)}">
-              ${c.isFollowing ? 'Following' : 'Follow'}
-            </button>
-          </div>
-        `).join('');
-
-        listEl.querySelectorAll('[data-follow-id]').forEach(btn => {
-          btn.addEventListener('click', () => this.toggleFollow(btn.dataset.followId));
-        });
-      }
-    }
-
-    // Populate Instagram-Stories Style Creators Row on Feed & Explore
-    this.renderStoriesRows(creators);
-  }
-
-  renderStoriesRows(creators) {
-    ['stories-row', 'explore-creators-row'].forEach(rowId => {
-      const row = document.getElementById(rowId);
-      if (!row) return;
-      if (!creators || creators.length === 0) {
-        row.innerHTML = '';
-        return;
-      }
-      row.innerHTML = creators.map(c => `
-        <a class="story-item author-link" href="${profileLink(c.handle)}" title="${esc(c.name)} (${esc(c.handle)})">
-          <div class="story-avatar-ring">
-            <div class="story-avatar">${esc(c.avatar || c.name.substring(0, 2).toUpperCase())}</div>
-          </div>
-          <span class="story-name">${esc(c.name.split(' ')[0])}</span>
-        </a>
-      `).join('');
-    });
-  }
-
-  filterExploreContent(query) {
-    if (!query) {
-      if (this.cachedTopics) this.renderTrendingTopics(this.cachedTopics);
-      if (this.cachedCreators) this.renderFeaturedCreators(this.cachedCreators);
-      return;
-    }
-    const q = query.toLowerCase();
-    const filteredTopics = (this.cachedTopics || []).filter(t => t.name.toLowerCase().includes(q));
-    const filteredCreators = (this.cachedCreators || []).filter(c => (c.name || '').toLowerCase().includes(q) || (c.handle || '').toLowerCase().includes(q));
-    this.renderTrendingTopics(filteredTopics);
-    this.renderFeaturedCreators(filteredCreators);
-  }
-
-  async toggleFollow(creatorId) {
-    if (!this.currentUser) {
-      this.showToast('Please log in to follow creators!');
-      setTimeout(() => { window.location.href = 'login.html'; }, 1000);
-      return;
-    }
-    try {
-      const res = await fetch(`${this.apiBase}/api/posts/follow/${encodeURIComponent(creatorId)}`, {
-        method: 'POST',
-        headers: this.authHeaders()
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        this.showToast(data.message);
-        await this.syncWithBackend();
-        if (this.currentFilter === 'following') await this.loadFollowing();
-        if (this.isProfileActive() && this.profile) await this.loadProfile(this.profile.handle, true);
-        this.refresh();
-      } else {
-        this.showToast(data.message || 'Could not update follow status.');
-      }
-    } catch (e) {
-      this.showToast('Network error while toggling follow.');
-    }
-  }
-
-  // ---------- Following feed ----------
-
-  async loadFollowing() {
-    if (!this.token) {
-      this.followingIds = new Set();
-      this.showToast('Log in to see posts from creators you follow.');
-      this.render();
-      return;
-    }
-    try {
-      const res = await fetch(`${this.apiBase}/api/posts?feed=following`, { headers: this.authHeaders() });
-      const data = await res.json();
-      if (res.ok && data.success && Array.isArray(data.posts)) {
-        this.followingIds = new Set(data.posts.map(p => p.id));
-        // Make sure brand-new posts from people you follow are in the local list too
-        data.posts.forEach(p => {
-          if (!this.posts.find(x => x.id === p.id)) this.posts.unshift(p);
-        });
-        this.saveLocalPosts();
-      } else {
-        this.followingIds = new Set();
-        this.showToast(data.message || 'Could not load your Following feed.');
-      }
-    } catch (e) {
-      this.followingIds = new Set();
-      this.showToast('Network error while loading your Following feed.');
-    }
-    this.render();
-  }
-
-  // ---------- Pages: feed <-> creator profile (hash routing) ----------
-
-  isProfileActive() {
-    return this.route && this.route.name === 'profile';
-  }
-
-  handleRoute() {
-    // Close any open pop-ups when the page changes
-    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
-
-    const hash = window.location.hash || '';
-    const m = /^#\/(u|profile)\/(.+)$/.exec(hash);
-    const artM = /^#\/(article|post)\/(.+)$/.exec(hash);
-    const topicM = /^#\/topic\/(.+)$/.exec(hash);
-
-    if (m) {
-      let handle = m[2];
-      try { handle = decodeURIComponent(handle); } catch (e) {}
-      this.route = { name: 'profile', handle };
-      this.showProfileView(handle);
-    } else if (artM) {
-      const postId = decodeURIComponent(artM[2]);
-      this.route = { name: 'home' };
-      this.showFeedView();
-      this.openFullArticle(postId, false);
-    } else if (hash === '#/explore') {
-      this.route = { name: 'explore' };
-      this.showExploreView();
-    } else if (topicM) {
-      let topic = topicM[1];
-      try { topic = decodeURIComponent(topic); } catch (e) {}
-      this.route = { name: 'explore' };
-      this.showExploreView(topic);
-    } else if (hash === '#/dashboard') {
-      this.route = { name: 'dashboard' };
-      this.showDashboardView();
-    } else if (hash === '#/saved') {
-      this.route = { name: 'saved' };
-      this.showSavedView();
-    } else if (hash === '#/settings' || hash === '#/account') {
-      this.route = { name: 'settings' };
-      this.showSettingsView();
-    } else if (hash === '#/write') {
-      this.route = { name: 'home' };
-      this.showFeedView();
-      this.openArticleStudio();
-    } else if (hash === '#/notifications') {
-      this.openModal(this.notificationsModal);
-      this.loadNotifications();
-    } else {
-      this.route = { name: 'home' };
-      this.showFeedView();
-    }
-  }
-
-  setNavActive() {
-    const isProfile = this.isProfileActive();
-    const isExplore = this.route && this.route.name === 'explore';
-    const isDashboard = this.route && this.route.name === 'dashboard';
-    const isSaved = this.route && this.route.name === 'saved';
-    const isSettings = this.route && (this.route.name === 'settings' || this.route.name === 'account');
-    const isHome = !isProfile && !isExplore && !isDashboard && !isSaved && !isSettings;
-
-    const home = document.getElementById('nav-home-btn');
-    const explore = document.getElementById('nav-explore-btn');
-    const dashboard = document.getElementById('nav-dashboard-btn');
-    const saved = document.getElementById('nav-saved-btn');
-    const settings = document.getElementById('nav-settings-btn');
-    const mine = document.getElementById('nav-profile-btn');
-
-    const mobHome = document.getElementById('mob-nav-home');
-    const mobExplore = document.getElementById('mob-nav-explore');
-    const mobProfile = document.getElementById('mob-nav-profile');
-
-    const isMine = isProfile && this.currentUser && this.currentUser.handle &&
-      this.route.handle && this.route.handle.replace(/^@/, '').toLowerCase() === this.currentUser.handle.replace(/^@/, '').toLowerCase();
-
-    if (home) home.classList.toggle('active', isHome);
-    if (explore) explore.classList.toggle('active', isExplore);
-    if (dashboard) dashboard.classList.toggle('active', isDashboard);
-    if (saved) saved.classList.toggle('active', isSaved);
-    if (settings) settings.classList.toggle('active', isSettings);
-    if (mine) mine.classList.toggle('active', !!isMine);
-
-    if (mobHome) mobHome.classList.toggle('active', isHome);
-    if (mobExplore) mobExplore.classList.toggle('active', isExplore);
-    if (mobProfile) mobProfile.classList.toggle('active', isProfile);
-  }
-
-  hideAllViews() {
-    const feed = document.getElementById('feed-view');
-    const prof = document.getElementById('profile-view');
-    const exp = document.getElementById('explore-view');
-    const dash = document.getElementById('dashboard-view');
-    const saved = document.getElementById('saved-view');
-    const sett = document.getElementById('settings-view');
-    const rSide = document.querySelector('.right-sidebar');
-    if (feed) feed.style.display = 'none';
-    if (prof) prof.style.display = 'none';
-    if (exp) exp.style.display = 'none';
-    if (dash) dash.style.display = 'none';
-    if (saved) saved.style.display = 'none';
-    if (sett) sett.style.display = 'none';
-    if (rSide) rSide.style.display = '';
-  }
-
-  showFeedView() {
-    this.hideAllViews();
-    const feed = document.getElementById('feed-view');
-    if (feed) {
-      feed.style.display = '';
-      this.animateViewEntrance(feed);
-    }
-    document.title = 'READORA | Where readers become creators';
-    this.setNavActive();
-    this.render();
-
-    // Trigger hero stats animation
-    const heroCreators = document.getElementById('hero-stat-creators');
-    const heroThoughts = document.getElementById('hero-stat-thoughts');
-    const heroArticles = document.getElementById('hero-stat-articles');
-    if (heroCreators && (heroCreators.textContent === '0' || heroCreators.textContent === '...')) {
-      const thoughtsCount = this.posts.filter(p => p.type === 'thought').length;
-      const articlesCount = this.posts.filter(p => p.type === 'article').length;
-      const creatorsCount = new Set(this.posts.map(p => p.handle || p.author)).size;
-      this.animateCounter(heroArticles, articlesCount);
-      this.animateCounter(heroThoughts, thoughtsCount);
-      this.animateCounter(heroCreators, creatorsCount);
-    }
-  }
-
-  showProfileView(handle) {
-    this.hideAllViews();
-    const prof = document.getElementById('profile-view');
-    if (prof) {
-      prof.style.display = 'flex';
-      this.animateViewEntrance(prof);
-    }
-    this.setNavActive();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    this.profileFilter = 'all';
-    this.loadProfile(handle);
-  }
-
-  showExploreView(topicFilter = '') {
-    this.hideAllViews();
-    const exp = document.getElementById('explore-view');
-    const rSide = document.querySelector('.right-sidebar');
-    if (exp) {
-      exp.style.display = 'flex';
-      this.animateViewEntrance(exp);
-    }
-    // On Explore page, hide right sidebar to eliminate duplicate widgets completely!
-    if (rSide) rSide.style.display = 'none';
-    document.title = 'Explore | READORA';
-    this.setNavActive();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (this.cachedCreators) this.renderStoriesRows(this.cachedCreators);
-    this.renderExploreGrid(topicFilter);
-  }
-
-  renderExploreGrid(topicFilter = '') {
-    const grid = document.getElementById('explore-posts-grid');
-    if (!grid) return;
-
-    let items = (this.posts || []);
-    if (topicFilter) {
-      items = items.filter(p => (p.category || '').toLowerCase() === topicFilter.toLowerCase());
-    }
-
-    if (this.activeSearchQuery) {
-      const q = this.activeSearchQuery;
-      items = items.filter(p =>
-        (p.title || '').toLowerCase().includes(q) ||
-        (p.content || '').toLowerCase().includes(q) ||
-        (p.author || '').toLowerCase().includes(q) ||
-        (p.category || '').toLowerCase().includes(q)
-      );
-    }
-
-    if (items.length === 0) {
-      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem; color: var(--text-dim); background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md);">No posts found matching this criteria. Be the first to share one!</div>';
-      return;
-    }
-
-    grid.innerHTML = items.map(post => {
-      const cover = safeUrl(post.coverImage);
-      if (post.type === 'article') {
-        return `
-          <div class="explore-grid-item" data-id="${esc(post.id)}">
-            ${cover ? `<img src="${esc(cover)}" class="explore-grid-cover" alt="Article Cover" loading="lazy" onerror="this.style.display='none';" />` : ''}
-            <div class="explore-grid-body">
-              <span class="card-tag ${this.getCategoryClass(post.category)}" style="align-self:flex-start; margin-bottom: 0.25rem;">${esc(post.category || 'Article')}</span>
-              <div class="explore-grid-title">${esc(post.title)}</div>
-              <div class="explore-grid-author">${esc(post.author)} • ${esc(post.readTime || '3 min read')}</div>
-            </div>
-          </div>
-        `;
-      } else if (post.type === 'image') {
-        return `
-          <div class="explore-grid-item" data-id="${esc(post.id)}">
-            ${cover ? `<img src="${esc(cover)}" class="explore-grid-cover" alt="Photo" loading="lazy" />` : ''}
-            <div class="explore-grid-body">
-              <div class="explore-grid-title" style="font-weight: 500; font-size: 0.875rem;">${esc(post.content || 'Photo Post')}</div>
-              <div class="explore-grid-author">${esc(post.author)} • ${esc(post.timestamp || 'Recently')}</div>
-            </div>
-          </div>
-        `;
-      } else {
-        return `
-          <div class="explore-grid-item" data-id="${esc(post.id)}" style="background: var(--bg-subtle);">
-            <div class="explore-grid-body" style="padding: 1.25rem;">
-              <span class="card-tag ${this.getCategoryClass(post.category)}" style="align-self:flex-start; margin-bottom: 0.5rem;">${esc(post.category || 'Thought')}</span>
-              <div class="thought-text" style="font-size: 1rem; line-height: 1.5; font-family: var(--font-serif); margin-bottom: 0.75rem;">"${esc(post.content)}"</div>
-              <div class="explore-grid-author">— ${esc(post.author)}</div>
-            </div>
-          </div>
-        `;
-      }
-    }).join('');
-
-    grid.querySelectorAll('.explore-grid-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const pId = el.dataset.id;
-        const targetPost = this.posts.find(p => p.id === pId);
-        if (targetPost && targetPost.type === 'article') {
-          this.openFullArticle(pId);
-        } else {
-          // Switch to home feed and scroll to post
-          window.location.hash = '#/';
-          setTimeout(() => {
-            const card = document.querySelector(`[data-id="${pId}"]`);
-            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
-        }
-      });
-    });
-  }
-
-  async showDashboardView() {
-    if (!this.requireLogin('Please log in to view your Creator Dashboard!')) return;
-    this.hideAllViews();
-    const dash = document.getElementById('dashboard-view');
-    if (!dash) return;
-    dash.style.display = 'flex';
-    this.animateViewEntrance(dash);
-    document.title = 'Creator Dashboard | READORA';
-    this.setNavActive();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    dash.innerHTML = `
-      <div style="text-align:center; padding: 4rem 1rem; color: var(--text-dim);">
-        <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📊</div>
-        Loading Creator Studio & Analytics...
-      </div>
-    `;
-
-    try {
-      const res = await fetch(`${this.apiBase}/api/posts/dashboard`, { headers: this.authHeaders() });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        dash.innerHTML = `<div class="dashboard-hero-card" style="text-align:center; color: var(--text-dim);">${data.message || 'Could not load dashboard.'}</div>`;
-        return;
-      }
-      this.dashboardData = data;
-      this.renderDashboard('overview');
-    } catch (e) {
-      dash.innerHTML = `<div class="dashboard-hero-card" style="text-align:center; color: var(--text-dim);">Network error loading Creator Dashboard.</div>`;
-    }
-  }
-
-  renderDashboard(activeTab = 'overview') {
-    const dash = document.getElementById('dashboard-view');
-    if (!dash || !this.dashboardData) return;
-    const { overview, articles, thoughts, draft, recentActivity, audience, categories, dailyViews } = this.dashboardData;
-
-    dash.innerHTML = `
-      <div class="dashboard-hero-card">
-        <div class="dashboard-title-row">
-          <div>
-            <h1 class="dashboard-title">Creator Studio & Analytics</h1>
-            <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 0.25rem;">Real-time publications metrics, reader engagement, and community growth.</p>
-          </div>
-          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <button class="btn-auth-primary" id="btn-dash-new-article" style="width: auto; padding: 0.55rem 1.25rem;">
-              ✍️ Write Article
-            </button>
-            <a href="#/settings" class="btn-dash-action" style="padding: 0.55rem 1rem; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
-              ⚙️ Settings
-            </a>
-          </div>
-        </div>
-
-        <div class="dashboard-grid">
-          <div class="dashboard-stat-card">
-            <div id="dash-stat-articles" class="dashboard-stat-val" style="color: var(--accent-primary);">${esc(overview.totalArticles || 0)}</div>
-            <div class="dashboard-stat-label">Articles</div>
-            <span class="dash-metric-trend up">+${Math.max(1, overview.totalArticles || 0)} active</span>
-          </div>
-          <div class="dashboard-stat-card">
-            <div id="dash-stat-thoughts" class="dashboard-stat-val" style="color: #8b5cf6;">${esc(overview.totalThoughts || 0)}</div>
-            <div class="dashboard-stat-label">Thoughts</div>
-            <span class="dash-metric-trend neutral">live stream</span>
-          </div>
-          <div class="dashboard-stat-card">
-            <div id="dash-stat-views" class="dashboard-stat-val" style="color: #10b981;">${esc(overview.totalViews || 0)}</div>
-            <div class="dashboard-stat-label">Total Views</div>
-            <span class="dash-metric-trend up">+18% this wk ↑</span>
-          </div>
-          <div class="dashboard-stat-card">
-            <div id="dash-stat-likes" class="dashboard-stat-val" style="color: #ef4444;">${esc(overview.totalLikes || 0)}</div>
-            <div class="dashboard-stat-label">Total Likes</div>
-            <span class="dash-metric-trend up">98% positive</span>
-          </div>
-          <div class="dashboard-stat-card">
-            <div id="dash-stat-comments" class="dashboard-stat-val" style="color: #3b82f6;">${esc(overview.totalComments || 0)}</div>
-            <div class="dashboard-stat-label">Comments</div>
-            <span class="dash-metric-trend neutral">engaged reads</span>
-          </div>
-          <div class="dashboard-stat-card">
-            <div id="dash-stat-followers" class="dashboard-stat-val" style="color: #f59e0b;">${esc(overview.followersCount || 0)}</div>
-            <div class="dashboard-stat-label">Followers</div>
-            <span class="dash-metric-trend up">+${overview.followersCount || 0} creators</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="dashboard-section">
-        <div class="feed-filter-bar" style="margin-bottom: 1.25rem;">
-          <button class="feed-tab ${activeTab === 'overview' ? 'active' : ''}" data-dashtab="overview">📊 Overview</button>
-          <button class="feed-tab ${activeTab === 'articles' ? 'active' : ''}" data-dashtab="articles">📖 Articles (${(articles || []).length})</button>
-          <button class="feed-tab ${activeTab === 'thoughts' ? 'active' : ''}" data-dashtab="thoughts">💭 Thoughts (${(thoughts || []).length})</button>
-          <button class="feed-tab ${activeTab === 'drafts' ? 'active' : ''}" data-dashtab="drafts">📝 Drafts (${draft ? 1 : 0})</button>
-          <button class="feed-tab ${activeTab === 'audience' ? 'active' : ''}" data-dashtab="audience">👥 Audience (${(audience || []).length})</button>
-          <button class="feed-tab ${activeTab === 'activity' ? 'active' : ''}" data-dashtab="activity">⚡ Activity (${(recentActivity || []).length})</button>
-        </div>
-
-        <div id="dashboard-tab-content"></div>
-      </div>
-    `;
-
-    const newBtn = document.getElementById('btn-dash-new-article');
-    if (newBtn) newBtn.addEventListener('click', () => this.openArticleStudio());
-
-    dash.querySelectorAll('[data-dashtab]').forEach(b => {
-      b.addEventListener('click', () => this.renderDashboard(b.dataset.dashtab));
-    });
-
-    const contentBox = document.getElementById('dashboard-tab-content');
-    if (!contentBox) return;
-
-    if (activeTab === 'overview') {
-      // 1. Quick Launchpad + 2. Weekly 7-Day Activity Chart + 3. Highlights
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const maxViews = Math.max(12, ...((dailyViews || []).map(v => v.views || 0)));
-      
-      const chartBarsHtml = days.map((day, idx) => {
-        const found = (dailyViews || []).find(d => {
-          if (!d.day) return false;
-          const dObj = new Date(d.day);
-          return dObj.getDay() === (idx + 1) % 7;
-        });
-        const vCount = found ? found.views : Math.floor((idx + 1) * 2.8 + (overview.totalViews > 0 ? (overview.totalViews % 7) : 1));
-        const heightPct = Math.min(100, Math.max(14, Math.round((vCount / maxViews) * 100)));
-        return `
-          <div class="dash-bar-col">
-            <div class="dash-bar-pillar" style="height: ${heightPct}%;">
-              <span class="dash-bar-tooltip">${vCount} reads</span>
-            </div>
-            <span class="dash-bar-label">${day}</span>
-          </div>
-        `;
-      }).join('');
-
-      contentBox.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap: 1.5rem;">
-          
-          <!-- Launchpad Quick Actions -->
-          <div>
-            <h3 style="font-size: 0.95rem; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom: 0.75rem;">
-              Creator Launchpad
-            </h3>
-            <div class="dash-quick-grid">
-              <div class="dash-quick-btn" id="launch-write-art">
-                <div class="dash-quick-icon">✍️</div>
-                <div>
-                  <div class="dash-quick-title">Article Studio</div>
-                  <div class="dash-quick-subtitle">Draft long-form ideas</div>
-                </div>
-              </div>
-              <div class="dash-quick-btn" id="launch-quick-th">
-                <div class="dash-quick-icon">💭</div>
-                <div>
-                  <div class="dash-quick-title">Quick Thought</div>
-                  <div class="dash-quick-subtitle">Post a short reflection</div>
-                </div>
-              </div>
-              <div class="dash-quick-btn" id="launch-reading-lib">
-                <div class="dash-quick-icon">🔖</div>
-                <div>
-                  <div class="dash-quick-title">Reading Library</div>
-                  <div class="dash-quick-subtitle">View bookmarks & history</div>
-                </div>
-              </div>
-              <div class="dash-quick-btn" id="launch-settings">
-                <div class="dash-quick-icon">⚙️</div>
-                <div>
-                  <div class="dash-quick-title">Account & Settings</div>
-                  <div class="dash-quick-subtitle">Customize theme & profile</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 7-Day Performance Chart -->
-          <div class="dash-chart-card">
-            <div class="dash-chart-header">
-              <div>
-                <h3 style="font-family:var(--font-brand); font-weight:800; font-size:1.15rem; color:var(--text-main); margin-bottom:0.2rem;">
-                  Weekly Reader Reach & Engagement
-                </h3>
-                <span style="font-size:0.82rem; color:var(--text-dim);">Unique reads, bookmarks and social impressions across the last 7 days</span>
-              </div>
-              <span class="dash-metric-trend up" style="font-size:0.8rem; padding:0.25rem 0.65rem;">
-                🔥 Active Engagement
-              </span>
-            </div>
-
-            <div class="dash-chart-bars-wrap">
-              ${chartBarsHtml}
-            </div>
-          </div>
-
-          <!-- Quick Preview of Latest Publications -->
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-              <h3 style="font-size: 0.95rem; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin:0;">
-                Latest Publications
-              </h3>
-              <button class="btn-dash-action" id="btn-see-all-art">View All Articles (${(articles || []).length}) ➔</button>
-            </div>
-            ${(!articles || articles.length === 0) ? `
-              <div style="text-align:center; padding: 2rem 1rem; color: var(--text-dim); background:var(--bg-subtle); border-radius:var(--radius-md);">
-                No articles published yet. Click "Article Studio" to publish your first deep thought!
-              </div>
-            ` : `
-              <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                ${articles.slice(0, 3).map(art => `
-                  <div class="dashboard-item-row" style="background:var(--bg-subtle); padding:0.85rem 1rem; border-radius:var(--radius-md); border:1px solid var(--border-color);">
-                    <div style="flex:1;">
-                      <a href="#/article/${esc(art.id)}" class="dashboard-item-title">${esc(art.title)}</a>
-                      <div class="dashboard-item-meta">
-                        <span class="card-tag ${this.getCategoryClass(art.category)}">${esc(art.category || 'General')}</span>
-                        <span>👁️ ${esc(art.views || 0)} views</span>
-                        <span>❤️ ${esc(art.likes || 0)} likes</span>
-                      </div>
-                    </div>
-                    <button class="btn-dash-action btn-dash-preview" data-id="${esc(art.id)}">Read ➔</button>
-                  </div>
-                `).join('')}
-              </div>
-            `}
-          </div>
-
-        </div>
-      `;
-
-      const lWrite = document.getElementById('launch-write-art');
-      if (lWrite) lWrite.addEventListener('click', () => this.openArticleStudio());
-      const lThought = document.getElementById('launch-quick-th');
-      if (lThought) lThought.addEventListener('click', () => {
-        window.location.hash = '#/';
-        setTimeout(() => {
-          const inp = document.getElementById('quick-thought-text');
-          if (inp) inp.focus();
-        }, 120);
-      });
-      const lLib = document.getElementById('launch-reading-lib');
-      if (lLib) lLib.addEventListener('click', () => { window.location.hash = '#/saved'; });
-      const lSet = document.getElementById('launch-settings');
-      if (lSet) lSet.addEventListener('click', () => { window.location.hash = '#/settings'; });
-      const seeAll = document.getElementById('btn-see-all-art');
-      if (seeAll) seeAll.addEventListener('click', () => this.renderDashboard('articles'));
-      contentBox.querySelectorAll('.btn-dash-preview').forEach(btn => {
-        btn.addEventListener('click', () => this.openFullArticle(btn.dataset.id));
-      });
-
-    } else if (activeTab === 'articles') {
-      if (!articles || articles.length === 0) {
-        contentBox.innerHTML = `
-          <div style="text-align:center; padding: 3rem 1rem; color: var(--text-dim);">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">✍️</div>
-            <p>You haven't published any long-form articles yet.</p>
-            <button class="btn-dash-action" id="btn-dash-start-writing" style="margin-top: 0.75rem;">Start Your First Article</button>
-          </div>
-        `;
-        const startBtn = document.getElementById('btn-dash-start-writing');
-        if (startBtn) startBtn.addEventListener('click', () => this.openArticleStudio());
-        return;
-      }
-
-      contentBox.innerHTML = articles.map(art => `
-        <div class="dashboard-item-row">
-          <div style="flex:1;">
-            <a href="#/article/${esc(art.id)}" class="dashboard-item-title">${esc(art.title)}</a>
-            <div class="dashboard-item-meta">
-              <span class="card-tag ${this.getCategoryClass(art.category)}">${esc(art.category || 'General')}</span>
-              <span>${esc(art.timestamp || 'Recently')}</span>
-              <span>👁️ ${esc(art.views || 0)} views</span>
-              <span>❤️ ${esc(art.likes || 0)} likes</span>
-              <span>💬 ${(art.comments || []).length} comments</span>
-            </div>
-          </div>
-          <div class="dashboard-btn-group">
-            <button class="btn-dash-action btn-dash-preview" data-id="${esc(art.id)}">Preview</button>
-            <button class="btn-dash-action btn-dash-edit" data-id="${esc(art.id)}">Edit</button>
-            <button class="btn-dash-action btn-dash-danger btn-dash-delete" data-id="${esc(art.id)}">Delete</button>
-          </div>
-        </div>
-      `).join('');
-
-      contentBox.querySelectorAll('.btn-dash-preview').forEach(btn => {
-        btn.addEventListener('click', () => this.openFullArticle(btn.dataset.id));
-      });
-      contentBox.querySelectorAll('.btn-dash-edit').forEach(btn => {
-        btn.addEventListener('click', () => this.openEditPost(btn.dataset.id));
-      });
-      contentBox.querySelectorAll('.btn-dash-delete').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('Are you sure you want to delete this article?')) return;
-          await this.deletePost(btn.dataset.id);
-          this.showDashboardView();
-        });
-      });
-    } else if (activeTab === 'thoughts') {
-      if (!thoughts || thoughts.length === 0) {
-        contentBox.innerHTML = '<div style="text-align:center; padding: 2.5rem 1rem; color: var(--text-dim);">No short thoughts published yet.</div>';
-        return;
-      }
-      contentBox.innerHTML = thoughts.map(th => `
-        <div class="dashboard-item-row">
-          <div style="flex:1;">
-            <div style="font-weight:600; color:var(--text-main); margin-bottom: 0.2rem;">"${esc(th.content)}"</div>
-            <div class="dashboard-item-meta">
-              <span class="card-tag ${this.getCategoryClass(th.category)}">${esc(th.category || 'General')}</span>
-              <span>${esc(th.timestamp || 'Recently')}</span>
-              <span>❤️ ${esc(th.likes || 0)} likes</span>
-            </div>
-          </div>
-          <div class="dashboard-btn-group">
-            <button class="btn-dash-action btn-dash-edit-th" data-id="${esc(th.id)}">Edit</button>
-            <button class="btn-dash-action btn-dash-danger btn-dash-del-th" data-id="${esc(th.id)}">Delete</button>
-          </div>
-        </div>
-      `).join('');
-
-      contentBox.querySelectorAll('.btn-dash-edit-th').forEach(btn => {
-        btn.addEventListener('click', () => this.openEditPost(btn.dataset.id));
-      });
-      contentBox.querySelectorAll('.btn-dash-del-th').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('Delete this thought permanently?')) return;
-          await this.deletePost(btn.dataset.id);
-          this.showDashboardView();
-        });
-      });
-    } else if (activeTab === 'drafts') {
-      if (!draft || (!draft.title && !draft.content)) {
-        contentBox.innerHTML = '<div style="text-align:center; padding: 2.5rem 1rem; color: var(--text-dim);">No saved drafts. Open Article Studio and click "Save Draft" to resume writing anytime!</div>';
-        return;
-      }
-      contentBox.innerHTML = `
-        <div class="dashboard-item-row">
-          <div style="flex:1;">
-            <div class="dashboard-item-title">${esc(draft.title || 'Untitled Draft')}</div>
-            <div style="font-size:0.85rem; color: var(--text-muted); margin: 0.25rem 0;">${esc((draft.content || '').substring(0, 140))}...</div>
-            <div class="dashboard-item-meta">
-              <span class="draft-status-pill">Draft in Progress</span>
-              <span>Last saved: ${esc(draft.updatedAt || 'Recently')}</span>
-            </div>
-          </div>
-          <div class="dashboard-btn-group">
-            <button class="btn-dash-action" id="btn-dash-resume-draft">Continue Writing ➔</button>
-            <button class="btn-dash-action btn-dash-danger" id="btn-dash-discard-draft">Discard</button>
-          </div>
-        </div>
-      `;
-      const resume = document.getElementById('btn-dash-resume-draft');
-      if (resume) resume.addEventListener('click', () => this.openArticleStudio(draft));
-      const discard = document.getElementById('btn-dash-discard-draft');
-      if (discard) discard.addEventListener('click', async () => {
-        if (!confirm('Discard this draft permanently?')) return;
-        await fetch(`${this.apiBase}/api/posts/draft`, { method: 'DELETE', headers: this.authHeaders() });
-        this.dashboardData.draft = null;
-        this.renderDashboard('drafts');
-        this.showToast('Draft discarded.');
-      });
-    } else if (activeTab === 'audience') {
-      if (!audience || audience.length === 0) {
-        contentBox.innerHTML = `
-          <div style="text-align:center; padding: 3rem 1rem; color: var(--text-dim);">
-            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">👥</div>
-            <p>You don't have any followers yet. Share insightful articles and follow other creators to grow your community!</p>
-            <a href="#/explore" class="btn-dash-action" style="margin-top:0.75rem; display:inline-block; text-decoration:none;">Explore Creators ➔</a>
-          </div>
-        `;
-        return;
-      }
-
-      contentBox.innerHTML = `
-        <div class="dash-audience-grid">
-          ${audience.map(u => `
-            <div class="dash-audience-card">
-              <div style="display:flex; align-items:center; gap:0.75rem;">
-                <div class="author-avatar" style="width:42px; height:42px; font-size:1rem;">
-                  ${esc(u.avatar || u.name.substring(0, 2).toUpperCase())}
-                </div>
-                <div>
-                  <a href="#/u/${esc(u.handle)}" class="dashboard-item-title" style="font-size:0.95rem; margin:0;">${esc(u.name)}</a>
-                  <div style="font-size:0.78rem; color:var(--text-dim);">${esc(u.handle)}</div>
-                </div>
-              </div>
-              <a href="#/u/${esc(u.handle)}" class="btn-dash-action" style="font-size:0.75rem; text-decoration:none;">View Profile</a>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    } else if (activeTab === 'activity') {
-      if (!recentActivity || recentActivity.length === 0) {
-        contentBox.innerHTML = '<div style="text-align:center; padding: 2.5rem 1rem; color: var(--text-dim);">No recent interactions on your posts yet. Share your stories to build an audience!</div>';
-        return;
-      }
-      contentBox.innerHTML = recentActivity.map(act => `
-        <div class="dashboard-item-row">
-          <div style="display:flex; align-items:center; gap: 0.75rem;">
-            <div class="author-avatar" style="width:34px; height:34px; font-size:0.85rem;">${esc(act.actor_avatar || 'CR')}</div>
-            <div>
-              <div style="font-size:0.9rem; color:var(--text-main); font-weight:600;">${esc(act.message)}</div>
-              <div style="font-size:0.78rem; color:var(--text-dim);">${esc(act.created_at || 'Recently')}</div>
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    if (activeTab === 'overview') {
-      this.animateCounter(document.getElementById('dash-stat-articles'), overview.totalArticles || 0);
-      this.animateCounter(document.getElementById('dash-stat-thoughts'), overview.totalThoughts || 0);
-      this.animateCounter(document.getElementById('dash-stat-views'), overview.totalViews || 0);
-      this.animateCounter(document.getElementById('dash-stat-likes'), overview.totalLikes || 0);
-      this.animateCounter(document.getElementById('dash-stat-comments'), overview.totalComments || 0);
-      this.animateCounter(document.getElementById('dash-stat-followers'), overview.followersCount || 0);
-    }
-  }
-
-  // =========================================================================
-  // ACCOUNT & SETTINGS VIEW (Full Page Interactive UI)
-  // =========================================================================
-  async showSettingsView(activeTab = 'profile') {
-    this.hideAllViews();
-    const sett = document.getElementById('settings-view');
-    if (!sett) return;
-    sett.style.display = 'flex';
-    this.animateViewEntrance(sett);
-    document.title = 'Account & Settings | READORA';
-    this.setNavActive();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    if (!this.currentUser) {
-      sett.innerHTML = `
-        <div class="settings-card" style="text-align:center; padding: 3.5rem 1.5rem;">
-          <div style="font-size:3rem; margin-bottom:1rem;">🔐</div>
-          <h2 class="settings-card-title" style="justify-content:center; font-size:1.4rem;">Sign in to Access Account & Settings</h2>
-          <p class="settings-card-desc" style="max-width:440px; margin:0.5rem auto 1.5rem auto;">
-            Customize your creator profile, reading preferences, light & dark theme, and security credentials.
-          </p>
-          <div style="display:flex; justify-content:center; gap:0.75rem;">
-            <a href="login.html" class="btn-auth-primary" style="width:auto; padding:0.65rem 1.6rem; text-decoration:none;">Log In</a>
-            <a href="account.html" class="btn-dash-action" style="padding:0.65rem 1.4rem; text-decoration:none;">Create Account</a>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    try {
-      const res = await fetch(`${this.apiBase}/api/auth/me`, { headers: this.authHeaders() });
-      const data = await res.json();
-      if (data.success && data.user) {
-        this.currentUser = { ...this.currentUser, ...data.user };
-        this.saveUser(this.currentUser);
-      }
-    } catch (e) {}
-
-    this.renderSettings(activeTab);
-  }
-
-  renderSettings(activeTab = 'profile') {
-    const sett = document.getElementById('settings-view');
-    if (!sett || !this.currentUser) return;
-    const u = this.currentUser;
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    const prefs = u.preferences || {};
-
-    sett.innerHTML = `
-      <div class="settings-hero-card">
-        <div class="settings-hero-top">
-          <div class="settings-user-preview">
-            <div class="settings-avatar-lg" id="settings-avatar-display">
-              ${u.avatar && /^https?:\/\//i.test(u.avatar) ? `<img src="${esc(u.avatar)}" alt="${esc(u.name)}">` : esc(u.avatar || u.name.substring(0, 2).toUpperCase())}
-            </div>
-            <div class="settings-user-info">
-              <h1>
-                <span>${esc(u.name)}</span>
-                <span class="settings-verified-badge">✓ Verified Creator</span>
-              </h1>
-              <div class="settings-user-handle">${esc(u.handle)} • ${esc(u.email)}</div>
-            </div>
-          </div>
-          <a href="#/u/${esc(u.handle)}" class="btn-dash-action" style="text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
-            👁️ View Public Profile
-          </a>
-        </div>
-
-        <nav class="settings-tabs-bar">
-          <button type="button" class="settings-tab-btn ${activeTab === 'profile' ? 'active' : ''}" data-tab="profile">
-            👤 Profile & Identity
-          </button>
-          <button type="button" class="settings-tab-btn ${activeTab === 'appearance' ? 'active' : ''}" data-tab="appearance">
-            🎨 Appearance & Theme
-          </button>
-          <button type="button" class="settings-tab-btn ${activeTab === 'publishing' ? 'active' : ''}" data-tab="publishing">
-            ✍️ Creator Preferences
-          </button>
-          <button type="button" class="settings-tab-btn ${activeTab === 'security' ? 'active' : ''}" data-tab="security">
-            🔒 Password & Security
-          </button>
-          <button type="button" class="settings-tab-btn ${activeTab === 'data' ? 'active' : ''}" data-tab="data">
-            📦 Data & Danger Zone
-          </button>
-        </nav>
-      </div>
-
-      <div id="settings-tab-pane"></div>
-    `;
-
-    // Tab buttons click
-    sett.querySelectorAll('.settings-tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.renderSettings(btn.dataset.tab);
-      });
-    });
-
-    const pane = document.getElementById('settings-tab-pane');
-    if (!pane) return;
-
-    if (activeTab === 'profile') {
-      pane.innerHTML = `
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <h2 class="settings-card-title">Profile & Creator Identity</h2>
-            <p class="settings-card-desc">This information is shown to readers on your publications and profile page.</p>
-          </div>
-
-          <form id="form-settings-profile" style="display:flex; flex-direction:column; gap:1.25rem;">
-            
-            <!-- Avatar Picker -->
-            <div class="settings-field">
-              <label class="settings-field-label">Avatar / Photo</label>
-              <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-                <input type="text" id="set-profile-avatar" class="form-input" style="flex:1; min-width:220px;" placeholder="Initials (e.g. HB) or photo link (https://...)" value="${esc(u.avatar || '')}">
-                <div class="avatar-presets-bar">
-                  <button type="button" class="avatar-preset-btn" data-preset="${esc(u.name.substring(0, 2).toUpperCase())}" title="Name Initials">${esc(u.name.substring(0, 2).toUpperCase())}</button>
-                  <button type="button" class="avatar-preset-btn" data-preset="✨" title="Sparkle">✨</button>
-                  <button type="button" class="avatar-preset-btn" data-preset="✍️" title="Writer">✍️</button>
-                  <button type="button" class="avatar-preset-btn" data-preset="💡" title="Insight">💡</button>
-                  <button type="button" class="avatar-preset-btn" data-preset="🚀" title="Rocket">🚀</button>
-                  <button type="button" class="avatar-preset-btn" data-preset="📚" title="Books">📚</button>
-                </div>
-              </div>
-              <span class="settings-field-hint">Choose a preset symbol or paste a direct image URL.</span>
-            </div>
-
-            <div class="settings-grid-2col">
-              <div class="settings-field">
-                <label class="settings-field-label" for="set-profile-name">
-                  <span>Display Name</span>
-                  <span class="settings-char-pill" id="name-chars">0/50</span>
-                </label>
-                <input type="text" id="set-profile-name" class="form-input" maxlength="50" value="${esc(u.name)}" required>
-              </div>
-
-              <div class="settings-field">
-                <label class="settings-field-label">Username / Handle</label>
-                <input type="text" class="form-input" value="${esc(u.handle)}" disabled style="opacity:0.75; cursor:not-allowed;">
-                <span class="settings-field-hint">Handles are permanently bound to your published articles.</span>
-              </div>
-            </div>
-
-            <div class="settings-grid-2col">
-              <div class="settings-field">
-                <label class="settings-field-label">Email Address</label>
-                <input type="email" class="form-input" value="${esc(u.email)}" disabled style="opacity:0.75; cursor:not-allowed;">
-                <span class="settings-field-hint">Verified account email.</span>
-              </div>
-
-              <div class="settings-field">
-                <label class="settings-field-label" for="set-profile-website">Website or Portfolio</label>
-                <input type="url" id="set-profile-website" class="form-input" placeholder="https://yourportfolio.com" value="${esc(u.website || '')}">
-              </div>
-            </div>
-
-            <div class="settings-field">
-              <label class="settings-field-label" for="set-profile-bio">
-                <span>Bio / Summary</span>
-                <span class="settings-char-pill" id="bio-chars">0/200</span>
-              </label>
-              <textarea id="set-profile-bio" class="form-input" maxlength="200" style="min-height:90px; resize:vertical;" placeholder="Write a short reflection about your areas of writing...">${esc(u.bio || '')}</textarea>
-            </div>
-
-            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem;">
-              <button type="submit" id="btn-save-profile-settings" class="btn-auth-primary" style="width:auto; padding:0.65rem 1.6rem;">
-                Save Profile Changes
-              </button>
-            </div>
-          </form>
-        </div>
-      `;
-
-      // Live character counters
-      const nameInput = document.getElementById('set-profile-name');
-      const nameCounter = document.getElementById('name-chars');
-      if (nameInput && nameCounter) {
-        nameCounter.textContent = `${nameInput.value.length}/50`;
-        nameInput.addEventListener('input', () => { nameCounter.textContent = `${nameInput.value.length}/50`; });
-      }
-
-      const bioInput = document.getElementById('set-profile-bio');
-      const bioCounter = document.getElementById('bio-chars');
-      if (bioInput && bioCounter) {
-        bioCounter.textContent = `${bioInput.value.length}/200`;
-        bioInput.addEventListener('input', () => { bioCounter.textContent = `${bioInput.value.length}/200`; });
-      }
-
-      // Avatar presets
-      const avatarInput = document.getElementById('set-profile-avatar');
-      const avatarDisplay = document.getElementById('settings-avatar-display');
-      pane.querySelectorAll('.avatar-preset-btn').forEach(b => {
-        b.addEventListener('click', () => {
-          avatarInput.value = b.dataset.preset;
-          if (avatarDisplay) avatarDisplay.textContent = b.dataset.preset;
-        });
-      });
-      if (avatarInput && avatarDisplay) {
-        avatarInput.addEventListener('input', () => {
-          const val = avatarInput.value.trim();
-          if (val && /^https?:\/\//i.test(val)) {
-            avatarDisplay.innerHTML = `<img src="${esc(val)}" alt="Avatar">`;
-          } else {
-            avatarDisplay.textContent = val || u.name.substring(0, 2).toUpperCase();
-          }
-        });
-      }
-
-      // Profile Submit
-      const form = document.getElementById('form-settings-profile');
-      if (form) {
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const name = nameInput.value.trim();
-          const bio = bioInput.value.trim();
-          const avatar = avatarInput.value.trim();
-          const website = document.getElementById('set-profile-website').value.trim();
-
-          const saveBtn = document.getElementById('btn-save-profile-settings');
-          if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
-
-          try {
-            const res = await fetch(`${this.apiBase}/api/auth/profile`, {
-              method: 'PUT',
-              headers: this.authHeaders(),
-              body: JSON.stringify({ name, bio, avatar, website })
-            });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-              this.showToast(data.message || 'Failed to update profile.');
-              return;
-            }
-
-            this.currentUser = { ...this.currentUser, ...data.user };
-            this.saveUser(this.currentUser);
-            this.updateUserUI();
-            this.showToast('Profile updated successfully! ✨');
-            this.renderSettings('profile');
-          } catch (err) {
-            this.showToast('Network error while saving profile.');
-          } finally {
-            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Profile Changes'; }
-          }
-        });
-      }
-
-    } else if (activeTab === 'appearance') {
-      pane.innerHTML = `
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <h2 class="settings-card-title">Theme & Reading Appearance</h2>
-            <p class="settings-card-desc">Choose how READORA looks and feels across your devices.</p>
-          </div>
-
-          <div style="display:flex; flex-direction:column; gap:1.5rem;">
-            
-            <!-- Theme Selection Cards -->
-            <div class="settings-field">
-              <label class="settings-field-label">Interface Theme</label>
-              <div class="theme-picker-group">
-                <div class="theme-card-option ${currentTheme === 'light' ? 'active' : ''}" data-settheme="light">
-                  <div class="theme-mockup-light">
-                    <div class="theme-mockup-pill"></div>
-                    <div class="theme-mockup-line"></div>
-                  </div>
-                  <div>
-                    <div style="font-weight:700; font-size:0.95rem; color:var(--text-main);">Soft Light Mode</div>
-                    <div style="font-size:0.78rem; color:var(--text-dim);">Calm editorial clarity with 3D neumorphism</div>
-                  </div>
-                </div>
-
-                <div class="theme-card-option ${currentTheme === 'dark' ? 'active' : ''}" data-settheme="dark">
-                  <div class="theme-mockup-dark">
-                    <div class="theme-mockup-pill"></div>
-                    <div class="theme-mockup-line"></div>
-                  </div>
-                  <div>
-                    <div style="font-weight:700; font-size:0.95rem; color:var(--text-main);">Obsidian Dark Mode</div>
-                    <div style="font-size:0.78rem; color:var(--text-dim);">Deep electric sapphire palette for night reading</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Reading Font Selection -->
-            <div class="settings-field">
-              <label class="settings-field-label" for="set-reading-font">Article Reading Typography</label>
-              <select id="set-reading-font" class="composer-select" style="max-width:320px;">
-                <option value="Inter" ${prefs.readingFont === 'Inter' ? 'selected' : ''}>Inter (Modern Sans Serif)</option>
-                <option value="Lora" ${prefs.readingFont === 'Lora' ? 'selected' : ''}>Lora (Editorial Classic Book Serif)</option>
-                <option value="Plus Jakarta Sans" ${prefs.readingFont === 'Plus Jakarta Sans' ? 'selected' : ''}>Plus Jakarta Sans (Geometric)</option>
-              </select>
-              <span class="settings-field-hint">Applies to long-form editorial reading modal and previews.</span>
-            </div>
-
-            <!-- Feed Preferences -->
-            <div class="settings-toggle-row">
-              <div>
-                <div style="font-weight:600; font-size:0.9rem; color:var(--text-main);">Sound & Micro-Animations</div>
-                <div style="font-size:0.8rem; color:var(--text-dim);">Enable smooth transitions and interactive micro-feed animations.</div>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="set-anim-toggle" ${prefs.soundEnabled !== false ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-            <div class="settings-toggle-row">
-              <div>
-                <div style="font-weight:600; font-size:0.9rem; color:var(--text-main);">Compact Stream Mode</div>
-                <div style="font-size:0.8rem; color:var(--text-dim);">Condense cards in the home feed for maximum reading density.</div>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="set-compact-toggle" ${prefs.compactView ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-            <div style="display:flex; justify-content:flex-end;">
-              <button type="button" id="btn-save-appearance" class="btn-auth-primary" style="width:auto; padding:0.65rem 1.6rem;">
-                Save Appearance Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      // Theme card click
-      pane.querySelectorAll('[data-settheme]').forEach(card => {
-        card.addEventListener('click', () => {
-          const t = card.dataset.settheme;
-          this.applyTheme(t, true);
-          this.renderSettings('appearance');
-          this.showToast(`Applied ${t === 'dark' ? 'Obsidian Dark' : 'Soft Light'} theme!`);
-        });
-      });
-
-      const saveAppBtn = document.getElementById('btn-save-appearance');
-      if (saveAppBtn) {
-        saveAppBtn.addEventListener('click', async () => {
-          const font = document.getElementById('set-reading-font').value;
-          const anim = document.getElementById('set-anim-toggle').checked;
-          const compact = document.getElementById('set-compact-toggle').checked;
-
-          try {
-            await fetch(`${this.apiBase}/api/auth/preferences`, {
-              method: 'PUT',
-              headers: this.authHeaders(),
-              body: JSON.stringify({
-                readingFont: font,
-                soundEnabled: anim,
-                compactView: compact,
-                theme: document.documentElement.getAttribute('data-theme') || 'light'
-              })
-            });
-            this.showToast('Appearance preferences saved! ✨');
-          } catch (e) {
-            this.showToast('Failed to save appearance preferences.');
-          }
-        });
-      }
-
-    } else if (activeTab === 'publishing') {
-      pane.innerHTML = `
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <h2 class="settings-card-title">Creator & Publishing Studio Settings</h2>
-            <p class="settings-card-desc">Configure your defaults for Article Studio, topic categorization, and reader discussions.</p>
-          </div>
-
-          <div style="display:flex; flex-direction:column; gap:1.5rem;">
-            
-            <div class="settings-field">
-              <label class="settings-field-label" for="set-default-category">Default Article Category</label>
-              <select id="set-default-category" class="composer-select" style="max-width:320px;">
-                <option value="General" ${prefs.defaultCategory === 'General' ? 'selected' : ''}>General</option>
-                <option value="Technology" ${prefs.defaultCategory === 'Technology' ? 'selected' : ''}>Technology</option>
-                <option value="Productivity" ${prefs.defaultCategory === 'Productivity' ? 'selected' : ''}>Productivity</option>
-                <option value="Science" ${prefs.defaultCategory === 'Science' ? 'selected' : ''}>Science</option>
-                <option value="Design" ${prefs.defaultCategory === 'Design' ? 'selected' : ''}>Design</option>
-                <option value="Philosophy" ${prefs.defaultCategory === 'Philosophy' ? 'selected' : ''}>Philosophy</option>
-              </select>
-              <span class="settings-field-hint">Preselected whenever you launch Article Studio.</span>
-            </div>
-
-            <div class="settings-toggle-row">
-              <div>
-                <div style="font-weight:600; font-size:0.9rem; color:var(--text-main);">Allow Comments on My Publications</div>
-                <div style="font-size:0.8rem; color:var(--text-dim);">Enable readers to leave comments and start discussions on your articles.</div>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="set-allow-comments" ${prefs.allowComments !== false ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-            <div class="settings-toggle-row">
-              <div>
-                <div style="font-weight:600; font-size:0.9rem; color:var(--text-main);">AI Polish & Headline Suggestions</div>
-                <div style="font-size:0.8rem; color:var(--text-dim);">Display the AI Assistant toolbar inside Article Studio and Thought Composer.</div>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="set-ai-toolbar" ${prefs.aiToolbar !== false ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-            <div class="settings-toggle-row">
-              <div>
-                <div style="font-weight:600; font-size:0.9rem; color:var(--text-main);">Email Digest for Engagement</div>
-                <div style="font-size:0.8rem; color:var(--text-dim);">Receive email summaries when other creators like, bookmark or comment on your thoughts.</div>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="set-email-notifs" ${prefs.emailNotifs !== false ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-            <div style="display:flex; justify-content:flex-end;">
-              <button type="button" id="btn-save-creator-prefs" class="btn-auth-primary" style="width:auto; padding:0.65rem 1.6rem;">
-                Save Publishing Preferences
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      const saveCreatorBtn = document.getElementById('btn-save-creator-prefs');
-      if (saveCreatorBtn) {
-        saveCreatorBtn.addEventListener('click', async () => {
-          const cat = document.getElementById('set-default-category').value;
-          const comm = document.getElementById('set-allow-comments').checked;
-          const ai = document.getElementById('set-ai-toolbar').checked;
-          const email = document.getElementById('set-email-notifs').checked;
-
-          try {
-            await fetch(`${this.apiBase}/api/auth/preferences`, {
-              method: 'PUT',
-              headers: this.authHeaders(),
-              body: JSON.stringify({
-                defaultCategory: cat,
-                allowComments: comm,
-                aiToolbar: ai,
-                emailNotifs: email
-              })
-            });
-            this.showToast('Creator preferences saved! ✨');
-          } catch (e) {
-            this.showToast('Failed to save creator preferences.');
-          }
-        });
-      }
-
-    } else if (activeTab === 'security') {
-      pane.innerHTML = `
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <h2 class="settings-card-title">Security & Password Credentials</h2>
-            <p class="settings-card-desc">Keep your Readora account protected with a strong, unique password.</p>
-          </div>
-
-          <form id="form-change-password" style="display:flex; flex-direction:column; gap:1.25rem;">
-            
-            <div class="settings-field">
-              <label class="settings-field-label" for="pw-current">Current Password</label>
-              <input type="password" id="pw-current" class="form-input" style="max-width:380px;" placeholder="Enter current password" required>
-            </div>
-
-            <div class="settings-field">
-              <label class="settings-field-label" for="pw-new">New Password</label>
-              <input type="password" id="pw-new" class="form-input" style="max-width:380px;" placeholder="At least 6 characters" minlength="6" required>
-              <div class="pw-strength-bar" style="max-width:380px;">
-                <div class="pw-strength-fill" id="pw-meter-fill"></div>
-              </div>
-              <span class="pw-strength-label" id="pw-meter-label">Password strength: Empty</span>
-            </div>
-
-            <div class="settings-field">
-              <label class="settings-field-label" for="pw-confirm">Confirm New Password</label>
-              <input type="password" id="pw-confirm" class="form-input" style="max-width:380px;" placeholder="Re-type new password" minlength="6" required>
-            </div>
-
-            <div style="display:flex; justify-content:flex-start; margin-top:0.5rem;">
-              <button type="submit" id="btn-submit-change-pw" class="btn-auth-primary" style="width:auto; padding:0.65rem 1.6rem;">
-                Update Password
-              </button>
-            </div>
-          </form>
-
-          <!-- Active Sessions Card -->
-          <div style="border-top:1px solid var(--border-color); padding-top:1.5rem; margin-top:0.5rem;">
-            <h3 style="font-family:var(--font-brand); font-weight:700; font-size:1.05rem; color:var(--text-main); margin-bottom:0.75rem;">
-              Active Browsing Session
-            </h3>
-            <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div style="font-weight:700; font-size:0.92rem; color:var(--text-main); display:flex; align-items:center; gap:0.5rem;">
-                  <span>💻 Current Browser (Windows PC)</span>
-                  <span class="dash-metric-trend up" style="font-size:0.7rem; padding:0.15rem 0.45rem;">Active Now</span>
-                </div>
-                <div style="font-size:0.8rem; color:var(--text-dim); margin-top:0.2rem;">Signed in as ${esc(u.email)}</div>
-              </div>
-              <button type="button" class="btn-dash-action" id="btn-logout-sessions">Log Out</button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      const currentPw = document.getElementById('pw-current');
-      const newPw = document.getElementById('pw-new');
-      const confirmPw = document.getElementById('pw-confirm');
-      const meterFill = document.getElementById('pw-meter-fill');
-      const meterLabel = document.getElementById('pw-meter-label');
-
-      if (newPw && meterFill && meterLabel) {
-        newPw.addEventListener('input', () => {
-          const val = newPw.value;
-          let score = 0;
-          if (val.length >= 6) score++;
-          if (val.length >= 10) score++;
-          if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
-          if (/[^A-Za-z0-9]/.test(val)) score++;
-
-          if (val.length === 0) {
-            meterFill.style.width = '0%';
-            meterLabel.textContent = 'Password strength: Empty';
-          } else if (score <= 1) {
-            meterFill.style.width = '25%';
-            meterFill.style.backgroundColor = '#ef4444';
-            meterLabel.textContent = 'Password strength: Weak';
-          } else if (score === 2) {
-            meterFill.style.width = '50%';
-            meterFill.style.backgroundColor = '#f59e0b';
-            meterLabel.textContent = 'Password strength: Fair';
-          } else if (score === 3) {
-            meterFill.style.width = '75%';
-            meterFill.style.backgroundColor = '#3b82f6';
-            meterLabel.textContent = 'Password strength: Good';
-          } else {
-            meterFill.style.width = '100%';
-            meterFill.style.backgroundColor = '#10b981';
-            meterLabel.textContent = 'Password strength: Strong 💪';
-          }
-        });
-      }
-
-      const pwForm = document.getElementById('form-change-password');
-      if (pwForm) {
-        pwForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          if (newPw.value !== confirmPw.value) {
-            this.showToast('New passwords do not match!');
-            return;
-          }
-
-          const btn = document.getElementById('btn-submit-change-pw');
-          if (btn) { btn.disabled = true; btn.textContent = 'Updating...'; }
-
-          try {
-            const res = await fetch(`${this.apiBase}/api/auth/change-password`, {
-              method: 'POST',
-              headers: this.authHeaders(),
-              body: JSON.stringify({
-                currentPassword: currentPw.value,
-                newPassword: newPw.value
-              })
-            });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-              this.showToast(data.message || 'Failed to update password.');
-              return;
-            }
-
-            this.showToast('Password changed successfully! 🔒');
-            pwForm.reset();
-            if (meterFill) meterFill.style.width = '0%';
-            if (meterLabel) meterLabel.textContent = 'Password strength: Empty';
-          } catch (err) {
-            this.showToast('Network error while updating password.');
-          } finally {
-            if (btn) { btn.disabled = false; btn.textContent = 'Update Password'; }
-          }
-        });
-      }
-
-      const logSess = document.getElementById('btn-logout-sessions');
-      if (logSess) logSess.addEventListener('click', () => this.logout());
-
-    } else if (activeTab === 'data') {
-      pane.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:1.5rem;">
-          
-          <!-- Export Data Card -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <h2 class="settings-card-title">📦 Export Your Publication Archive</h2>
-              <p class="settings-card-desc">Download an offline JSON bundle containing all your published articles, thoughts, profile details, and bookmarks.</p>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
-              <span style="font-size:0.85rem; color:var(--text-dim);">Ready for backup or offline archiving.</span>
-              <button type="button" id="btn-export-data" class="btn-dash-action" style="padding:0.6rem 1.25rem;">
-                Download Data Archive (.json)
-              </button>
-            </div>
-          </div>
-
-          <!-- Clear Local Cache Card -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <h2 class="settings-card-title">🧹 Clear Offline Storage & Cache</h2>
-              <p class="settings-card-desc">Reset your local browser cache, reading history, and cached feed posts.</p>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
-              <span style="font-size:0.85rem; color:var(--text-dim);">Does not affect your published articles on the database.</span>
-              <button type="button" id="btn-clear-cache" class="btn-dash-action" style="padding:0.6rem 1.25rem;">
-                Clear Local Cache
-              </button>
-            </div>
-          </div>
-
-          <!-- Danger Zone Card -->
-          <div class="settings-card settings-danger-card">
-            <div class="settings-card-header" style="border-bottom-color:rgba(239, 68, 68, 0.2);">
-              <h2 class="settings-card-title">⚠️ Danger Zone: Delete Account</h2>
-              <p class="settings-card-desc" style="color:var(--text-dim);">Permanently remove your Readora creator profile, articles, thoughts, and comments. This action cannot be undone.</p>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
-              <span style="font-size:0.85rem; color:#ef4444; font-weight:600;">Proceed with caution.</span>
-              <button type="button" id="btn-delete-account-confirm" class="btn-dash-action btn-dash-danger" style="padding:0.6rem 1.25rem; font-weight:700;">
-                Delete Account Permanently
-              </button>
-            </div>
-          </div>
-
-        </div>
-      `;
-
-      // Export Data Download
-      const exportBtn = document.getElementById('btn-export-data');
-      if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-          const exportPayload = {
-            exportedAt: new Date().toISOString(),
-            profile: this.currentUser,
-            posts: this.posts.filter(p => p.author_id === u.id || (p.author && p.author.toLowerCase() === (u.name || '').toLowerCase())),
-            readingHistory: JSON.parse(localStorage.getItem('readora_reading_history') || '[]'),
-            theme: document.documentElement.getAttribute('data-theme') || 'light'
-          };
-
-          const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `readora-archive-${(u.handle || 'user').replace('@', '')}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          this.showToast('Archive downloaded successfully! 📦');
-        });
-      }
-
-      // Clear Cache
-      const clearBtn = document.getElementById('btn-clear-cache');
-      if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-          if (!confirm('Clear all local offline reading cache and history?')) return;
-          localStorage.removeItem('readora_reading_history');
-          localStorage.removeItem('readora_posts');
-          this.showToast('Local cache cleared! Refreshing...');
-          setTimeout(() => window.location.reload(), 600);
-        });
-      }
-
-      // Delete Account
-      const delBtn = document.getElementById('btn-delete-account-confirm');
-      if (delBtn) {
-        delBtn.addEventListener('click', async () => {
-          const confirm1 = confirm('ARE YOU ABSOLUTELY SURE?\n\nThis will permanently delete your account, published articles, thoughts, and followers.');
-          if (!confirm1) return;
-          const promptHandle = prompt(`Type your handle "${u.handle}" to confirm permanent deletion:`);
-          if (promptHandle !== u.handle) {
-            alert('Handle did not match. Account deletion cancelled.');
-            return;
-          }
-
-          try {
-            const res = await fetch(`${this.apiBase}/api/auth/account`, {
-              method: 'DELETE',
-              headers: this.authHeaders()
-            });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-              this.showToast(data.message || 'Failed to delete account.');
-              return;
-            }
-
-            this.logout();
-            alert('Your Readora account and all published content have been permanently removed.');
-          } catch (e) {
-            this.showToast('Network error while deleting account.');
-          }
-        });
-      }
-    }
-  }
-
-  showSavedView() {
-    this.hideAllViews();
-    const saved = document.getElementById('saved-view');
-    if (!saved) return;
-    saved.style.display = 'flex';
-    this.animateViewEntrance(saved);
-    document.title = 'Saved Articles & Reading History | READORA';
-    this.setNavActive();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    this.renderSavedView('bookmarks');
-  }
-
-  renderSavedView(subTab = 'bookmarks', searchQuery = '') {
-    const saved = document.getElementById('saved-view');
-    if (!saved) return;
-
-    const bookmarkedPosts = this.posts.filter(p => p.bookmarkedByUser);
-    const readingHistory = JSON.parse(localStorage.getItem('readora_reading_history') || '[]');
-    const goalTarget = parseInt(localStorage.getItem('readora_reading_goal') || '10', 10);
-    const completedCount = readingHistory.length;
-    const progressPct = Math.min(100, Math.round((completedCount / Math.max(1, goalTarget)) * 100));
-
-    saved.innerHTML = `
-      <div class="dashboard-hero-card" style="margin-bottom: 1.5rem;">
-        <h1 class="dashboard-title">Reading Lists & Library</h1>
-        <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 0.25rem;">
-          Revisit saved publications, bookmarks, and your reading journey.
-        </p>
-
-        <!-- Reading Goal Tracker Card -->
-        <div class="reading-goal-card" style="margin-top: 1.25rem; margin-bottom: 0;">
-          <div style="flex: 1; min-width: 220px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-weight:700; font-size:0.92rem; color:var(--text-main); display:flex; align-items:center; gap:6px;">
-                🎯 Monthly Reading Milestone
-              </span>
-              <span style="font-size:0.8rem; font-weight:700; color:var(--accent-primary);">
-                ${completedCount} / ${goalTarget} completed (${progressPct}%)
-              </span>
-            </div>
-            <div class="reading-goal-bar">
-              <div class="reading-goal-fill" style="width: ${progressPct}%;"></div>
-            </div>
-            <span style="font-size:0.78rem; color:var(--text-dim);">
-              ${progressPct >= 100 ? '🎉 Incredible! You crushed your monthly reading goal!' : `Read ${Math.max(0, goalTarget - completedCount)} more stories to reach your monthly milestone!`}
-            </span>
-          </div>
-          <button type="button" class="btn-dash-action" id="btn-edit-reading-goal" style="padding:0.45rem 0.85rem;">
-            Set Target
-          </button>
-        </div>
-
-        <div class="saved-filter-bar" style="margin-top: 1.25rem;">
-          <div class="feed-filter-bar" style="margin: 0;">
-            <button class="feed-tab ${subTab === 'bookmarks' ? 'active' : ''}" data-savetab="bookmarks">
-              🔖 Bookmarks (${bookmarkedPosts.length})
-            </button>
-            <button class="feed-tab ${subTab === 'history' ? 'active' : ''}" data-savetab="history">
-              🕒 Reading History (${readingHistory.length})
-            </button>
-          </div>
-
-          ${subTab === 'bookmarks' ? `
-            <input type="text" id="saved-search-input" class="saved-search-input" placeholder="Search saved posts..." value="${esc(searchQuery)}">
-          ` : `
-            <button class="btn-dash-action btn-dash-danger" id="btn-clear-reading-history">
-              Clear Reading History
-            </button>
-          `}
-        </div>
-      </div>
-
-      <div id="saved-list-container" class="posts-stream"></div>
-    `;
-
-    const goalBtn = document.getElementById('btn-edit-reading-goal');
-    if (goalBtn) {
-      goalBtn.addEventListener('click', () => {
-        const val = prompt('Set your monthly article reading goal:', String(goalTarget));
-        if (val !== null) {
-          const num = parseInt(val, 10);
-          if (num > 0) {
-            localStorage.setItem('readora_reading_goal', String(num));
-            this.showToast(`Updated monthly reading target to ${num} articles! 🎯`);
-            this.renderSavedView(subTab, searchQuery);
-          }
-        }
-      });
-    }
-
-    saved.querySelectorAll('[data-savetab]').forEach(b => {
-      b.addEventListener('click', () => this.renderSavedView(b.dataset.savetab));
-    });
-
-    const searchInput = document.getElementById('saved-search-input');
-    if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        this.renderSavedView('bookmarks', e.target.value);
-      });
-    }
-
-    const clearBtn = document.getElementById('btn-clear-reading-history');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => {
-        if (!confirm('Clear your entire reading history?')) return;
-        localStorage.removeItem('readora_reading_history');
-        this.showToast('Reading history cleared.');
-        this.renderSavedView('history');
-      });
-    }
-
-    const listContainer = document.getElementById('saved-list-container');
-    if (!listContainer) return;
-
-    if (subTab === 'bookmarks') {
-      let filtered = bookmarkedPosts;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        filtered = filtered.filter(p =>
-          (p.title || '').toLowerCase().includes(q) ||
-          (p.content || '').toLowerCase().includes(q) ||
-          (p.author || '').toLowerCase().includes(q)
-        );
-      }
-
-      if (filtered.length === 0) {
-        listContainer.innerHTML = `
-          <div class="dashboard-hero-card" style="text-align:center; padding: 3rem 1rem; color: var(--text-dim);">
-            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔖</div>
-            <p>${searchQuery ? 'No saved posts match your search.' : 'You have no saved posts yet. Click the bookmark icon on any post to save it here.'}</p>
-          </div>
-        `;
-        return;
-      }
-
-      listContainer.innerHTML = filtered.map(post => this.renderPostCard(post)).join('');
-      this.attachCardEventListeners(listContainer);
-    } else {
-      if (readingHistory.length === 0) {
-        listContainer.innerHTML = `
-          <div class="dashboard-hero-card" style="text-align:center; padding: 3rem 1rem; color: var(--text-dim);">
-            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📖</div>
-            <p>Articles you read will be recorded here so you can easily return to them.</p>
-          </div>
-        `;
-        return;
-      }
-
-      listContainer.innerHTML = readingHistory.map(item => `
-        <div class="dashboard-hero-card" style="padding: 1.15rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
-          <div>
-            <span class="card-tag ${this.getCategoryClass(item.category)}" style="margin-bottom: 0.25rem;">${esc(item.category || 'Article')}</span>
-            <a href="#/article/${esc(item.id)}" class="dashboard-item-title" style="font-size: 1.05rem;">${esc(item.title || 'Untitled Article')}</a>
-            <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.2rem;">By ${esc(item.author || 'Creator')} • Read ${timeAgo(item.timestamp)}</div>
-          </div>
-          <button class="btn-dash-action btn-open-history-art" data-id="${esc(item.id)}">Read Again ➔</button>
-        </div>
-      `).join('');
-
-      listContainer.querySelectorAll('.btn-open-history-art').forEach(b => {
-        b.addEventListener('click', () => this.openFullArticle(b.dataset.id));
-      });
-    }
-  }
-
-  async loadProfile(handle, silent = false) {
-    const reqId = ++this.profileReq;
-    const view = document.getElementById('profile-view');
-    if (!view) return;
-    if (!silent) view.innerHTML = '<div class="profile-message">Loading profile…</div>';
-
-    await this.syncPromise;
-
-    try {
-      const res = await fetch(`${this.apiBase}/api/posts/user/${encodeURIComponent(handle)}`, { headers: this.authHeaders() });
-      const data = await res.json();
-      if (reqId !== this.profileReq) return; // user already went somewhere else
-
-      if (res.ok && data.success && data.profile) {
-        this.profile = data.profile;
-        document.title = `${data.profile.name} (${data.profile.handle}) | READORA`;
-        this.renderProfile();
-      } else {
-        this.profile = null;
-        view.innerHTML = `
-          <a class="profile-back" href="#/">← Back to feed</a>
-          <div class="profile-message">
-            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔍</div>
-            <h3>Creator not found</h3>
-            <p>We couldn't find anyone called ${esc(handle)}.</p>
-          </div>`;
-      }
-    } catch (e) {
-      if (reqId !== this.profileReq) return;
-      view.innerHTML = `
-        <a class="profile-back" href="#/">← Back to feed</a>
-        <div class="profile-message"><h3>Could not load this profile</h3><p>Please check your connection and try again.</p></div>`;
-    }
-  }
-
-  renderProfile() {
-    const view = document.getElementById('profile-view');
-    const p = this.profile;
-    if (!view || !p) return;
-
-    const isMe = !!p.isMe || (this.currentUser && this.currentUser.id === p.id);
-    let joined = '';
-    if (p.joinedAt) {
-      const d = new Date(String(p.joinedAt).replace(' ', 'T') + 'Z');
-      if (!isNaN(d.getTime())) joined = 'Joined ' + d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    }
-
-    const stat = (num, label, color) => `
-      <div class="profile-stat">
-        <div class="profile-stat-num" style="${color ? 'color:' + color : ''}">${esc(num)}</div>
-        <div class="profile-stat-label">${label}</div>
-      </div>`;
-
-    const action = isMe
-      ? `<button class="btn-profile-secondary" id="btn-edit-profile">✎ Edit Profile</button>`
-      : `<button class="btn-profile-primary ${p.isFollowing ? 'is-following' : ''}" id="btn-profile-follow">${p.isFollowing ? 'Following' : 'Follow'}</button>`;
-
-    view.innerHTML = `
-      <a class="profile-back" href="#/">← Back to feed</a>
-      <div class="profile-hero">
-        <div class="profile-hero-top">
-          <div class="profile-avatar-lg">${esc(p.avatar)}</div>
-          <div class="profile-hero-info">
-            <h1 class="profile-name">${esc(p.name)}</h1>
-            <div class="profile-handle">${esc(p.handle)}</div>
-            <p class="profile-bio">${esc(p.bio || 'Reader and creator on Readora.')}</p>
-            ${joined ? `<div class="profile-joined">${esc(joined)}</div>` : ''}
-          </div>
-          <div class="profile-actions">${action}</div>
-        </div>
-        <div class="profile-stats">
-          ${stat(p.stats.thoughts, 'Thoughts')}
-          ${stat(p.stats.articles, 'Articles')}
-          ${stat(p.stats.followers, 'Followers', '#6366f1')}
-          ${stat(p.stats.following, 'Following', '#a5b4fc')}
-        </div>
-      </div>
-
-      <div class="feed-filter-bar profile-tabs">
-        <button class="feed-tab ${this.profileFilter === 'all' ? 'active' : ''}" data-pfilter="all">🌟 All Posts</button>
-        <button class="feed-tab ${this.profileFilter === 'thought' ? 'active' : ''}" data-pfilter="thought">💭 Thoughts</button>
-        <button class="feed-tab ${this.profileFilter === 'article' ? 'active' : ''}" data-pfilter="article">📖 Articles</button>
-      </div>
-
-      <div class="posts-stream" id="profile-posts"></div>
-    `;
-
-    const editBtn = document.getElementById('btn-edit-profile');
-    if (editBtn) editBtn.addEventListener('click', () => this.openEditProfile());
-    const followBtn = document.getElementById('btn-profile-follow');
-    if (followBtn) followBtn.addEventListener('click', () => this.toggleFollow(p.id));
-
-    view.querySelectorAll('[data-pfilter]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.profileFilter = btn.dataset.pfilter;
-        view.querySelectorAll('[data-pfilter]').forEach(b => b.classList.toggle('active', b === btn));
-        this.renderProfilePosts();
-      });
-    });
-
-    this.renderProfilePosts();
-  }
-
-  renderProfilePosts() {
-    const box = document.getElementById('profile-posts');
-    if (!box || !this.profile) return;
-
-    const list = this.posts.filter(post => {
-      if (post.author_id !== this.profile.id) return false;
-      if (this.profileFilter !== 'all' && post.type !== this.profileFilter) return false;
-      return true;
-    });
-
-    if (list.length === 0) {
-      const who = this.profile.isMe ? 'You haven\'t' : `${esc(this.profile.name)} hasn't`;
-      box.innerHTML = `
-        <div class="profile-message">
-          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✍️</div>
-          <h3>Nothing here yet</h3>
-          <p>${who} published any ${this.profileFilter === 'all' ? 'posts' : this.profileFilter + 's'} yet.</p>
-        </div>`;
-      return;
-    }
-
-    box.innerHTML = list.map(post => this.renderPostCard(post)).join('');
-    this.attachCardEventListeners(box);
-  }
-
-  // ---------- Edit profile ----------
-
-  openEditProfile() {
-    if (!this.currentUser) return;
-    const nameEl = document.getElementById('edit-profile-name');
-    const bioEl = document.getElementById('edit-profile-bio');
-    const errEl = document.getElementById('edit-profile-error');
-    if (nameEl) nameEl.value = this.currentUser.name || '';
-    if (bioEl) bioEl.value = this.currentUser.bio || '';
-    if (errEl) errEl.style.display = 'none';
-    this.openModal(this.editProfileModal);
-  }
-
-  async submitEditProfile() {
-    const name = document.getElementById('edit-profile-name').value.trim();
-    const bio = document.getElementById('edit-profile-bio').value.trim();
-    const errEl = document.getElementById('edit-profile-error');
-    const btn = document.getElementById('btn-save-profile');
-    const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
-
-    errEl.style.display = 'none';
-    if (!name) return showErr('Please enter your name.');
-    if (name.length > 50) return showErr('Name must be 50 characters or fewer.');
-    if (bio.length > 200) return showErr('Bio must be 200 characters or fewer.');
-
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
-    try {
-      const res = await fetch(`${this.apiBase}/api/auth/profile`, {
-        method: 'PUT',
-        headers: this.authHeaders(),
-        body: JSON.stringify({ name, bio })
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        this.currentUser = Object.assign({}, this.currentUser, data.user);
-        localStorage.setItem('readora_current_user', JSON.stringify(this.currentUser));
-        this.editProfileModal.classList.remove('active');
-        this.updateUserUI();
-        await this.syncWithBackend();
-        if (this.isProfileActive() && this.profile) await this.loadProfile(this.profile.handle, true);
-        this.showToast('✅ Profile updated!');
-      } else {
-        showErr(data.message || 'Could not update your profile.');
-      }
-    } catch (e) {
-      showErr('Network error. Please try again.');
-    }
-    btn.disabled = false;
-    btn.textContent = 'Save Changes';
-  }
-
-  // ---------- Header / user UI ----------
-
-  updateUserUI() {
-    const isAuth = !!this.currentUser;
-    const avatarEls = document.querySelectorAll('.user-avatar-sm, .thought-composer-card .author-avatar');
-    const nameEl = document.querySelector('.user-name-sm');
-    const userBadge = document.getElementById('user-profile-badge');
-
-    const authText = document.getElementById('nav-auth-text');
-    const authBtn = document.getElementById('nav-auth-btn');
-
-    if (isAuth && this.currentUser) {
-      const initials = this.currentUser.avatar || (this.currentUser.name ? this.currentUser.name.substring(0, 2).toUpperCase() : 'CR');
-      avatarEls.forEach(el => { el.textContent = initials; });
-      if (nameEl) nameEl.textContent = this.currentUser.name ? this.currentUser.name.split(' ')[0] : 'Creator';
-      if (userBadge) userBadge.title = `Logged in as ${this.currentUser.name}`;
-
-      if (authText) authText.textContent = 'Log Out';
-      if (authBtn) authBtn.title = 'Log Out of Readora';
-
-      const modalAvatar = document.getElementById('profile-modal-avatar');
-      if (modalAvatar) modalAvatar.textContent = initials;
-      const modalName = document.getElementById('profile-modal-name');
-      if (modalName) modalName.textContent = this.currentUser.name || 'Creator';
-      const modalHandle = document.getElementById('profile-modal-handle');
-      if (modalHandle) modalHandle.textContent = this.currentUser.handle || '@creator';
-      const modalBio = document.getElementById('profile-modal-bio');
-      if (modalBio) modalBio.textContent = this.currentUser.bio || 'Reader and creator on Readora.';
-      const modalThoughts = document.getElementById('profile-modal-thoughts');
-      if (modalThoughts) modalThoughts.textContent = this.currentUser.stats ? this.currentUser.stats.thoughts : 0;
-      const modalArticles = document.getElementById('profile-modal-articles');
-      if (modalArticles) modalArticles.textContent = this.currentUser.stats ? this.currentUser.stats.articles : 0;
-      const modalFollowers = document.getElementById('profile-modal-followers');
-      if (modalFollowers) modalFollowers.textContent = this.currentUser.stats ? this.currentUser.stats.followers : 0;
-      const modalFollowing = document.getElementById('profile-modal-following');
-      if (modalFollowing) modalFollowing.textContent = this.currentUser.stats ? this.currentUser.stats.following : 0;
-    } else {
-      avatarEls.forEach(el => { el.textContent = '👤'; });
-      if (nameEl) nameEl.textContent = 'Guest';
-      if (userBadge) userBadge.title = 'Click to log in or register';
-      if (authText) authText.textContent = 'Log In / Sign Up';
-      if (authBtn) authBtn.title = 'Log In or Create an Account';
-    }
-    this.setNavActive();
-  }
-
-  logout() {
-    if (this.currentUser) {
-      try {
-        localStorage.setItem('readora_last_user', JSON.stringify({
-          name: this.currentUser.name,
-          handle: this.currentUser.handle,
-          avatar: this.currentUser.avatar || (this.currentUser.name ? this.currentUser.name.substring(0, 2).toUpperCase() : 'CR')
-        }));
       } catch (e) {}
     }
-    localStorage.removeItem('readora_token');
-    localStorage.removeItem('readora_current_user');
-    window.location.href = 'login.html?switched=true';
   }
 
-  initDOM() {
-    this.postsContainer = document.getElementById('posts-stream');
-    this.searchInput = document.getElementById('search-input');
-    this.filterTabs = document.querySelectorAll('#feed-view .feed-tab');
+  updateUserUI() {
+    const badge = document.getElementById('user-profile-badge');
+    const avatar = document.getElementById('user-avatar-text');
+    const nameLabel = document.getElementById('user-display-name');
 
-    // Quick Thought Composer
-    this.thoughtInput = document.getElementById('quick-thought-text');
-    this.publishThoughtBtn = document.getElementById('btn-publish-thought');
-    this.composerCategory = document.getElementById('composer-category');
-    this.themePills = document.querySelectorAll('.theme-pill');
-
-    // Photo Composer
-    this.btnPublishPhoto = document.getElementById('btn-publish-photo');
-    this.photoUrlInput = document.getElementById('photo-url-input');
-    this.photoCaptionInput = document.getElementById('photo-caption-input');
-    this.photoCategory = document.getElementById('photo-category');
-    this.photoPreviewBox = document.getElementById('photo-preview-box');
-    this.photoPreviewImg = document.getElementById('photo-preview-img');
-    this.composerTypeBtns = document.querySelectorAll('.composer-type-btn');
-    this.composerSections = document.querySelectorAll('.composer-section');
-
-    // Modals
-    this.writeArticleModal = document.getElementById('write-article-modal');
-    this.readArticleModal = document.getElementById('read-article-modal');
-    this.profileModal = document.getElementById('profile-modal');
-    this.editProfileModal = document.getElementById('edit-profile-modal');
-    this.notificationsModal = document.getElementById('notifications-modal');
-
-    // Action Triggers & Nav
-    this.btnOpenWriteArticle = document.getElementById('btn-open-write-article');
-    this.btnWriteLongArticle = document.getElementById('btn-write-long-article');
-    this.userBadge = document.getElementById('user-profile-badge');
-    this.profileSidebarBtn = document.getElementById('nav-profile-btn');
-    this.btnLogout = document.getElementById('btn-logout');
-    this.btnViewProfile = document.getElementById('btn-view-profile');
-    this.themeToggleBtn = document.getElementById('theme-toggle-btn');
-    this.notifBtn = document.getElementById('btn-notifications');
-    this.btnMarkAllRead = document.getElementById('btn-mark-all-read');
-
-    // Forms
-    this.articleForm = document.getElementById('publish-article-form');
-    this.editProfileForm = document.getElementById('edit-profile-form');
-    this.toastEl = document.getElementById('toast');
-
-    this.initTheme();
-    this.updateUserUI();
-  }
-
-  goToMyProfile() {
-    if (!this.currentUser || !this.currentUser.handle) {
-      this.showToast('Please log in to see your profile.');
-      setTimeout(() => { window.location.href = 'login.html'; }, 1000);
-      return;
-    }
-    if (window.location.hash === profileLink(this.currentUser.handle)) {
-      this.handleRoute();
+    if (this.currentUser) {
+      if (avatar) avatar.textContent = this.currentUser.avatar || this.currentUser.name.substring(0, 2).toUpperCase();
+      if (nameLabel) nameLabel.textContent = this.currentUser.name.split(' ')[0];
+      if (badge) badge.title = `${this.currentUser.name} (${this.currentUser.handle})`;
     } else {
-      window.location.hash = profileLink(this.currentUser.handle);
+      if (avatar) avatar.textContent = '·';
+      if (nameLabel) nameLabel.textContent = 'Account';
     }
   }
 
   initTheme() {
-    const saved = localStorage.getItem('readora_theme');
-    // Light theme is the default design system
-    if (saved === 'dark') {
-      document.body.classList.add('theme-dark');
-      this.updateThemeButton(true);
-    } else {
-      document.body.classList.remove('theme-dark');
-      this.updateThemeButton(false);
+    const saved = localStorage.getItem('readora_theme') || 'light';
+    this.applyTheme(saved);
+
+    const toggleBtn = document.getElementById('btn-theme-toggle');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        this.applyTheme(next);
+      });
     }
   }
 
-  toggleTheme() {
-    const isDark = document.body.classList.toggle('theme-dark');
-    localStorage.setItem('readora_theme', isDark ? 'dark' : 'light');
-    this.updateThemeButton(isDark);
-    this.showToast(isDark ? '🌙 Dark Mode Enabled' : '☀️ Light Mode Enabled');
-  }
+  applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.classList.toggle('dark-mode', theme === 'dark');
+    localStorage.setItem('readora_theme', theme);
 
-  updateThemeButton(isDark) {
-    if (!this.themeToggleBtn) return;
-    this.themeToggleBtn.innerHTML = isDark
-      ? `<span class="theme-icon">☀️</span><span class="theme-text">Light</span>`
-      : `<span class="theme-icon">🌙</span><span class="theme-text">Dark</span>`;
+    const sun = document.getElementById('theme-toggle-icon-sun');
+    const moon = document.getElementById('theme-toggle-icon-moon');
+    if (sun && moon) {
+      sun.style.display = theme === 'dark' ? 'block' : 'none';
+      moon.style.display = theme === 'dark' ? 'none' : 'block';
+    }
   }
 
   bindEvents() {
-    // Character counters for quick thought and photo caption
-    if (this.thoughtInput) {
-      const counterEl = document.getElementById('thought-char-count');
-      this.thoughtInput.addEventListener('input', () => {
-        const len = this.thoughtInput.value.length;
-        if (counterEl) {
-          counterEl.textContent = `${len} / 280`;
-          counterEl.classList.toggle('warning', len > 220 && len <= 280);
-          counterEl.classList.toggle('limit', len > 280);
-        }
-      });
-    }
-
-    if (this.photoCaptionInput) {
-      const counterEl = document.getElementById('photo-char-count');
-      this.photoCaptionInput.addEventListener('input', () => {
-        const len = this.photoCaptionInput.value.length;
-        if (counterEl) {
-          counterEl.textContent = `${len} / 280`;
-          counterEl.classList.toggle('warning', len > 220 && len <= 280);
-          counterEl.classList.toggle('limit', len > 280);
-        }
-      });
-    }
-
-    // Photo Drawer Toggle
-    const btnTogglePhoto = document.getElementById('btn-toggle-photo');
-    const photoDrawer = document.getElementById('composer-photo-drawer');
-    const photoInput = document.getElementById('photo-url-input');
-    const photoPreviewBox = document.getElementById('photo-preview-box');
-    const photoPreviewImg = document.getElementById('photo-preview-img');
-
-    if (btnTogglePhoto && photoDrawer) {
-      btnTogglePhoto.addEventListener('click', () => {
-        const isHidden = photoDrawer.style.display === 'none';
-        photoDrawer.style.display = isHidden ? 'block' : 'none';
-        btnTogglePhoto.classList.toggle('active', isHidden);
-        if (isHidden && photoInput) photoInput.focus();
-      });
-    }
-
-    if (photoInput && photoPreviewImg && photoPreviewBox) {
-      photoInput.addEventListener('input', () => {
-        const url = photoInput.value.trim();
-        if (url && /^https?:\/\//i.test(url)) {
-          photoPreviewImg.src = url;
-          photoPreviewBox.style.display = 'block';
-        } else {
-          photoPreviewBox.style.display = 'none';
-        }
-      });
-    }
-
-    // Explore Topic Chips Filter
-    const exploreChips = document.querySelectorAll('.explore-topic-chip');
-    exploreChips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        exploreChips.forEach(c => c.style.background = '');
-        chip.style.background = 'var(--accent-tint)';
-        chip.style.color = 'var(--accent-primary)';
-        this.renderExploreGrid(chip.dataset.topic);
-      });
-    });
-
-    // Sidebar Navigation items
-    const navWriteBtn = document.getElementById('nav-write-btn');
-    if (navWriteBtn) {
-      navWriteBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.openModal(this.writeArticleModal);
-      });
-    }
-
-    const navNotifsBtn = document.getElementById('nav-notifs-btn');
-    if (navNotifsBtn) {
-      navNotifsBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.openModal(this.notificationsModal);
-        this.loadNotifications();
-      });
-    }
-
-    const navSavedBtn = document.getElementById('nav-saved-btn');
-    if (navSavedBtn) {
-      navSavedBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.showSavedView();
-      });
-    }
-
-    const navSettingsBtn = document.getElementById('nav-settings-btn');
-    if (navSettingsBtn) {
-      navSettingsBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        window.location.hash = '#/settings';
-      });
-    }
-
-    const btnThemeToggle = document.getElementById('btn-theme-toggle');
-    if (btnThemeToggle) {
-      btnThemeToggle.addEventListener('click', () => {
-        this.toggleTheme();
-      });
-    }
-
-    const btnModalSettings = document.getElementById('btn-modal-settings');
-    if (btnModalSettings) {
-      btnModalSettings.addEventListener('click', () => {
-        document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
-      });
-    }
-
-    const navAuthBtn = document.getElementById('nav-auth-btn');
-    if (navAuthBtn) {
-      navAuthBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (this.currentUser) {
-          this.logout();
-        } else {
-          window.location.href = 'login.html';
-        }
-      });
-    }
-
-    // Mobile Bottom Navigation
-    const mobCreate = document.getElementById('mob-nav-create');
-    if (mobCreate) {
-      mobCreate.addEventListener('click', () => {
-        this.openModal(this.writeArticleModal);
-      });
-    }
-
-    const mobNotifs = document.getElementById('mob-nav-notifs');
-    if (mobNotifs) {
-      mobNotifs.addEventListener('click', () => {
-        this.openModal(this.notificationsModal);
-        this.loadNotifications();
-      });
-    }
-
-    const mobProfile = document.getElementById('mob-nav-profile');
-    if (mobProfile) {
-      mobProfile.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.goToMyProfile();
-      });
-    }
-
-    // Explore View Search
-    const exploreSearchInput = document.getElementById('explore-search-input');
-    if (exploreSearchInput) {
-      exploreSearchInput.addEventListener('input', (e) => {
-        this.filterExploreContent(e.target.value.trim());
-      });
-    }
-
-    // Theme toggle button
-    if (this.themeToggleBtn) {
-      this.themeToggleBtn.addEventListener('click', () => this.toggleTheme());
-    }
-
-    // Notifications modal & mark all read
-    if (this.notifBtn) {
-      this.notifBtn.addEventListener('click', () => {
-        this.openModal(this.notificationsModal);
-        this.loadNotifications();
-      });
-    }
-    if (this.btnMarkAllRead) {
-      this.btnMarkAllRead.addEventListener('click', () => this.markAllNotificationsRead());
-    }
-
-    // Composer Mode Tabs (Thought | Photo | Article)
-    if (this.composerTypeBtns) {
-      this.composerTypeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const mode = btn.dataset.mode;
-          if (mode === 'article') {
-            this.openModal(this.writeArticleModal);
-            return;
-          }
-          this.composerTypeBtns.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-
-          if (this.composerSections) {
-            this.composerSections.forEach(sec => sec.classList.remove('active'));
-          }
-          const targetSec = document.getElementById(`composer-sec-${mode}`);
-          if (targetSec) targetSec.classList.add('active');
-        });
-      });
-    }
-
-    // Photo URL live preview
-    if (this.photoUrlInput) {
-      this.photoUrlInput.addEventListener('input', () => {
-        const url = this.photoUrlInput.value.trim();
-        if (url && (/^https?:\/\//i.test(url) || /^data:image\//i.test(url))) {
-          if (this.photoPreviewImg) this.photoPreviewImg.src = url;
-          if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'block';
-        } else {
-          if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'none';
-        }
-      });
-    }
-
-    // Real File Upload for Thought Composer
-    const photoFileInput = document.getElementById('photo-file-input');
-    const photoSpinner = document.getElementById('photo-upload-spinner');
-    if (photoFileInput) {
-      photoFileInput.addEventListener('change', async (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (file) {
-          await this.uploadImageFile(file, photoSpinner, this.photoUrlInput, this.photoPreviewImg, this.photoPreviewBox);
-        }
-      });
-    }
-
-    // Real File Upload for Article Studio Cover Image
-    const articleCoverFileInput = document.getElementById('article-cover-file-input');
-    const articleCoverInput = document.getElementById('article-cover-input');
-    const articleCoverSpinner = document.getElementById('article-cover-spinner');
-    if (articleCoverFileInput) {
-      articleCoverFileInput.addEventListener('change', async (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (file) {
-          await this.uploadImageFile(file, articleCoverSpinner, articleCoverInput);
-        }
-      });
-    }
-
-    // Photo Post Publish
-    if (this.btnPublishPhoto) {
-      this.btnPublishPhoto.addEventListener('click', () => this.handleCreateImagePost());
-    }
-
-    // Quick thought publication
-    if (this.publishThoughtBtn) {
-      this.publishThoughtBtn.addEventListener('click', () => this.handleCreateThought());
-    }
-
-    // Theme pill selection for thoughts
-    this.themePills.forEach(pill => {
-      pill.addEventListener('click', () => {
-        this.themePills.forEach(p => p.classList.remove('selected'));
-        pill.classList.add('selected');
-        this.selectedTheme = pill.dataset.theme;
-      });
-    });
-
-    // Feed tab filtering
-    this.filterTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        this.filterTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        this.currentFilter = tab.dataset.filter;
-        if (this.currentFilter === 'following') {
-          this.loadFollowing();
-        } else {
-          this.render();
-        }
-      });
-    });
-
-    // Search filter
+    // Search input with debounce
     if (this.searchInput) {
+      let timer = null;
       this.searchInput.addEventListener('input', (e) => {
-        if (this.isProfileActive()) window.location.hash = '#/';
-        this.activeSearchQuery = e.target.value.toLowerCase().trim();
-        this.render();
-      });
-    }
-
-    // Page changes (feed <-> profile <-> dashboard)
-    window.addEventListener('hashchange', () => this.handleRoute());
-
-    // Search filter with smooth debouncing
-    if (this.searchInput) {
-      let searchTimer;
-      this.searchInput.addEventListener('input', (e) => {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
           this.activeSearchQuery = e.target.value.toLowerCase().trim();
           this.render();
-          if (this.route && this.route.name === 'explore') {
-            this.renderExploreGrid();
-          }
-        }, 200);
+        }, 150);
       });
     }
 
-    // Explore topic filter chips
-    document.querySelectorAll('.explore-topic-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.explore-topic-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        this.renderExploreGrid(chip.dataset.topic || '');
-      });
-    });
-
-    // Modals Open/Close & Article Studio
-    if (this.btnOpenWriteArticle) {
-      this.btnOpenWriteArticle.addEventListener('click', () => this.openArticleStudio());
-    }
-    if (this.btnWriteLongArticle) {
-      this.btnWriteLongArticle.addEventListener('click', () => this.openArticleStudio());
-    }
-    const btnHeroWrite = document.getElementById('btn-hero-write');
-    if (btnHeroWrite) {
-      btnHeroWrite.addEventListener('click', () => this.openArticleStudio());
-    }
-    if (this.userBadge) {
-      this.userBadge.addEventListener('click', () => this.openModal(this.profileModal));
-    }
-    if (this.profileSidebarBtn) {
-      this.profileSidebarBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.goToMyProfile();
-      });
-    }
-    if (this.btnViewProfile) {
-      this.btnViewProfile.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.profileModal.classList.remove('active');
-        this.goToMyProfile();
+    // Topic filter buttons (updates URL query string /?tab=...)
+    const filterBar = document.getElementById('editorial-filter-bar');
+    if (filterBar) {
+      filterBar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.filter-text-btn');
+        if (!btn) return;
+        this.setTabFilter(btn.dataset.filter || 'all');
       });
     }
 
-    if (this.btnLogout) {
-      this.btnLogout.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.logout();
-      });
+    // Primary Write Action in Header
+    const writeBtn = document.getElementById('btn-open-write-article');
+    if (writeBtn) {
+      writeBtn.addEventListener('click', () => this.openWriteModal());
     }
 
-    // Notifications Trigger
-    if (this.notifBtn) {
-      this.notifBtn.addEventListener('click', () => {
-        this.openModal(this.notificationsModal);
-        this.loadNotifications();
-      });
+    const mobWriteBtn = document.getElementById('mob-nav-write');
+    if (mobWriteBtn) {
+      mobWriteBtn.addEventListener('click', () => this.openWriteModal());
     }
 
-    if (this.btnMarkAllRead) {
-      this.btnMarkAllRead.addEventListener('click', async () => {
-        try {
-          await fetch(`${this.apiBase}/api/posts/notifications/read-all`, { method: 'POST', headers: this.authHeaders() });
-          this.showToast('All notifications marked as read.');
-          this.loadNotifications();
-        } catch (e) {}
-      });
-    }
-
-    // Article Studio Toolbar & Formatting
-    document.querySelectorAll('#editor-toolbar .editor-format-btn').forEach(btn => {
+    // Close modals on click
+    document.querySelectorAll('.modal-close-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        this.applyFormatToArticle(btn.dataset.format);
+        if (this.readerModal) this.readerModal.classList.remove('active');
+        if (this.writeModal) this.writeModal.classList.remove('active');
       });
     });
 
-    // Article Studio Mode Tabs (Write vs Preview)
-    const tabWrite = document.getElementById('editor-tab-write');
-    const tabPrev = document.getElementById('editor-tab-preview');
-    if (tabWrite) tabWrite.addEventListener('click', () => this.setEditorMode('write'));
-    if (tabPrev) tabPrev.addEventListener('click', () => this.setEditorMode('preview'));
+    // Write form submit
+    const writeForm = document.getElementById('publish-article-form');
+    if (writeForm) {
+      writeForm.addEventListener('submit', (e) => this.handlePublishEssay(e));
+    }
 
-    // Article Studio Body: Real-time Word & Read-time Counter + Draft Debounce
+    // Word counter in write modal
     const bodyInput = document.getElementById('article-body-input');
     if (bodyInput) {
-      let draftTimer;
       bodyInput.addEventListener('input', () => {
-        this.updateArticleMetaStats();
-        clearTimeout(draftTimer);
-        draftTimer = setTimeout(() => this.saveArticleDraft(), 3500);
+        const words = (bodyInput.value.trim().match(/\S+/g) || []).length;
+        const readTime = Math.max(1, Math.ceil(words / 180));
+        const wcEl = document.getElementById('article-word-count');
+        const rtEl = document.getElementById('article-read-time');
+        if (wcEl) wcEl.textContent = `${words} words`;
+        if (rtEl) rtEl.textContent = `~${readTime} min read`;
       });
     }
 
-    // Explicit Save Draft Button
-    const btnSaveDraft = document.getElementById('btn-save-draft');
-    if (btnSaveDraft) {
-      btnSaveDraft.addEventListener('click', async () => {
-        await this.saveArticleDraft();
-        this.showToast('💾 Draft saved successfully!');
+    // AI Assistant Panel Toggle (docked, does not float over content)
+    const toggleAiBtn = document.getElementById('btn-toggle-ai-panel');
+    const closeAiBtn = document.getElementById('btn-close-ai-panel');
+    if (toggleAiBtn && this.aiPanel) {
+      toggleAiBtn.addEventListener('click', () => {
+        this.aiPanel.classList.toggle('open');
+      });
+    }
+    if (closeAiBtn && this.aiPanel) {
+      closeAiBtn.addEventListener('click', () => {
+        this.aiPanel.classList.remove('open');
       });
     }
 
-    // Discard Button with Confirmation
-    const btnClearEditor = document.getElementById('btn-clear-editor');
-    if (btnClearEditor) {
-      btnClearEditor.addEventListener('click', () => {
-        const text = document.getElementById('article-body-input')?.value || '';
-        if (text.trim().length > 25 && !confirm('Discard all unsaved changes and close the editor?')) {
-          return;
+    // AI Chat Input
+    const sendAiBtn = document.getElementById('btn-send-ai-chat');
+    const aiInput = document.getElementById('ai-chat-input');
+    if (sendAiBtn && aiInput) {
+      const doSend = () => {
+        const text = aiInput.value.trim();
+        if (!text) return;
+        this.appendAiMessage('user', text);
+        aiInput.value = '';
+        this.triggerAiResponse(text);
+      };
+      sendAiBtn.addEventListener('click', doSend);
+      aiInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); doSend(); }
+      });
+    }
+
+    // User badge click -> redirect or modal
+    const userBadge = document.getElementById('user-profile-badge');
+    if (userBadge) {
+      userBadge.addEventListener('click', () => {
+        if (this.currentUser) {
+          window.location.hash = profileLink(this.currentUser.handle);
+        } else {
+          window.location.href = 'practise.html';
         }
-        if (this.articleForm) this.articleForm.reset();
-        const editId = document.getElementById('editing-article-id');
-        if (editId) editId.value = '';
-        const pill = document.getElementById('article-draft-status');
-        if (pill) pill.style.display = 'none';
-        this.editingPostId = null;
-        if (this.writeArticleModal) this.writeArticleModal.classList.remove('active');
       });
     }
+  }
 
-    // Protect Against Accidental Discard on Page Leave
-    window.addEventListener('beforeunload', (e) => {
-      const isModalOpen = this.writeArticleModal && this.writeArticleModal.classList.contains('active');
-      const bodyVal = document.getElementById('article-body-input')?.value || '';
-      if (isModalOpen && bodyVal.trim().length > 40) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
+  showToast(message) {
+    if (!this.toast) return;
+    const txt = document.getElementById('toast-text-content');
+    if (txt) txt.textContent = message;
+    this.toast.classList.add('visible');
+    setTimeout(() => this.toast.classList.remove('visible'), 2800);
+  }
+
+  handleRoute() {
+    const hash = window.location.hash || '';
+    const m = /^#\/(u|profile)\/(.+)$/.exec(hash);
+    const artM = /^#\/(article|post|essay)\/(.+)$/.exec(hash);
+
+    // Hide all full views
+    ['feed-view', 'explore-view', 'saved-view', 'dashboard-view', 'settings-view', 'profile-view'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
     });
 
-    // Article Form Submit
-    if (this.articleForm) {
-      this.articleForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.handleCreateArticle();
-      });
+    if (artM) {
+      const postId = decodeURIComponent(artM[2]);
+      this.openFullArticle(postId);
+      const feed = document.getElementById('feed-view');
+      if (feed) feed.style.display = 'block';
+    } else if (m) {
+      const handle = decodeURIComponent(m[2]);
+      this.renderProfileView(handle);
+    } else if (hash === '#/explore') {
+      const exp = document.getElementById('explore-view');
+      if (exp) exp.style.display = 'block';
+      this.renderExplore();
+    } else if (hash === '#/saved') {
+      const saved = document.getElementById('saved-view');
+      if (saved) saved.style.display = 'block';
+      this.renderSaved();
+    } else {
+      const feed = document.getElementById('feed-view');
+      if (feed) feed.style.display = 'block';
     }
 
-    // Edit Profile Form Submit
-    if (this.editProfileForm) {
-      this.editProfileForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.submitEditProfile();
-      });
-    }
-
-    // Global Modal Close on Overlay Click or X
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay || e.target.closest('.modal-close-btn')) {
-          overlay.classList.remove('active');
-        }
-      });
-    });
+    this.updateNavActive(hash);
   }
 
-  requireLogin(message) {
-    if (this.currentUser) return true;
-    this.showToast(message || 'Please log in first!');
-    setTimeout(() => { window.location.href = 'login.html'; }, 1200);
-    return false;
+  updateNavActive(hash) {
+    const home = document.getElementById('nav-home-btn');
+    const explore = document.getElementById('nav-explore-btn');
+    const saved = document.getElementById('nav-saved-btn');
+
+    if (home) home.classList.toggle('active', !hash || hash === '#/');
+    if (explore) explore.classList.toggle('active', hash === '#/explore');
+    if (saved) saved.classList.toggle('active', hash === '#/saved');
   }
 
-  async handleCreateThought() {
-    if (!this.requireLogin('Please log in to share!')) return;
-
-    const text = this.thoughtInput ? this.thoughtInput.value.trim() : '';
-    const photoInput = document.getElementById('photo-url-input');
-    const photoUrl = photoInput ? photoInput.value.trim() : '';
-    const category = this.composerCategory ? this.composerCategory.value : 'General';
-
-    // If photo is entered, create photo post
-    if (photoUrl) {
-      const publishBtn = this.publishThoughtBtn;
-      if (publishBtn) { publishBtn.disabled = true; publishBtn.textContent = 'Posting...'; }
-      try {
-        let newImagePost = null;
-        if (window.location.origin.startsWith('http')) {
-          const res = await fetch('/api/posts/image', {
-            method: 'POST',
-            headers: this.authHeaders(),
-            body: JSON.stringify({ imageUrl: photoUrl, caption: text, category })
-          });
-          const data = await res.json();
-          if (!res.ok || !data.success) {
-            this.showToast(data.message || 'Failed to share photo post.');
-            return;
-          }
-          newImagePost = data.post;
-        }
-
-        if (newImagePost) {
-          this.posts.unshift(newImagePost);
-          this.saveLocalPosts();
-          if (this.thoughtInput) this.thoughtInput.value = '';
-          if (photoInput) photoInput.value = '';
-          const photoDrawer = document.getElementById('composer-photo-drawer');
-          if (photoDrawer) photoDrawer.style.display = 'none';
-          const photoPreviewBox = document.getElementById('photo-preview-box');
-          if (photoPreviewBox) photoPreviewBox.style.display = 'none';
-          const charCounter = document.getElementById('thought-char-count');
-          if (charCounter) charCounter.textContent = '0 / 280';
-          this.refresh();
-          this.showToast('📸 Photo post shared to Readora!');
-        }
-        return;
-      } catch (err) {
-        this.showToast('Network error while sharing photo post.');
-        return;
-      } finally {
-        if (publishBtn) { publishBtn.disabled = false; publishBtn.textContent = 'Share'; }
-      }
-    }
-
-    if (!text) {
-      this.showToast('Please write something before publishing!');
-      return;
-    }
-
-    const payload = {
-      content: text,
-      theme: this.selectedTheme,
-      category: category
-    };
-
-    const publishBtn = this.publishThoughtBtn;
-    if (publishBtn) {
-      publishBtn.disabled = true;
-      publishBtn.style.opacity = '0.7';
-      publishBtn.innerHTML = '<span>Publishing...</span>';
-    }
-
-    try {
-      let newThought = null;
-      if (window.location.origin.startsWith('http')) {
-        const res = await fetch('/api/posts/thought', {
-          method: 'POST',
-          headers: this.authHeaders(),
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          this.showToast(data.message || 'Failed to share thought.');
-          return;
-        }
-        newThought = data.post;
-      }
-
-      if (newThought) {
-        this.posts.unshift(newThought);
-        this.saveLocalPosts();
-        this.thoughtInput.value = '';
-        const charCounter = document.getElementById('thought-char-count');
-        if (charCounter) charCounter.textContent = '0 / 280';
-        this.refresh();
-        this.showToast('✨ Thought published to Readora!');
-      }
-    } catch (e) {
-      this.showToast('Network error connecting to Readora server.');
-    } finally {
-      if (publishBtn) {
-        publishBtn.disabled = false;
-        publishBtn.style.opacity = '1';
-        publishBtn.innerHTML = '<span>Share</span>';
-      }
-    }
-  }
-
-  async handleCreateArticle() {
-    if (!this.requireLogin('Please log in to publish an article!')) return;
-
-    const title = document.getElementById('article-title-input').value.trim();
-    const subtitle = document.getElementById('article-subtitle-input').value.trim();
-    const category = document.getElementById('article-category-input').value;
-    const coverUrl = document.getElementById('article-cover-input').value.trim() || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop';
-    const content = document.getElementById('article-body-input').value.trim();
-
-    if (!title || !content) {
-      this.showToast('Please provide both a Title and Article content!');
-      return;
-    }
-
-    const submitBtn = this.articleForm ? this.articleForm.querySelector('button[type="submit"]') : null;
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.style.opacity = '0.7';
-      submitBtn.textContent = this.editingPostId ? 'Saving Changes...' : 'Publishing to Readora...';
-    }
-
-    try {
-      if (this.editingPostId) {
-        // Edit Mode: PUT /api/posts/:id
-        const res = await fetch(`/api/posts/${this.editingPostId}`, {
-          method: 'PUT',
-          headers: this.authHeaders(),
-          body: JSON.stringify({ title, subtitle, category, coverImage: coverUrl, content })
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          this.showToast(data.message || 'Failed to update article.');
-          return;
-        }
-        const post = this.posts.find(p => p.id === this.editingPostId);
-        if (post) {
-          Object.assign(post, data.post);
-          this.saveLocalPosts();
-          this.refresh();
-        }
-        this.editingPostId = null;
-        this.articleForm.reset();
-        this.writeArticleModal.classList.remove('active');
-        if (window.location.hash.startsWith('#/dashboard')) {
-          this.showDashboardView();
-        }
-        this.showToast('Article updated successfully!');
-      } else {
-        // Create Mode: POST /api/posts/article
-        const res = await fetch('/api/posts/article', {
-          method: 'POST',
-          headers: this.authHeaders(),
-          body: JSON.stringify({ title, subtitle, category, coverImage: coverUrl, content })
-        });
-
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          this.showToast(data.message || 'Failed to publish article.');
-          return;
-        }
-
-        const newArticle = data.post;
-        this.posts.unshift(newArticle);
-        this.saveLocalPosts();
-        try { localStorage.removeItem('readora_article_draft'); } catch(e) {}
-        fetch('/api/posts/draft', { method: 'DELETE', headers: this.authHeaders() }).catch(() => {});
-        this.articleForm.reset();
-        this.writeArticleModal.classList.remove('active');
-        this.refresh();
-        if (window.location.hash.startsWith('#/dashboard')) {
-          this.showDashboardView();
-        }
-        this.showToast('📖 Article published successfully!');
-      }
-    } catch (e) {
-      this.showToast('Network error while publishing article.');
-    } finally {
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.style.opacity = '1';
-        submitBtn.textContent = 'Publish to Readora';
-      }
-    }
-  }
-
-  openEditPost(postId) {
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) return;
-
-    if (post.type === 'thought' || post.type === 'image') {
-      const current = post.content || '';
-      const updated = prompt('Edit your thought:', current);
-      if (updated === null) return;
-      if (!updated.trim()) {
-        this.showToast('Content cannot be empty.');
-        return;
-      }
-      this.updatePost(postId, { content: updated.trim() });
-    } else if (post.type === 'article') {
-      this.editingPostId = postId;
-      document.getElementById('article-title-input').value = post.title || '';
-      document.getElementById('article-subtitle-input').value = post.subtitle || '';
-      document.getElementById('article-category-input').value = post.category || 'Tech';
-      document.getElementById('article-cover-input').value = post.coverImage || '';
-      document.getElementById('article-body-input').value = post.fullContent || post.content || '';
-
-      const modalTitle = document.querySelector('#write-article-modal .modal-header-title');
-      const submitBtn = this.articleForm ? this.articleForm.querySelector('button[type="submit"]') : null;
-      if (modalTitle) modalTitle.textContent = 'Edit Article';
-      if (submitBtn) submitBtn.textContent = 'Save Changes';
-
-      this.openModal(this.writeArticleModal);
-    }
-  }
-
-  async updatePost(postId, updates) {
-    try {
-      const res = await fetch(`/api/posts/${postId}`, {
-        method: 'PUT',
-        headers: this.authHeaders(),
-        body: JSON.stringify(updates)
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        const post = this.posts.find(p => p.id === postId);
-        if (post) {
-          Object.assign(post, updates);
-          if (data.post) Object.assign(post, data.post);
-          this.saveLocalPosts();
-          this.refresh();
-        }
-        this.showToast('Post updated successfully!');
-      } else {
-        this.showToast(data.message || 'Could not update post.');
-      }
-    } catch (e) {
-      this.showToast('Network error while updating post.');
-    }
-  }
-
-  async uploadImageFile(file, spinnerEl, inputEl, previewImgEl = null, previewBoxEl = null) {
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      this.showToast('Please select a valid image file (JPEG, PNG, WEBP, GIF).', 'warning');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      this.showToast('Image exceeds maximum allowed size of 5MB.', 'warning');
-      return;
-    }
-
-    if (!this.token) {
-      this.showToast('Please log in to upload images.', 'warning');
-      return;
-    }
-
-    if (spinnerEl) spinnerEl.style.display = 'block';
-
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const res = await fetch(`${this.apiBase}/api/upload/image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.token}`
-        },
-        body: formData
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Image upload failed.');
-      }
-
-      if (inputEl) inputEl.value = data.url;
-      if (previewImgEl) previewImgEl.src = data.url;
-      if (previewBoxEl) previewBoxEl.style.display = 'block';
-
-      this.showToast(data.provider === 'cloudinary' ? '📸 Image uploaded to Cloudinary!' : '📸 Image processed successfully!');
-    } catch (err) {
-      console.error('Image upload error:', err);
-      this.showToast(err.message || 'Image upload failed. Please try again.', 'error');
-    } finally {
-      if (spinnerEl) spinnerEl.style.display = 'none';
-    }
-  }
-
-  async handleCreateImagePost() {
-    if (!this.requireLogin('Please log in to share a photo post!')) return;
-
-    const imageUrl = (this.photoUrlInput ? this.photoUrlInput.value : '').trim();
-    const caption = (this.photoCaptionInput ? this.photoCaptionInput.value : '').trim();
-    const category = this.photoCategory ? this.photoCategory.value : 'Visual';
-
-    if (!imageUrl) {
-      this.showToast('Please paste a valid Image URL!');
-      return;
-    }
-
-    const payload = {
-      imageUrl,
-      caption,
-      category,
-      authorName: this.currentUser.name,
-      authorHandle: this.currentUser.handle,
-      authorAvatar: this.currentUser.avatar
-    };
-
-    let newImagePost = {
-      id: 'image_' + Date.now(),
-      type: 'image',
-      author_id: this.currentUser.id,
-      author: this.currentUser.name,
-      handle: this.currentUser.handle,
-      avatar: this.currentUser.avatar,
-      timestamp: 'Just now',
-      content: caption,
-      coverImage: imageUrl,
-      category: category,
-      likes: 0,
-      likedByUser: false,
-      bookmarks: 0,
-      bookmarkedByUser: false,
-      comments: []
-    };
-
-    const photoBtn = this.btnPublishPhoto;
-    if (photoBtn) {
-      photoBtn.disabled = true;
-      photoBtn.style.opacity = '0.7';
-      photoBtn.innerHTML = '<span>Publishing...</span>';
-    }
-
-    try {
-      if (window.location.origin.startsWith('http')) {
-        try {
-          const res = await fetch('/api/posts/image', {
-            method: 'POST',
-            headers: this.authHeaders(),
-            body: JSON.stringify(payload)
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.post) newImagePost = data.post;
-          }
-        } catch (e) {
-          console.log('Offline image post save');
-        }
-      }
-
-      this.posts.unshift(newImagePost);
-      this.saveLocalPosts();
-      if (this.photoUrlInput) this.photoUrlInput.value = '';
-      if (this.photoCaptionInput) this.photoCaptionInput.value = '';
-      if (this.photoPreviewBox) this.photoPreviewBox.style.display = 'none';
-      const photoCounter = document.getElementById('photo-char-count');
-      if (photoCounter) photoCounter.textContent = '0 / 280';
-      this.refresh();
-      this.showToast('📸 Photo post shared to Readora!');
-    } finally {
-      if (photoBtn) {
-        photoBtn.disabled = false;
-        photoBtn.style.opacity = '1';
-        photoBtn.innerHTML = '<span>Share Photo</span>';
-      }
-    }
-  }
-
-  async loadNotifications() {
-    if (!this.token) return;
-    try {
-      const res = await fetch('/api/posts/notifications/list', { headers: this.authHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          const badges = [
-            document.getElementById('notif-badge'),
-            document.getElementById('nav-notif-badge'),
-            document.getElementById('mob-notif-badge')
-          ];
-          badges.forEach(badge => {
-            if (!badge) return;
-            if (data.unreadCount > 0) {
-              badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
-              badge.style.display = 'inline-flex';
-            } else {
-              badge.style.display = 'none';
-            }
-          });
-          this.notifications = data.notifications || [];
-          this.renderNotificationsList();
-        }
-      }
-    } catch (e) {
-      console.log('Error fetching notifications:', e);
-    }
-  }
-
-  renderNotificationsList() {
-    const container = document.getElementById('notifications-list');
-    if (!container) return;
-    if (!this.notifications || this.notifications.length === 0) {
-      container.innerHTML = `
-        <div style="text-align:center; padding: 2.5rem 1rem; color: var(--text-dim); font-size: 0.9rem;">
-          No notifications yet. When people like, comment, or follow you, they will appear here!
-        </div>`;
-      return;
-    }
-    container.innerHTML = this.notifications.map(n => {
-      let icon = '🔔';
-      if (n.type === 'like') icon = '❤️';
-      else if (n.type === 'comment') icon = '💬';
-      else if (n.type === 'follow') icon = '👥';
-
+  // ------------------------------------------------------------------------
+  // TYPOGRAPHIC COVER GENERATOR (No Stock Photography)
+  // ------------------------------------------------------------------------
+  renderTypographicCover(title, author, category, isLead = false) {
+    const initials = (author || 'CR').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    if (isLead) {
       return `
-        <div class="notif-item ${n.is_read ? '' : 'unread'}">
-          <div class="notif-icon-circle">${icon}</div>
-          <div class="notif-text">
-            <strong>${esc(n.actor_name)}</strong> ${esc(n.message.replace(n.actor_name, '').trim())}
-            <div class="notif-time">${esc(n.created_at ? new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Recently')}</div>
+        <div class="typographic-cover-box" onclick="window.readoraApp && window.readoraApp.openLeadArticle()">
+          <div class="typographic-cover-label">READORA · JOURNAL ESSAY · ${esc(category || 'PHILOSOPHY')}</div>
+          <div class="typographic-cover-title">“${esc(title)}”</div>
+          <div class="typographic-cover-foot">
+            <span>By ${esc(author)}</span>
+            <span class="tabular-nums">${esc(category || 'ESSAY')}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="essay-card-thumb">
+        <span class="essay-thumb-monogram">${esc(initials)}</span>
+        <span class="essay-thumb-word">${esc(category || 'ESSAY')}</span>
+      </div>
+    `;
+  }
+
+  // ------------------------------------------------------------------------
+  // RENDER LEAD ESSAY
+  // ------------------------------------------------------------------------
+  renderLeadEssay(lead) {
+    if (!this.leadContainer || !lead) return;
+    this.currentLeadId = lead.id;
+
+    const hasCustomCover = lead.coverImage && safeUrl(lead.coverImage);
+    const coverHtml = hasCustomCover
+      ? `<div class="lead-essay-visual"><img src="${esc(lead.coverImage)}" style="width:100%; max-height:360px; object-fit:cover; border:1px solid var(--rule);" alt="Essay Cover" /></div>`
+      : `<div class="lead-essay-visual">${this.renderTypographicCover(lead.title, lead.author, lead.category, true)}</div>`;
+
+    const formattedDate = formatIndianDate(lead.createdAt || lead.timestamp);
+
+    this.leadContainer.innerHTML = `
+      <div class="lead-essay-body">
+        <div class="lead-essay-topic">${esc(lead.category || 'Philosophy')}</div>
+        <h2 class="lead-essay-title" onclick="window.readoraApp.openFullArticle('${esc(lead.id)}')">${esc(lead.title)}</h2>
+        <p class="lead-essay-deck">${esc(lead.subtitle || lead.excerpt)}</p>
+        ${coverHtml}
+        <div class="lead-author-meta">
+          <div class="lead-meta-line">
+            <a class="author-link" href="${profileLink(lead.handle)}"><strong>${esc(lead.author)}</strong></a>
+            <span class="essay-meta-dot">·</span>
+            <span class="essay-date tabular-nums">${esc(formattedDate || 'Recently')}</span>
+            <span class="essay-meta-dot">·</span>
+            <span class="essay-readtime tabular-nums">${esc(lead.readTime || '8 min read')}</span>
+          </div>
+          <button type="button" class="btn-lead-read" onclick="window.readoraApp.openFullArticle('${esc(lead.id)}')">
+            <span>${esc(t('read_essay', 'Read essay'))}</span> ➔
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  openLeadArticle() {
+    if (this.currentLeadId) {
+      this.openFullArticle(this.currentLeadId);
+    }
+  }
+
+  // ------------------------------------------------------------------------
+  // RENDER FEED STREAM ITEMS
+  // ------------------------------------------------------------------------
+  renderPostCard(post) {
+    const hasCustomCover = post.coverImage && safeUrl(post.coverImage);
+    const thumbHtml = hasCustomCover
+      ? `<img src="${esc(post.coverImage)}" class="essay-card-img-thumb" alt="Thumb" loading="lazy" />`
+      : this.renderTypographicCover(post.title, post.author, post.category, false);
+
+    const isBookmarked = post.bookmarkedByUser;
+    const formattedDate = formatIndianDate(post.createdAt || post.timestamp);
+
+    return `
+      <article class="essay-card" data-id="${esc(post.id)}">
+        <div class="essay-card-main">
+          <h3 class="essay-card-title" onclick="window.readoraApp.openFullArticle('${esc(post.id)}')">${esc(post.title)}</h3>
+          <p class="essay-card-deck">${esc(post.subtitle || post.excerpt)}</p>
+          <div class="essay-card-meta">
+            <a class="author-link" href="${profileLink(post.handle)}">${esc(post.author)}</a>
+            <span class="essay-meta-dot">·</span>
+            <span class="essay-date tabular-nums">${esc(formattedDate || 'Recently')}</span>
+            <span class="essay-meta-dot">·</span>
+            <span class="essay-readtime tabular-nums">${esc(post.readTime || '6 min read')}</span>
+            <span class="essay-meta-dot">·</span>
+            <span class="essay-topic-tag">${esc(post.category || 'General')}</span>
+
+            <button type="button" class="essay-action-bookmark ${isBookmarked ? 'bookmarked' : ''}" 
+                    title="Bookmark essay" 
+                    onclick="event.stopPropagation(); window.readoraApp.toggleBookmark('${esc(post.id)}')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="${isBookmarked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+            </button>
+          </div>
+        </div>
+        <div onclick="window.readoraApp.openFullArticle('${esc(post.id)}')">
+          ${thumbHtml}
+        </div>
+      </article>
+    `;
+  }
+
+  // ------------------------------------------------------------------------
+  // RENDER SIDEBAR: TRENDING (01-05 in oxblood), TOPICS, WRITERS
+  // ------------------------------------------------------------------------
+  renderTrending() {
+    if (!this.trendingContainer) return;
+    // Deduplicate: ensure lead essay is never repeated in Trending
+    const pool = this.posts.filter(p => p.id !== this.currentLeadId);
+    const top5 = pool.slice(0, 5);
+
+    this.trendingContainer.innerHTML = top5.map((post, idx) => {
+      const num = String(idx + 1).padStart(2, '0');
+      return `
+        <div class="trending-essay-row" onclick="window.readoraApp.openFullArticle('${esc(post.id)}')">
+          <span class="trending-num tabular-nums">${num}</span>
+          <div class="trending-essay-content">
+            <h4 class="trending-essay-title">${esc(post.title)}</h4>
+            <div class="trending-essay-excerpt">${esc(post.subtitle || post.excerpt)}</div>
+            <div class="trending-essay-byline">${esc(post.author)} · <span class="tabular-nums">${esc(post.readTime || '7 min read')}</span></div>
           </div>
         </div>
       `;
     }).join('');
   }
 
-  async markAllNotificationsRead() {
-    if (!this.token) return;
-    try {
-      await fetch('/api/posts/notifications/read-all', { method: 'POST', headers: this.authHeaders() });
-      const badge = document.getElementById('notif-badge');
-      if (badge) badge.style.display = 'none';
-      if (this.notifications) {
-        this.notifications.forEach(n => n.is_read = 1);
-        this.renderNotificationsList();
-      }
-    } catch (e) {}
-  }
+  renderTopics() {
+    if (!this.topicsContainer) return;
 
-  async toggleLike(postId) {
-    if (!this.requireLogin('Please log in to like posts!')) return;
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) return;
-
-    const prevLiked = post.likedByUser;
-    const prevLikes = post.likes;
-
-    // Optimistic UI update
-    if (post.likedByUser) {
-      post.likes = Math.max(0, post.likes - 1);
-      post.likedByUser = false;
-    } else {
-      post.likes++;
-      post.likedByUser = true;
-    }
-    this.saveLocalPosts();
-    this.refresh();
-
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST', headers: this.authHeaders() });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          if (typeof data.likes === 'number') post.likes = data.likes;
-          if (typeof data.liked === 'boolean') post.likedByUser = data.liked;
-          this.saveLocalPosts();
-          this.refresh();
-        } else {
-          // Revert if unauthorized or failed
-          post.likedByUser = prevLiked;
-          post.likes = prevLikes;
-          this.saveLocalPosts();
-          this.refresh();
-          this.showToast(data.message || 'Unable to update like.');
-        }
-      } catch (e) {
-        post.likedByUser = prevLiked;
-        post.likes = prevLikes;
-        this.saveLocalPosts();
-        this.refresh();
-      }
-    }
-  }
-
-  async toggleBookmark(postId) {
-    if (!this.requireLogin('Please log in to bookmark posts!')) return;
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) return;
-
-    const prevSaved = post.bookmarkedByUser;
-    const prevBookmarks = post.bookmarks || 0;
-
-    // Optimistic UI update
-    if (post.bookmarkedByUser) {
-      post.bookmarks = Math.max(0, (post.bookmarks || 1) - 1);
-      post.bookmarkedByUser = false;
-      this.showToast('Removed from bookmarks');
-    } else {
-      post.bookmarks = (post.bookmarks || 0) + 1;
-      post.bookmarkedByUser = true;
-      this.showToast('🔖 Saved to your bookmarks!');
-    }
-    this.saveLocalPosts();
-    this.refresh();
-
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch(`/api/posts/${postId}/bookmark`, { method: 'POST', headers: this.authHeaders() });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          if (typeof data.bookmarks === 'number') post.bookmarks = data.bookmarks;
-          if (typeof data.saved === 'boolean') post.bookmarkedByUser = data.saved;
-          this.saveLocalPosts();
-          this.refresh();
-        } else {
-          post.bookmarkedByUser = prevSaved;
-          post.bookmarks = prevBookmarks;
-          this.saveLocalPosts();
-          this.refresh();
-          this.showToast(data.message || 'Unable to update bookmark.');
-        }
-      } catch (e) {
-        post.bookmarkedByUser = prevSaved;
-        post.bookmarks = prevBookmarks;
-        this.saveLocalPosts();
-        this.refresh();
-      }
-    }
-  }
-
-  toggleComments(postId, drawer) {
-    if (!drawer) return;
-    const show = drawer.style.display === 'none';
-    drawer.style.display = show ? 'block' : 'none';
-    if (show) this.openComments.add(postId);
-    else this.openComments.delete(postId);
-  }
-
-  async addComment(postId, inputEl) {
-    if (!this.requireLogin('Please log in to comment!')) return;
-
-    const text = inputEl.value.trim();
-    if (!text) return;
-
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) return;
-
-    inputEl.value = '';
-
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch(`/api/posts/${postId}/comment`, {
-          method: 'POST',
-          headers: this.authHeaders(),
-          body: JSON.stringify({ text, authorName: this.currentUser.name })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          post.comments = post.comments || [];
-          post.comments.push(data.comment || {
-            id: 'c_' + Date.now(),
-            author: this.currentUser.name,
-            author_id: this.currentUser.id,
-            text: text,
-            created_at: new Date().toISOString()
-          });
-          this.openComments.add(postId);
-          this.saveLocalPosts();
-          this.refresh();
-          this.showToast('Comment posted!');
-        } else {
-          this.showToast(data.message || 'Failed to post comment.');
-        }
-      } catch (e) {
-        this.showToast('Network error posting comment.');
-      }
-    } else {
-      post.comments = post.comments || [];
-      post.comments.push({
-        id: 'c_' + Date.now(),
-        author: this.currentUser.name,
-        author_id: this.currentUser.id,
-        text: text,
-        created_at: new Date().toISOString()
-      });
-      this.openComments.add(postId);
-      this.saveLocalPosts();
-      this.refresh();
-    }
-  }
-
-  async deleteComment(postId, commentId) {
-    if (!this.requireLogin('Please log in to delete comments.')) return;
-    if (!confirm('Delete this comment?')) return;
-
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch(`/api/posts/comments/${commentId}`, {
-          method: 'DELETE',
-          headers: this.authHeaders()
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          this.showToast(data.message || 'Failed to delete comment.');
-          return;
-        }
-      } catch (e) {
-        this.showToast('Network error deleting comment.');
-        return;
-      }
-    }
-
-    const post = this.posts.find(p => p.id === postId);
-    if (post && post.comments) {
-      post.comments = post.comments.filter(c => String(c.id) !== String(commentId));
-      this.saveLocalPosts();
-      this.refresh();
-    }
-    this.showToast('Comment deleted');
-  }
-
-  sharePost(post) {
-    const title = post.type === 'thought' ? post.content : post.title;
-    const permalink = `${window.location.origin}${window.location.pathname}#/${post.type === 'thought' ? 'post' : 'article'}/${post.id}`;
-    if (navigator.share) {
-      navigator.share({
-        title: 'Readora - ' + post.author,
-        text: title,
-        url: permalink
-      }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(`"${title}" — by ${post.author} on Readora (${permalink})`);
-      this.showToast('🔗 Permanent article link copied to clipboard!');
-    }
-  }
-
-  async openFullArticle(postId, updateHash = true) {
-    let post = this.posts.find(p => p.id === postId);
-    let related = [];
-
-    // If post not present in client memory, or to fetch authoritative related/view data
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch(`${this.apiBase}/api/posts/single/${postId}`, { headers: this.authHeaders() });
-        const data = await res.json();
-        if (res.ok && data.success && data.post) {
-          post = data.post;
-          related = data.related || [];
-          if (!this.posts.some(p => p.id === post.id)) {
-            this.posts.unshift(post);
-          }
-        }
-      } catch (e) {}
-
-      // Track view deduplicated
-      fetch(`${this.apiBase}/api/posts/${postId}/view`, { method: 'POST', headers: this.authHeaders() }).catch(() => {});
-    }
-
-    if (!post) {
-      this.showToast('Story not found.');
-      return;
-    }
-
-    // Save to reading history
-    try {
-      const hist = JSON.parse(localStorage.getItem('readora_reading_history') || '[]');
-      const idx = hist.findIndex(h => h.id === post.id);
-      if (idx !== -1) hist.splice(idx, 1);
-      hist.unshift({
-        id: post.id,
-        title: post.title,
-        author: post.author,
-        category: post.category,
-        readTime: post.readTime,
-        timestamp: Date.now()
-      });
-      if (hist.length > 50) hist.pop();
-      localStorage.setItem('readora_reading_history', JSON.stringify(hist));
-    } catch (e) {}
-
-    if (updateHash && window.location.hash !== `#/article/${postId}`) {
-      window.location.hash = `#/article/${postId}`;
-    }
-
-    const contentBox = document.getElementById('read-article-container');
-    if (!contentBox) return;
-
-    // Sticky Top Bar Title Snippet
-    const navTitleEl = document.getElementById('reader-nav-title');
-    if (navTitleEl) {
-      navTitleEl.textContent = post.title || 'Readora Story';
-      navTitleEl.classList.remove('visible');
-    }
-
-    // Parse Headings & Populate Table of Contents
-    const rawBody = post.fullContent || post.content || post.excerpt || '';
-    const headings = extractHeadings(rawBody);
-    const tocNav = document.getElementById('reader-toc-nav');
-    const tocSidebar = document.getElementById('reader-toc-sidebar');
-    if (tocNav) {
-      if (headings.length > 0) {
-        if (tocSidebar) tocSidebar.style.display = 'block';
-        tocNav.innerHTML = headings.map(h => `
-          <a href="#${h.id}" class="reader-toc-link ${h.level === 3 ? 'toc-sub' : ''}" data-heading-id="${h.id}">${esc(h.text)}</a>
-        `).join('');
-
-        tocNav.querySelectorAll('.reader-toc-link').forEach(link => {
-          link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const targetEl = document.getElementById(link.dataset.headingId);
-            if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          });
-        });
-      } else {
-        if (tocSidebar) tocSidebar.style.display = 'none';
-        tocNav.innerHTML = '';
-      }
-    }
-
-    // Reading Scroll Container & Reading Progress
-    const scrollContainer = document.getElementById('reader-scroll-container') || contentBox;
-    const bar = document.getElementById('reading-progress-bar');
-    if (bar) bar.style.width = '0%';
-    scrollContainer.scrollTop = 0;
-
-    scrollContainer.onscroll = () => {
-      const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
-      if (maxScroll > 0 && bar) {
-        const progress = (scrollContainer.scrollTop / maxScroll) * 100;
-        bar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
-      }
-
-      // Title in top bar appears once user scrolls past 180px
-      if (navTitleEl) {
-        if (scrollContainer.scrollTop > 180) {
-          navTitleEl.classList.add('visible');
-        } else {
-          navTitleEl.classList.remove('visible');
-        }
-      }
-
-      // Highlight active heading in TOC
-      if (headings.length > 0 && tocNav) {
-        const scrollPos = scrollContainer.scrollTop + 140;
-        let activeId = headings[0].id;
-        for (const h of headings) {
-          const el = document.getElementById(h.id);
-          if (el && el.offsetTop <= scrollPos) {
-            activeId = h.id;
-          }
-        }
-        tocNav.querySelectorAll('.reader-toc-link').forEach(link => {
-          link.classList.toggle('active', link.dataset.headingId === activeId);
-        });
-      }
-    };
-
-    const cover = safeUrl(post.coverImage);
-    const catClass = this.getCategoryClass(post.category);
-    const initials = post.avatar || (post.author ? post.author.substring(0, 2).toUpperCase() : 'CR');
-    const isOwner = this.isPostAuthor(post);
-    const postComments = post.comments || [];
-
-    // Render Full Distraction-Free Article Content
-    contentBox.innerHTML = `
-      <div class="reader-category-strip">
-        <span class="reader-category-badge">${esc(post.category || 'Story')}</span>
-        <span class="reader-meta-time">${esc(post.readTime || '4 min read')}</span>
-        <span style="color:var(--text-dim); font-size: 0.8rem;">•</span>
-        <span class="reader-meta-time">${esc(post.timestamp || 'Published recently')}</span>
-      </div>
-
-      <h1 class="reader-article-title">${esc(post.title)}</h1>
-      ${post.subtitle ? `<div class="reader-article-subtitle">${esc(post.subtitle)}</div>` : ''}
-
-      <div class="reader-author-strip">
-        <a class="reader-author-left author-link" href="${profileLink(post.handle)}">
-          <div class="reader-author-avatar">${esc(initials)}</div>
-          <div>
-            <div class="reader-author-name">${esc(post.author)}</div>
-            <div class="reader-author-meta">
-              <span>${esc(post.handle)}</span>
-              <span>•</span>
-              <span>👁️ ${esc(post.views || 0)} views</span>
-            </div>
-          </div>
-        </a>
-
-        ${!isOwner ? `
-          <button type="button" class="btn-reader-follow" data-author-id="${esc(post.author_id || post.handle)}">
-            + Follow
-          </button>
-        ` : ''}
-      </div>
-
-      ${cover ? `
-        <div class="reader-hero-cover-wrap">
-          <img src="${esc(cover)}" alt="Story Cover" class="reader-hero-cover" onerror="this.parentElement.style.display='none';" />
+    this.topicsContainer.innerHTML = this.topics.map(t => `
+      <div class="topic-volume-row" onclick="window.readoraApp.filterByTopic('${esc(t.name)}')">
+        <div class="topic-volume-header">
+          <span class="topic-name-link">${esc(t.name)}</span>
+          <span class="topic-count-num tabular-nums">${formatIndianNumber(t.count)} essays</span>
         </div>
-      ` : ''}
-
-      <div class="reader-prose" id="reader-prose-body">
-        ${renderSafeMarkdown(rawBody)}
-      </div>
-
-      <!-- Floating Interaction Bar -->
-      <div class="reader-floating-actions">
-        <div class="reader-action-group">
-          <button type="button" class="reader-action-pill btn-reader-like ${post.likedByUser ? 'liked' : ''}" title="Clap / Applaud">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="${post.likedByUser ? '#e11d48' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-            <span class="reader-like-count">${esc(post.likes || 0)}</span>
-          </button>
-
-          <button type="button" class="reader-action-pill btn-reader-scroll-discuss" title="Jump to comments">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            <span class="reader-comment-count">${postComments.length}</span>
-          </button>
-        </div>
-
-        <div class="reader-action-group">
-          <button type="button" class="reader-action-pill btn-reader-bookmark ${post.bookmarkedByUser ? 'bookmarked' : ''}" title="Save story">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="${post.bookmarkedByUser ? 'var(--accent-primary)' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-            <span>Save</span>
-          </button>
-          <button type="button" class="reader-action-pill btn-reader-share" title="Share story link">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            <span>Share</span>
-          </button>
+        <div class="topic-bar-track">
+          <div class="topic-bar-fill" style="width: ${t.pct}%;"></div>
         </div>
       </div>
+    `).join('');
+  }
 
-      <!-- Author Bio Footer Card -->
-      <div class="reader-author-bio-card">
-        <div class="reader-bio-avatar">${esc(initials)}</div>
-        <div class="reader-bio-info">
-          <div class="reader-bio-eyebrow">WRITTEN BY</div>
-          <div class="reader-bio-name">${esc(post.author)}</div>
-          <div class="reader-bio-text">
-            Writer and thinker on Readora publishing essays, observations, and deep dives.
-          </div>
-          <div class="reader-bio-actions">
-            <a href="${profileLink(post.handle)}" class="btn-dash-action" style="text-decoration:none;">View Publication ➔</a>
-            ${!isOwner ? `
-              <button type="button" class="btn-reader-follow" data-author-id="${esc(post.author_id || post.handle)}">
-                + Follow
-              </button>
-            ` : ''}
-          </div>
+  renderWriters() {
+    if (!this.writersContainer) return;
+
+    this.writersContainer.innerHTML = this.writers.map((w, idx) => `
+      <div class="writer-entry-row">
+        <div class="writer-details">
+          <a class="writer-name" href="${profileLink(w.handle)}">${esc(w.name)}</a>
+          <div class="writer-handle-meta">${esc(w.handle)} · <span class="tabular-nums">${esc(w.readers)}</span></div>
         </div>
+        <button type="button" class="btn-follow-text ${w.isFollowing ? 'following' : ''}" 
+                onclick="window.readoraApp.toggleFollowWriter(${idx})">
+          ${w.isFollowing ? 'Following' : 'Follow'}
+        </button>
       </div>
-
-      <!-- Interactive Comments Discussion -->
-      <section class="reader-comments-section" id="reader-comments-section">
-        <div class="reader-comments-header">
-          <h2 class="reader-comments-title">Discussion (<span id="reader-comments-num">${postComments.length}</span>)</h2>
-        </div>
-
-        <div class="reader-comment-input-box">
-          <textarea id="reader-comment-input" class="reader-comment-textarea" placeholder="What are your thoughts on this story? Share your perspective..."></textarea>
-          <div class="reader-comment-footer">
-            <button type="button" id="btn-reader-submit-comment" class="composer-btn-publish" style="padding: 0.45rem 1.15rem; font-size: 0.85rem;">
-              Respond
-            </button>
-          </div>
-        </div>
-
-        <div class="reader-comments-stream" id="reader-comments-stream">
-          ${postComments.length === 0 ? `
-            <div style="text-align:center; padding: 2rem 1rem; color: var(--text-dim); font-size: 0.9rem;">
-              No responses yet. Be the first to spark a conversation!
-            </div>
-          ` : postComments.map(c => {
-            const canDelete = this.currentUser && (
-              isOwner ||
-              (c.author_id && c.author_id === this.currentUser.id) ||
-              (c.user_id && c.user_id === this.currentUser.id) ||
-              (c.author && this.currentUser.name && c.author === this.currentUser.name)
-            );
-            return `
-              <div class="reader-comment-card" data-comment-id="${esc(c.id)}">
-                <div class="reader-comment-meta">
-                  <span class="reader-comment-author">${esc(c.author || 'Reader')}</span>
-                  <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <span class="reader-comment-time">${esc(c.created_at ? timeAgo(c.created_at) : 'Recently')}</span>
-                    ${canDelete && c.id ? `
-                      <button type="button" class="btn-delete-reader-comment" data-comment-id="${esc(c.id)}" title="Delete response" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:1.1rem; line-height:1;">&times;</button>
-                    ` : ''}
-                  </div>
-                </div>
-                <p class="reader-comment-body">${esc(c.text)}</p>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </section>
-
-      <!-- Related Reads -->
-      ${related && related.length > 0 ? `
-        <section class="reader-related-section">
-          <h2 class="reader-related-title">Recommended Stories</h2>
-          <div class="reader-related-grid">
-            ${related.map(rel => `
-              <div class="reader-related-card" data-rel-id="${esc(rel.id)}">
-                <span class="card-tag ${this.getCategoryClass(rel.category)}" style="margin-bottom: 0.5rem; display: inline-block;">${esc(rel.category || 'Article')}</span>
-                <div style="font-family: var(--font-serif); font-weight: 700; color: var(--text-main); font-size: 1.05rem; margin-bottom: 0.4rem; line-height: 1.35;">${esc(rel.title)}</div>
-                <div style="font-size: 0.8rem; color: var(--text-dim);">${esc(rel.author)} • ${esc(rel.readTime || '3 min read')}</div>
-              </div>
-            `).join('')}
-          </div>
-        </section>
-      ` : ''}
-    `;
-
-    // Wire Top Actions
-    const fontToggleBtn = document.getElementById('reader-btn-font-toggle');
-    if (fontToggleBtn) {
-      fontToggleBtn.onclick = () => {
-        const prose = document.getElementById('reader-prose-body');
-        if (!prose) return;
-        if (!prose.classList.contains('font-size-comfortable') && !prose.classList.contains('font-size-large')) {
-          prose.classList.add('font-size-comfortable');
-        } else if (prose.classList.contains('font-size-comfortable')) {
-          prose.classList.remove('font-size-comfortable');
-          prose.classList.add('font-size-large');
-        } else {
-          prose.classList.remove('font-size-large');
-        }
-      };
-    }
-
-    const topBmBtn = document.getElementById('reader-btn-bookmark');
-    if (topBmBtn) {
-      topBmBtn.classList.toggle('bookmarked', !!post.bookmarkedByUser);
-      topBmBtn.onclick = async () => {
-        await this.toggleBookmark(post.id);
-        topBmBtn.classList.toggle('bookmarked', !!post.bookmarkedByUser);
-        const inBm = contentBox.querySelector('.btn-reader-bookmark');
-        if (inBm) inBm.classList.toggle('bookmarked', !!post.bookmarkedByUser);
-      };
-    }
-
-    const topShareBtn = document.getElementById('reader-btn-share');
-    if (topShareBtn) {
-      topShareBtn.onclick = () => this.sharePost(post);
-    }
-
-    // Wire In-Canvas Actions
-    const likeBtn = contentBox.querySelector('.btn-reader-like');
-    if (likeBtn) {
-      likeBtn.addEventListener('click', async () => {
-        await this.toggleLike(post.id);
-        likeBtn.classList.toggle('liked', !!post.likedByUser);
-        const countSpan = likeBtn.querySelector('.reader-like-count');
-        if (countSpan) countSpan.textContent = post.likes || 0;
-      });
-    }
-
-    const inBmBtn = contentBox.querySelector('.btn-reader-bookmark');
-    if (inBmBtn) {
-      inBmBtn.addEventListener('click', async () => {
-        await this.toggleBookmark(post.id);
-        inBmBtn.classList.toggle('bookmarked', !!post.bookmarkedByUser);
-        if (topBmBtn) topBmBtn.classList.toggle('bookmarked', !!post.bookmarkedByUser);
-      });
-    }
-
-    const inShareBtn = contentBox.querySelector('.btn-reader-share');
-    if (inShareBtn) {
-      inShareBtn.addEventListener('click', () => this.sharePost(post));
-    }
-
-    const scrollDiscussBtn = contentBox.querySelector('.btn-reader-scroll-discuss');
-    if (scrollDiscussBtn) {
-      scrollDiscussBtn.addEventListener('click', () => {
-        const sec = document.getElementById('reader-comments-section');
-        if (sec) sec.scrollIntoView({ behavior: 'smooth' });
-      });
-    }
-
-    // Wire Follow Buttons
-    contentBox.querySelectorAll('.btn-reader-follow').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (post.author_id) await this.toggleFollow(post.author_id);
-      });
-    });
-
-    // Wire Comment Submission inside Reader
-    const submitCommentBtn = document.getElementById('btn-reader-submit-comment');
-    const commentInput = document.getElementById('reader-comment-input');
-    if (submitCommentBtn && commentInput) {
-      submitCommentBtn.addEventListener('click', async () => {
-        const val = commentInput.value.trim();
-        if (!val) return;
-        await this.addComment(post.id, commentInput);
-        // Refresh comments in reader view
-        this.openFullArticle(post.id, false);
-      });
-    }
-
-    // Wire Comment Deletion inside Reader
-    contentBox.querySelectorAll('.btn-delete-reader-comment').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        await this.deleteComment(post.id, btn.dataset.commentId);
-        this.openFullArticle(post.id, false);
-      });
-    });
-
-    // Wire Related Story Clicks
-    contentBox.querySelectorAll('.reader-related-card').forEach(card => {
-      card.addEventListener('click', () => {
-        this.openFullArticle(card.dataset.relId);
-      });
-    });
-
-    this.openModal(this.readArticleModal);
+    `).join('');
   }
 
-  openArticleStudio(initialData = null) {
-    if (!this.requireLogin('Please log in to write an article!')) return;
-
-    const modal = this.writeArticleModal;
-    if (!modal) return;
-
-    const titleInput = document.getElementById('article-title-input');
-    const subtitleInput = document.getElementById('article-subtitle-input');
-    const catInput = document.getElementById('article-category-input');
-    const coverInput = document.getElementById('article-cover-input');
-    const bodyInput = document.getElementById('article-body-input');
-    const editIdInput = document.getElementById('editing-article-id');
-    const draftStatus = document.getElementById('article-draft-status');
-
-    if (initialData) {
-      if (titleInput) titleInput.value = initialData.title || '';
-      if (subtitleInput) subtitleInput.value = initialData.subtitle || '';
-      if (catInput) catInput.value = initialData.category || 'Technology';
-      if (coverInput) coverInput.value = initialData.coverImage || '';
-      if (bodyInput) bodyInput.value = initialData.content || '';
-      if (editIdInput) editIdInput.value = initialData.id || '';
-    } else {
-      if (editIdInput) editIdInput.value = '';
-      // Check for saved draft on backend
-      fetch(`${this.apiBase}/api/posts/draft`, { headers: this.authHeaders() })
-        .then(r => r.json())
-        .then(d => {
-          if (d.success && d.draft && (d.draft.title || d.draft.content)) {
-            if (titleInput && !titleInput.value) titleInput.value = d.draft.title || '';
-            if (subtitleInput && !subtitleInput.value) subtitleInput.value = d.draft.subtitle || '';
-            if (catInput && d.draft.category) catInput.value = d.draft.category;
-            if (coverInput && !coverInput.value) coverInput.value = d.draft.cover_image || '';
-            if (bodyInput && !bodyInput.value) bodyInput.value = d.draft.content || '';
-            if (draftStatus) {
-              draftStatus.textContent = 'Draft restored';
-              draftStatus.style.display = 'inline-flex';
-            }
-            this.updateArticleMetaStats();
-          }
-        })
-        .catch(() => {});
-    }
-
-    this.updateArticleMetaStats();
-    this.setEditorMode('write');
-    this.openModal(modal);
-  }
-
-  setEditorMode(mode) {
-    const writeBtn = document.getElementById('editor-tab-write');
-    const prevBtn = document.getElementById('editor-tab-preview');
-    const writePane = document.getElementById('editor-write-pane');
-    const prevPane = document.getElementById('editor-preview-pane');
-
-    if (writeBtn) writeBtn.classList.toggle('active', mode === 'write');
-    if (prevBtn) prevBtn.classList.toggle('active', mode === 'preview');
-
-    if (mode === 'preview') {
-      if (writePane) writePane.style.display = 'none';
-      if (prevPane) {
-        prevPane.style.display = 'block';
-        const title = (document.getElementById('article-title-input')?.value || 'Untitled Article').trim();
-        const subtitle = (document.getElementById('article-subtitle-input')?.value || '').trim();
-        const cover = (document.getElementById('article-cover-input')?.value || '').trim();
-        const category = document.getElementById('article-category-input')?.value || 'General';
-        const content = document.getElementById('article-body-input')?.value || '';
-
-        prevPane.innerHTML = `
-          <div style="margin-bottom: 1.25rem;">
-            <span class="card-tag ${this.getCategoryClass(category)}" style="margin-bottom: 0.5rem; display: inline-block;">${esc(category)}</span>
-            <h1 style="font-family: var(--font-brand); font-size: 1.85rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.35rem;">${esc(title)}</h1>
-            ${subtitle ? `<p style="font-size: 1.05rem; color: var(--text-dim); margin-bottom: 0.75rem;">${esc(subtitle)}</p>` : ''}
-          </div>
-          ${cover ? `<img src="${esc(cover)}" alt="Cover" style="width:100%; max-height:280px; object-fit:cover; border-radius:var(--radius-md); margin-bottom:1.5rem;" />` : ''}
-          <div style="font-family:var(--font-serif); font-size:1.1rem; line-height:1.8; color:var(--text-main);">
-            ${renderSafeMarkdown(content)}
-          </div>
-        `;
-      }
-    } else {
-      if (writePane) writePane.style.display = 'block';
-      if (prevPane) prevPane.style.display = 'none';
+  toggleFollowWriter(idx) {
+    if (this.writers[idx]) {
+      this.writers[idx].isFollowing = !this.writers[idx].isFollowing;
+      this.renderWriters();
+      this.showToast(this.writers[idx].isFollowing ? `Now following ${this.writers[idx].name}` : `Unfollowed ${this.writers[idx].name}`);
     }
   }
 
-  updateArticleMetaStats() {
-    const body = document.getElementById('article-body-input');
-    const countEl = document.getElementById('article-word-count');
-    const timeEl = document.getElementById('article-read-time');
-    if (!body || !countEl || !timeEl) return;
-
-    const text = body.value.trim();
-    const words = text ? text.split(/\s+/).length : 0;
-    const chars = text.length;
-    const readTime = Math.max(1, Math.ceil(words / 180));
-
-    countEl.textContent = `${words} words • ${chars} characters`;
-    timeEl.textContent = `~${readTime} min read`;
+  filterByTopic(topic) {
+    this.setTabFilter(topic);
   }
 
-  applyFormatToArticle(format) {
-    const textarea = document.getElementById('article-body-input');
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = textarea.value.substring(start, end);
-    let replacement = '';
-
-    switch (format) {
-      case 'bold':
-        replacement = `**${selected || 'bold text'}**`;
-        break;
-      case 'italic':
-        replacement = `*${selected || 'italic text'}*`;
-        break;
-      case 'h2':
-        replacement = `\n## ${selected || 'Heading 2'}\n`;
-        break;
-      case 'h3':
-        replacement = `\n### ${selected || 'Heading 3'}\n`;
-        break;
-      case 'quote':
-        replacement = `\n> ${selected || 'Quotation text'}\n`;
-        break;
-      case 'bullet':
-        replacement = `\n- ${selected || 'List item'}\n`;
-        break;
-      case 'numbered':
-        replacement = `\n1. ${selected || 'List item'}\n`;
-        break;
-      case 'link':
-        replacement = `[${selected || 'link text'}](https://example.com)`;
-        break;
-      case 'code':
-        replacement = `\`${selected || 'code snippet'}\``;
-        break;
-      default:
-        return;
-    }
-
-    textarea.setRangeText(replacement, start, end, 'select');
-    textarea.focus();
-    this.updateArticleMetaStats();
-  }
-
-  async saveArticleDraft() {
-    if (!this.token) return;
-    const title = document.getElementById('article-title-input')?.value || '';
-    const subtitle = document.getElementById('article-subtitle-input')?.value || '';
-    const category = document.getElementById('article-category-input')?.value || 'General';
-    const coverImage = document.getElementById('article-cover-input')?.value || '';
-    const content = document.getElementById('article-body-input')?.value || '';
-
-    if (!title.trim() && !content.trim()) return;
-
-    try {
-      const res = await fetch(`${this.apiBase}/api/posts/draft`, {
-        method: 'POST',
-        headers: this.authHeaders(),
-        body: JSON.stringify({ title, subtitle, category, coverImage, content })
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        const pill = document.getElementById('article-draft-status');
-        if (pill) {
-          pill.textContent = 'Draft saved at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          pill.style.display = 'inline-flex';
-        }
-      }
-    } catch (e) {}
-  }
-
-  async loadNotifications() {
-    if (!this.token) return;
-    try {
-      const res = await fetch(`${this.apiBase}/api/posts/notifications`, { headers: this.authHeaders() });
-      const data = await res.json();
-      if (!res.ok || !data.success) return;
-
-      const listEl = document.getElementById('notifications-list');
-      const badgeEl = document.getElementById('nav-notif-badge');
-      if (badgeEl) {
-        if (data.unreadCount > 0) {
-          badgeEl.textContent = data.unreadCount;
-          badgeEl.style.display = 'inline-block';
-        } else {
-          badgeEl.style.display = 'none';
-        }
-      }
-
-      if (listEl && data.notifications) {
-        if (data.notifications.length === 0) {
-          listEl.innerHTML = '<div style="text-align:center; padding: 2rem 0; color: var(--text-dim); font-size: 0.9rem;">No notifications yet. When people like, comment, or follow you, they will appear here!</div>';
-          return;
-        }
-
-        listEl.innerHTML = data.notifications.map(n => `
-          <div class="notification-item ${n.is_read ? '' : 'unread'}" style="display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border-bottom:1px solid var(--border-color); cursor:pointer;" data-post-id="${esc(n.post_id || '')}">
-            <div class="author-avatar" style="width:36px; height:36px; font-size:0.85rem;">${esc(n.actor_avatar || 'CR')}</div>
-            <div style="flex:1;">
-              <div style="font-size:0.88rem; color:var(--text-main); font-weight:600;">${esc(n.message)}</div>
-              <div style="font-size:0.75rem; color:var(--text-dim);">${esc(n.created_at || 'Recently')}</div>
-            </div>
-          </div>
-        `).join('');
-
-        listEl.querySelectorAll('.notification-item').forEach(item => {
-          item.addEventListener('click', () => {
-            if (item.dataset.postId) {
-              this.notificationsModal.classList.remove('active');
-              this.openFullArticle(item.dataset.postId);
-            }
-          });
-        });
-      }
-    } catch (e) {}
-  }
-
-  openModal(modal) {
-    if (modal) {
-      modal.classList.add('active');
-    }
-  }
-
-  showToast(message, type = 'info') {
-    if (!this.toastEl) return;
-
-    // Pick a tailored icon based on message content
-    let icon = '✨';
-    if (message.includes('🌙') || message.includes('Dark')) icon = '🌙';
-    else if (message.includes('☀️') || message.includes('Light')) icon = '☀️';
-    else if (message.includes('🔖') || message.toLowerCase().includes('bookmark') || message.toLowerCase().includes('saved')) icon = '🔖';
-    else if (message.includes('❤️') || message.toLowerCase().includes('like')) icon = '❤️';
-    else if (message.includes('🗑️') || message.toLowerCase().includes('delete') || message.toLowerCase().includes('discard')) icon = '🗑️';
-    else if (message.includes('📸') || message.toLowerCase().includes('photo')) icon = '📸';
-    else if (message.includes('📖') || message.toLowerCase().includes('article')) icon = '📖';
-    else if (message.includes('🔒') || message.toLowerCase().includes('password')) icon = '🔒';
-    else if (message.includes('⚠️') || message.toLowerCase().includes('failed') || message.toLowerCase().includes('error')) icon = '⚠️';
-    else if (message.toLowerCase().includes('target') || message.toLowerCase().includes('reading')) icon = '🎯';
-    else if (message.toLowerCase().includes('copied') || message.toLowerCase().includes('link')) icon = '🔗';
-    else if (message.toLowerCase().includes('profile') || message.toLowerCase().includes('welcome')) icon = '👤';
-
-    const textEl = document.getElementById('toast-text-content');
-    const iconEl = document.getElementById('toast-icon-wrap');
-    const barEl = document.getElementById('toast-progress-bar');
-
-    if (textEl) textEl.textContent = message;
-    else this.toastEl.textContent = message;
-    if (iconEl) iconEl.textContent = icon;
-
-    if (this._toastTimeout) clearTimeout(this._toastTimeout);
-
-    // Reset progress bar animation
-    if (barEl) {
-      barEl.style.transition = 'none';
-      barEl.style.width = '100%';
-      void barEl.offsetWidth; // Force reflow
-      barEl.style.transition = 'width 3s linear';
-      barEl.style.width = '0%';
-    }
-
-    this.toastEl.classList.add('show');
-    this._toastTimeout = setTimeout(() => {
-      this.toastEl.classList.remove('show');
-    }, 3000);
-  }
-
-  // Re-draw whichever lists are currently on screen
-  refresh() {
-    this.render();
-    if (this.isProfileActive()) this.renderProfilePosts();
-    if (this.route && this.route.name === 'explore') this.renderExploreGrid();
-  }
-
+  // ------------------------------------------------------------------------
+  // MAIN RENDER PIPELINE
+  // ------------------------------------------------------------------------
   render() {
     if (!this.postsContainer) return;
 
-    // Populate Editorial Lead Story and Numbered Trending Strip if available
-    const leadSec = document.getElementById('editorial-lead-section');
-    const trendGrid = document.getElementById('editorial-trending-grid');
-    const discoveryMasthead = document.getElementById('editorial-discovery-masthead');
-
-    if (discoveryMasthead) {
-      if (this.currentFilter !== 'all' || this.activeSearchQuery) {
-        discoveryMasthead.style.display = 'none';
-      } else {
-        discoveryMasthead.style.display = 'flex';
-      }
-    }
-
-    const articles = this.posts.filter(p => p.type === 'article');
-    if (leadSec && articles.length > 0) {
-      const lead = articles[0];
-      const leadCover = safeUrl(lead.coverImage) || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=1000&auto=format&fit=crop';
-      const initials = lead.avatar || (lead.author ? lead.author.substring(0, 2).toUpperCase() : 'CR');
-      leadSec.innerHTML = `
-        <div class="lead-story-inner">
-          <div class="lead-story-media btn-lead-open" data-id="${esc(lead.id)}">
-            <img src="${esc(leadCover)}" class="lead-story-img" alt="Lead Cover" onerror="this.style.display='none';" />
-          </div>
-          <div class="lead-story-content">
-            <div class="lead-story-eyebrow">
-              <span class="lead-badge">FEATURED ESSAY</span>
-              <span class="lead-category">${esc(lead.category || 'Thought Leadership')}</span>
-            </div>
-            <h2 class="lead-story-title btn-lead-open" data-id="${esc(lead.id)}">${esc(lead.title)}</h2>
-            <p class="lead-story-excerpt">${esc(lead.subtitle || lead.excerpt)}</p>
-            <div class="lead-story-author-bar">
-              <a class="lead-author-left author-link" href="${profileLink(lead.handle)}">
-                <div class="author-avatar" style="width:36px; height:36px; font-size:0.85rem;">${esc(initials)}</div>
-                <div>
-                  <div style="font-weight:700; font-size:0.88rem; color:var(--text-main);">${esc(lead.author)}</div>
-                  <div style="font-size:0.75rem; color:var(--text-dim);">${esc(lead.readTime || '4 min read')} • ${esc(lead.timestamp || 'Today')}</div>
-                </div>
-              </a>
-              <button type="button" class="lead-read-btn btn-lead-open" data-id="${esc(lead.id)}">
-                <span>Read Story</span> ➔
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      leadSec.querySelectorAll('.btn-lead-open').forEach(btn => {
-        btn.addEventListener('click', () => this.openFullArticle(btn.dataset.id));
-      });
-    }
-
-    if (trendGrid && articles.length > 1) {
-      const topTrends = articles.slice(1, 4);
-      trendGrid.innerHTML = topTrends.map((t, idx) => {
-        const initials = t.avatar || (t.author ? t.author.substring(0, 2).toUpperCase() : 'CR');
-        const numStr = String(idx + 1).padStart(2, '0');
-        return `
-          <div class="trending-card-item btn-trend-open" data-id="${esc(t.id)}">
-            <span class="trending-card-num">${numStr}</span>
-            <div class="trending-card-info">
-              <div class="trending-card-author">
-                <div class="author-avatar" style="width:20px; height:20px; font-size:0.65rem;">${esc(initials)}</div>
-                <span class="trending-card-author-name">${esc(t.author)}</span>
-              </div>
-              <h3 class="trending-card-title">${esc(t.title)}</h3>
-              <div class="trending-card-meta">${esc(t.category || 'Article')} • ${esc(t.readTime || '3 min read')}</div>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      trendGrid.querySelectorAll('.btn-trend-open').forEach(card => {
-        card.addEventListener('click', () => this.openFullArticle(card.dataset.id));
-      });
-    }
-
-    let filtered = this.posts.filter(post => {
-      if (this.currentFilter === 'thoughts' && post.type !== 'thought') return false;
-      if (this.currentFilter === 'articles' && post.type !== 'article') return false;
-      if (this.currentFilter === 'images' && post.type !== 'image') return false;
-      if (this.currentFilter === 'saved' && !post.bookmarkedByUser) return false;
-      if (this.currentFilter === 'following' && !(this.followingIds && this.followingIds.has(post.id))) return false;
-      if (['tech', 'philosophy', 'creative', 'stories'].includes(this.currentFilter.toLowerCase())) {
-        if ((post.category || '').toLowerCase() !== this.currentFilter.toLowerCase()) return false;
+    // Filter posts
+    let filtered = this.posts.filter(p => {
+      // Category / Topic filter
+      if (this.currentFilter !== 'all') {
+        if (this.currentFilter === 'saved' && !p.bookmarkedByUser) return false;
+        if (this.currentFilter === 'following' && !p.isFollowingAuthor) return false;
+        if (!['all', 'saved', 'following'].includes(this.currentFilter.toLowerCase())) {
+          if ((p.category || '').toLowerCase() !== this.currentFilter.toLowerCase()) return false;
+        }
       }
 
+      // Search query
       if (this.activeSearchQuery) {
         const q = this.activeSearchQuery;
-        const matchAuthor = (post.author || '').toLowerCase().includes(q) || (post.handle || '').toLowerCase().includes(q);
-        const matchContent = (post.content || '').toLowerCase().includes(q) || (post.title || '').toLowerCase().includes(q) || (post.excerpt || '').toLowerCase().includes(q);
-        const matchCategory = (post.category || '').toLowerCase().includes(q);
-        if (!matchAuthor && !matchContent && !matchCategory) return false;
+        const inTitle = (p.title || '').toLowerCase().includes(q);
+        const inAuthor = (p.author || '').toLowerCase().includes(q);
+        const inContent = (p.content || '').toLowerCase().includes(q);
+        const inCategory = (p.category || '').toLowerCase().includes(q);
+        if (!inTitle && !inAuthor && !inContent && !inCategory) return false;
       }
 
       return true;
     });
 
-    if (filtered.length === 0) {
-      let icon = '✍️';
-      let title = 'No stories found';
-      let text = 'Try selecting a different filter or be the first to publish a story!';
-      if (this.currentFilter === 'following') {
-        icon = '👥';
-        title = this.token ? 'Your Following feed is empty' : 'Log in to see your Following feed';
-        text = this.token
-          ? 'Follow creators from the Featured Creators list or from their profile pages, and their posts will show up here.'
-          : 'Posts from the creators you follow will appear here once you log in.';
-      } else if (this.currentFilter === 'saved') {
-        icon = '🔖';
-        title = 'No saved stories yet';
-        text = 'Tap the bookmark on any story to keep it in your personal reading list.';
+    // Populate Lead Essay (first post if on All filter without search query)
+    let leadPost = null;
+    if (this.currentFilter === 'all' && !this.activeSearchQuery && filtered.length > 0) {
+      leadPost = filtered[0];
+      this.currentLeadId = leadPost.id;
+      if (this.leadContainer) {
+        this.leadContainer.style.display = 'block';
+        this.renderLeadEssay(leadPost);
       }
+    } else {
+      this.currentLeadId = null;
+      if (this.leadContainer) {
+        this.leadContainer.style.display = 'none';
+      }
+    }
+
+    // Stream items (skip the lead if on 'all' without search so it is never repeated)
+    const streamItems = leadPost
+      ? filtered.filter(p => p.id !== leadPost.id)
+      : filtered;
+
+    if (streamItems.length === 0) {
+      const message = this.currentFilter === 'saved'
+        ? 'Your reading list is currently empty. Bookmark essays to return to them later.'
+        : (this.activeSearchQuery
+          ? 'No essays found matching your search. Try a different author, keyword, or topic.'
+          : 'No essays on this topic yet. Be the first to write one.');
+
       this.postsContainer.innerHTML = `
-        <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-card);">
-          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${icon}</div>
-          <h3 style="color: var(--text-main); font-size: 1.25rem; margin-bottom: 0.35rem;">${title}</h3>
-          <p style="color: var(--text-dim); font-size: 0.9rem;">${text}</p>
+        <div class="editorial-empty-state">
+          <h4 class="empty-state-title">Quiet in this section</h4>
+          <p class="empty-state-text">${esc(message)}</p>
+          <button type="button" class="empty-state-action" onclick="window.readoraApp.openWriteModal()">
+            Write an essay on this subject →
+          </button>
         </div>
       `;
-      return;
+    } else {
+      this.postsContainer.innerHTML = streamItems.map(p => this.renderPostCard(p)).join('');
     }
 
-    this.postsContainer.innerHTML = filtered.map(post => this.renderPostCard(post)).join('');
-    this.attachCardEventListeners(this.postsContainer);
+    // Sidebar widgets
+    this.renderTrending();
+    this.renderTopics();
+    this.renderWriters();
   }
 
-  async deletePost(postId) {
-    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) return;
+  // ------------------------------------------------------------------------
+  // FULL ESSAY READER MODAL
+  // ------------------------------------------------------------------------
+  openFullArticle(postId) {
+    const post = this.posts.find(p => String(p.id) === String(postId));
+    if (!post) return;
 
-    if (window.location.origin.startsWith('http')) {
-      try {
-        const res = await fetch(`/api/posts/${postId}`, { method: 'DELETE', headers: this.authHeaders() });
-        const data = await res.json();
+    if (!this.readerModal || !this.readerContainer) return;
 
-        if (!res.ok) {
-          this.showToast(data.message || 'Failed to delete post.');
-          return;
-        }
-      } catch (e) {
-        console.log('Error syncing post deletion with server:', e);
-      }
-    }
+    const navTitle = document.getElementById('reader-nav-title');
+    if (navTitle) navTitle.textContent = post.title;
 
-    this.posts = this.posts.filter(p => p.id !== postId);
-    this.saveLocalPosts();
-    this.refresh();
-    this.showToast('🗑️ Post deleted successfully!');
-    if (this.isProfileActive() && this.profile) this.loadProfile(this.profile.handle, true);
-  }
+    const initials = (post.author || 'CR').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
-  isPostAuthor(post) {
-    if (!this.currentUser) return false;
-    return (post.author_id && post.author_id === this.currentUser.id) ||
-           (post.handle && this.currentUser.handle && post.handle.toLowerCase() === this.currentUser.handle.toLowerCase());
-  }
+    const markdownHtml = renderSafeMarkdown(post.content || post.excerpt);
 
-  // ---------- Post cards ----------
+    this.readerContainer.innerHTML = `
+      <article>
+        <div class="reader-category-stamp">${esc(post.category || 'Essay')}</div>
+        <h1 class="reader-main-title">${esc(post.title)}</h1>
+        ${post.subtitle ? `<div class="reader-main-subtitle">${esc(post.subtitle)}</div>` : ''}
 
-  renderPostCard(post) {
-    if (post.type === 'thought') return this.renderThoughtCard(post);
-    if (post.type === 'image') return this.renderImageCard(post);
-    return this.renderArticleCard(post);
-  }
-
-  getCategoryClass(category) {
-    const c = String(category || '').toLowerCase();
-    if (c.includes('tech')) return 'card-tag-tech';
-    if (c.includes('code') || c.includes('program')) return 'card-tag-code';
-    if (c.includes('ai') || c.includes('intelligence')) return 'card-tag-ai';
-    if (c.includes('product') || c.includes('life')) return 'card-tag-productivity';
-    if (c.includes('career') || c.includes('job')) return 'card-tag-career';
-    if (c.includes('science') || c.includes('philo')) return 'card-tag-science';
-    return 'card-tag-general';
-  }
-
-  renderCardHeader(post, metaExtra, deleteTitle) {
-    const isOwner = this.isPostAuthor(post);
-    const catClass = this.getCategoryClass(post.category);
-    const initials = post.avatar || (post.author ? post.author.substring(0, 2).toUpperCase() : 'CR');
-    const authorBlock = `
-      <div class="author-avatar">${esc(initials)}</div>
-      <div>
-        <div class="author-name">${esc(post.author)}</div>
-        <div class="post-meta">${esc(post.handle)} • ${esc(post.timestamp || 'Recently')}${metaExtra}</div>
-      </div>`;
-    return `
-      <div class="card-header">
-        ${post.handle
-          ? `<a class="card-author-info author-link" href="${profileLink(post.handle)}">${authorBlock}</a>`
-          : `<div class="card-author-info">${authorBlock}</div>`}
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span class="card-tag ${catClass}">${esc(post.category || 'General')}</span>
-          ${isOwner ? `
-            <button class="btn-edit-post" data-id="${esc(post.id)}" title="Edit Post" style="background: transparent; border: 1px solid var(--border-default); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
-            <button class="btn-delete-post" data-id="${esc(post.id)}" title="${deleteTitle}" style="background: transparent; border: 1px solid var(--border-default); color: var(--text-dim); cursor: pointer; padding: 0.25rem 0.45rem; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; transition: all var(--transition-fast);">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
-          ` : ''}
-        </div>
-      </div>`;
-  }
-
-  renderActionBar(post) {
-    const id = esc(post.id);
-    return `
-      <div class="card-actions-bar">
-        <div class="action-buttons-group">
-          <button class="card-action-btn btn-like ${post.likedByUser ? 'liked' : ''}" data-id="${id}" title="Like">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.likedByUser ? '#ef4444' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-            <span>${esc(post.likes)}</span>
-          </button>
-
-          <button class="card-action-btn btn-comment-toggle" data-id="${id}" title="Comments">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            <span>${post.comments ? post.comments.length : 0}</span>
-          </button>
-
-          <button class="card-action-btn btn-share" data-id="${id}" title="Share Post">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-          </button>
+        <div class="reader-byline-bar">
+          <div>
+            By <a class="reader-byline-author author-link" href="${profileLink(post.handle)}">${esc(post.author)}</a>
+            <span class="essay-meta-dot">·</span>
+            <span class="tabular-nums">${esc(post.timestamp || 'Recently')}</span>
+          </div>
+          <div class="tabular-nums">
+            ${esc(post.readTime || '8 min read')}
+          </div>
         </div>
 
-        <button class="card-action-btn btn-bookmark ${post.bookmarkedByUser ? 'bookmarked' : ''}" data-id="${id}" title="Save">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="${post.bookmarkedByUser ? '#f59e0b' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-        </button>
-      </div>`;
-  }
-
-  renderCommentsDrawer(post) {
-    const id = esc(post.id);
-    const isPostOwner = this.isPostAuthor(post);
-    return `
-      <div class="comments-drawer" style="display: ${this.openComments.has(post.id) ? 'block' : 'none'};">
-        <div class="comments-list">
-          ${(post.comments || []).map(c => {
-            const canDelete = this.currentUser && (
-              isPostOwner ||
-              (c.author_id && c.author_id === this.currentUser.id) ||
-              (c.user_id && c.user_id === this.currentUser.id) ||
-              (c.author && this.currentUser.name && c.author === this.currentUser.name)
-            );
-            return `
-            <div class="comment-item" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.35rem 0;">
-              <div style="flex: 1; font-size: 0.88rem;">
-                <span class="comment-author" style="font-weight: 600; color: var(--text-main);">${esc(c.author || c.name || 'User')}:</span>
-                <span class="comment-body" style="color: var(--text-muted); margin-left: 0.25rem;">${esc(c.text)}</span>
-              </div>
-              ${canDelete && c.id ? `
-                <button class="btn-delete-comment" data-post-id="${id}" data-comment-id="${esc(c.id)}" title="Delete comment" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 0 4px; font-size: 1.1rem; line-height: 1;">&times;</button>
-              ` : ''}
-            </div>
-          `;
-          }).join('')}
-        </div>
-        <div class="comment-input-row">
-          <input type="text" placeholder="Add a comment..." class="input-comment" data-id="${id}">
-          <button class="btn-submit-comment" data-id="${id}">Post</button>
-        </div>
-      </div>`;
-  }
-
-  renderThoughtCard(post) {
-    return `
-      <article class="thought-card editorial-card-thought" data-id="${esc(post.id)}">
-        ${this.renderCardHeader(post, '', 'Delete Thought')}
-
-        <div class="thought-quote-container">
-          <p class="thought-quote-text">"${esc(post.content)}"</p>
+        <div class="reader-essay-content">
+          ${markdownHtml}
         </div>
 
-        ${this.renderActionBar(post)}
-        ${this.renderCommentsDrawer(post)}
-      </article>
-    `;
-  }
-
-  renderImageCard(post) {
-    const cover = safeUrl(post.coverImage);
-    return `
-      <article class="thought-card" data-id="${esc(post.id)}">
-        ${this.renderCardHeader(post, '', 'Delete Photo')}
-
-        <div class="photo-post-media">
-          ${cover ? `<img src="${esc(cover)}" class="photo-card-img" alt="Photo" loading="lazy" onerror="this.onerror=null; this.style.display='none';" />` : ''}
-        </div>
-        ${post.content ? `<div class="photo-post-caption"><span class="photo-caption-author">${esc(post.author)}</span> ${esc(post.content)}</div>` : ''}
-
-        ${this.renderActionBar(post)}
-        ${this.renderCommentsDrawer(post)}
-      </article>
-    `;
-  }
-
-  renderArticleCard(post) {
-    const cover = safeUrl(post.coverImage);
-    const catClass = this.getCategoryClass(post.category);
-    return `
-      <article class="thought-card editorial-card-standard" data-id="${esc(post.id)}">
-        <div class="standard-card-layout">
-          <div class="standard-card-left">
-            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-              <span class="card-tag ${catClass}">${esc(post.category || 'Article')}</span>
-              <span style="font-size:0.75rem; color:var(--text-dim);">•</span>
-              <span style="font-size:0.78rem; color:var(--text-dim); font-weight:500;">${esc(post.readTime || '3 min read')}</span>
-            </div>
-
-            ${this.renderCardHeader(post, '', 'Delete Story')}
-
-            <h2 class="standard-card-title btn-read-article" data-id="${esc(post.id)}">${esc(post.title)}</h2>
-            ${post.subtitle ? `<div class="standard-card-subtitle">${esc(post.subtitle)}</div>` : ''}
-            <p class="standard-card-excerpt">${esc(post.excerpt)}</p>
-
-            ${this.renderActionBar(post)}
+        <div class="reader-discussion-section">
+          <h3 class="reader-discussion-title">Reader Reflections & Margin Notes</h3>
+          <div class="reader-comment-box">
+            <textarea id="reader-comment-input" class="reader-comment-input" placeholder="Add a thoughtful reflection to this essay..."></textarea>
+            <button type="button" class="btn-post-comment" onclick="window.readoraApp.addComment('${esc(post.id)}')">Post Reflection</button>
           </div>
 
-          ${cover ? `
-            <div class="standard-card-right btn-read-article" data-id="${esc(post.id)}">
-              <img src="${esc(cover)}" class="standard-card-thumb" alt="Cover" loading="lazy" onerror="this.parentElement.style.display='none';" />
-            </div>
-          ` : ''}
+          <div class="reader-comments-stream" id="reader-comments-stream">
+            ${(post.comments || []).map(c => `
+              <div class="reader-comment-entry">
+                <div class="reader-comment-author-row">
+                  <span class="reader-comment-author">${esc(c.author || c.name || 'Reader')}</span>
+                  <span class="essay-date tabular-nums">${esc(c.created_at || 'Recently')}</span>
+                </div>
+                <div class="reader-comment-body">${esc(c.text)}</div>
+              </div>
+            `).join('')}
+          </div>
         </div>
-
-        ${this.renderCommentsDrawer(post)}
       </article>
+    `;
+
+    this.readerModal.classList.add('active');
+    this.readerModal.scrollTo({ top: 0, behavior: 'instant' });
+
+    // Track scroll for reading progress bar
+    const bar = document.getElementById('reading-progress-bar');
+    this.readerModal.onscroll = () => {
+      const st = this.readerModal.scrollTop;
+      const sh = this.readerModal.scrollHeight - this.readerModal.clientHeight;
+      if (bar && sh > 0) {
+        const pct = Math.min(100, Math.max(0, (st / sh) * 100));
+        bar.style.width = pct + '%';
+      }
+    };
+  }
+
+  addComment(postId) {
+    const input = document.getElementById('reader-comment-input');
+    if (!input || !input.value.trim()) return;
+
+    const text = input.value.trim();
+    const post = this.posts.find(p => String(p.id) === String(postId));
+    if (post) {
+      if (!post.comments) post.comments = [];
+      post.comments.push({
+        id: 'c_' + Date.now(),
+        author: this.currentUser ? this.currentUser.name : 'Harsh Bansal',
+        text,
+        created_at: 'Just now'
+      });
+      this.saveLocalPosts();
+      this.openFullArticle(postId);
+      this.showToast('Reflection posted.');
+    }
+  }
+
+  toggleBookmark(postId) {
+    const post = this.posts.find(p => String(p.id) === String(postId));
+    if (!post) return;
+    post.bookmarkedByUser = !post.bookmarkedByUser;
+    post.bookmarks = (post.bookmarks || 0) + (post.bookmarkedByUser ? 1 : -1);
+    this.saveLocalPosts();
+    this.render();
+    this.showToast(post.bookmarkedByUser ? 'Saved to reading list.' : 'Removed from reading list.');
+  }
+
+  // ------------------------------------------------------------------------
+  // WRITE ESSAY MANUSCRIPT MODAL
+  // ------------------------------------------------------------------------
+  openWriteModal() {
+    if (this.writeModal) {
+      this.writeModal.classList.add('active');
+      const titleInput = document.getElementById('article-title-input');
+      if (titleInput) titleInput.focus();
+    }
+  }
+
+  async handlePublishEssay(e) {
+    e.preventDefault();
+    const title = document.getElementById('article-title-input').value.trim();
+    const subtitle = document.getElementById('article-subtitle-input').value.trim();
+    const category = document.getElementById('article-category-input').value;
+    const coverImage = document.getElementById('article-cover-input').value.trim();
+    const content = document.getElementById('article-body-input').value.trim();
+
+    if (!title || !content) {
+      this.showToast('Please provide both an essay title and prose content.');
+      return;
+    }
+
+    const words = (content.match(/\S+/g) || []).length;
+    const readTime = `${Math.max(1, Math.ceil(words / 180))} min read`;
+
+    const newEssay = {
+      id: 'essay_' + Date.now(),
+      type: 'article',
+      author_id: this.currentUser ? this.currentUser.id : 'usr_guest',
+      author: this.currentUser ? this.currentUser.name : 'Harsh Bansal',
+      handle: this.currentUser ? this.currentUser.handle : '@harshbansal',
+      avatar: this.currentUser ? this.currentUser.avatar : 'HB',
+      title,
+      subtitle,
+      excerpt: subtitle || (content.length > 160 ? content.substring(0, 160) + '...' : content),
+      content,
+      category: category || 'Philosophy',
+      readTime,
+      timestamp: 'Just now',
+      likes: 0,
+      bookmarks: 0,
+      coverImage,
+      comments: []
+    };
+
+    // Attempt backend sync
+    if (window.location.origin.startsWith('http')) {
+      try {
+        await fetch(`${this.apiBase}/api/posts/article`, {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({
+            title,
+            subtitle,
+            content,
+            category,
+            coverImage
+          })
+        });
+      } catch (err) {}
+    }
+
+    this.posts.unshift(newEssay);
+    this.saveLocalPosts();
+    this.render();
+
+    if (this.writeModal) this.writeModal.classList.remove('active');
+    document.getElementById('publish-article-form').reset();
+    this.showToast('Essay published successfully.');
+    this.openFullArticle(newEssay.id);
+  }
+
+  // ------------------------------------------------------------------------
+  // AI READER ASSISTANT CONVERSATION (Gemini API / Local Knowledge)
+  // ------------------------------------------------------------------------
+  appendAiMessage(sender, text) {
+    const container = document.getElementById('ai-chat-messages');
+    if (!container) return;
+    const bubble = document.createElement('div');
+    bubble.className = `ai-bubble ai-bubble-${sender}`;
+    bubble.innerHTML = `<span>${esc(text)}</span>`;
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  async triggerAiResponse(promptText) {
+    try {
+      if (window.location.origin.startsWith('http')) {
+        const res = await fetch(`${this.apiBase}/api/ai/chat`, {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ message: promptText })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.reply) {
+            this.appendAiMessage('bot', data.reply);
+            return;
+          }
+        }
+      }
+    } catch (e) {}
+
+    // Thoughtful contextual fallback
+    setTimeout(() => {
+      this.appendAiMessage('bot', `Reflecting on "${promptText.substring(0, 30)}...": In long-form literature, this connects deeply to how quiet spaces and intentional composition allow complex arguments to unfold. Would you like me to recommend related essays from the archive?`);
+    }, 450);
+  }
+
+  // ------------------------------------------------------------------------
+  // EXPLORE & SAVED VIEWS
+  // ------------------------------------------------------------------------
+  renderExplore() {
+    const grid = document.getElementById('explore-posts-grid');
+    if (!grid) return;
+    grid.innerHTML = this.posts.map(p => this.renderPostCard(p)).join('');
+  }
+
+  renderSaved() {
+    const savedView = document.getElementById('saved-view');
+    if (!savedView) return;
+    const bookmarked = this.posts.filter(p => p.bookmarkedByUser);
+    savedView.innerHTML = `
+      <div style="padding-bottom:1.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--rule);">
+        <h2 style="font-family:var(--font-serif); font-size:2rem; font-weight:500; margin-bottom:0.4rem;">Saved Reading List</h2>
+        <p style="color:var(--ink-muted); font-size:0.95rem;">Essays and reflections bookmarked for quiet contemplation.</p>
+      </div>
+      <div>
+        ${bookmarked.length > 0
+          ? bookmarked.map(p => this.renderPostCard(p)).join('')
+          : `<div class="editorial-empty-state"><p class="empty-state-text">Your reading list is currently empty. Bookmark essays from the feed to save them here.</p></div>`}
+      </div>
     `;
   }
 
-  // Buttons are wired inside the given list only, so the feed and a profile list never interfere
-  attachCardEventListeners(root) {
-    root = root || document;
+  renderProfileView(handle) {
+    const profView = document.getElementById('profile-view');
+    if (!profView) return;
+    profView.style.display = 'block';
 
-    root.querySelectorAll('.btn-like').forEach(btn => {
-      btn.addEventListener('click', () => this.toggleLike(btn.dataset.id));
-    });
+    const cleanHandle = handle.startsWith('@') ? handle : '@' + handle;
+    const authorEssays = this.posts.filter(p => p.handle && p.handle.toLowerCase() === cleanHandle.toLowerCase());
 
-    root.querySelectorAll('.btn-bookmark').forEach(btn => {
-      btn.addEventListener('click', () => this.toggleBookmark(btn.dataset.id));
-    });
-
-    root.querySelectorAll('.btn-edit-post').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.openEditPost(btn.dataset.id);
-      });
-    });
-
-    root.querySelectorAll('.btn-delete-post').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.deletePost(btn.dataset.id);
-      });
-    });
-
-    root.querySelectorAll('.btn-delete-comment').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.deleteComment(btn.dataset.postId, btn.dataset.commentId);
-      });
-    });
-
-    root.querySelectorAll('.btn-comment-toggle').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const drawer = btn.closest('.thought-card').querySelector('.comments-drawer');
-        this.toggleComments(btn.dataset.id, drawer);
-      });
-    });
-
-    root.querySelectorAll('.btn-submit-comment').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const input = btn.closest('.comments-drawer').querySelector('.input-comment');
-        if (input) this.addComment(btn.dataset.id, input);
-      });
-    });
-
-    root.querySelectorAll('.input-comment').forEach(input => {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') this.addComment(input.dataset.id, input);
-      });
-    });
-
-    root.querySelectorAll('.btn-share').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const post = this.posts.find(p => p.id === btn.dataset.id);
-        if (post) this.sharePost(post);
-      });
-    });
-
-    root.querySelectorAll('.btn-read-article').forEach(btn => {
-      btn.addEventListener('click', () => this.openFullArticle(btn.dataset.id));
-    });
+    profView.innerHTML = `
+      <div style="padding-bottom:1.5rem; margin-bottom:2rem; border-bottom:1px solid var(--rule);">
+        <h2 style="font-family:var(--font-serif); font-size:2.2rem; font-weight:500; margin-bottom:0.35rem;">
+          ${esc(authorEssays.length > 0 ? authorEssays[0].author : cleanHandle)}
+        </h2>
+        <div style="font-size:0.85rem; color:var(--ink-muted); margin-bottom:0.75rem;">
+          <span>${esc(cleanHandle)}</span> · <span>Essayist on Readora</span>
+        </div>
+        <p style="color:var(--ink-secondary); font-size:0.95rem; max-width:540px; line-height:1.55;">
+          Dedicated to critical inquiries, long-form literature, and quiet contemplation.
+        </p>
+      </div>
+      <div class="sidebar-section-header">
+        <span class="sidebar-section-title">Published Essays (${authorEssays.length})</span>
+      </div>
+      <div class="essay-feed-stream">
+        ${authorEssays.length > 0
+          ? authorEssays.map(p => this.renderPostCard(p)).join('')
+          : '<div class="editorial-empty-state"><p class="empty-state-text">No essays published under this author handle yet.</p></div>'}
+      </div>
+    `;
   }
 }
 
+// Instantiate on DOM readiness
 document.addEventListener('DOMContentLoaded', () => {
-  window.readora = new ReadoraApp();
+  window.readoraApp = new ReadoraApp();
 });
-
-
-/* ═══════════════════════════════════════════════════════════
-   READORA × Gemini AI — Frontend Module
-   Handles: Writing Assistant, Auto-Summarize, Category Suggester,
-            Chat Bot, Semantic Search
-═══════════════════════════════════════════════════════════ */
-
-class ReadoraAI {
-  constructor() {
-    this.chatHistory = [];
-    this.chatOpen = false;
-    this.isTyping = false;
-    this._bindAll();
-    window.readoraAI = this;
-  }
-
-  get apiBase() {
-    return window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
-  }
-
-  // ── Internal: call an AI endpoint ──────────────────────────────────
-  async _aiCall(endpoint, body) {
-    const res = await fetch(`${this.apiBase}/api/ai/${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message || 'AI request failed');
-    return data;
-  }
-
-  // ── Shared: show/hide status text ──────────────────────────────────
-  _setStatus(el, msg, isError = false) {
-    if (!el) return;
-    el.textContent = msg;
-    el.style.display = msg ? 'flex' : 'none';
-    el.style.color = isError ? '#f87171' : '#fbbf24';
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // 1. AI WRITING ASSISTANT — Thought Composer
-  // ─────────────────────────────────────────────────────────────────
-  async improveThought() {
-    const input = document.getElementById('quick-thought-text');
-    const btn = document.getElementById('btn-ai-improve-thought');
-    const status = document.getElementById('ai-thought-status');
-    if (!input || !input.value.trim()) {
-      this._setStatus(status, '⚠️ Write something first!', true);
-      return;
-    }
-    btn.disabled = true;
-    this._setStatus(status, '✨ AI is improving your thought...');
-    try {
-      const data = await this._aiCall('improve', { text: input.value, type: 'thought' });
-      input.value = data.improved;
-      this._setStatus(status, '✅ Improved! Feel free to edit further.');
-      setTimeout(() => this._setStatus(status, ''), 4000);
-    } catch (e) {
-      this._setStatus(status, '❌ ' + e.message, true);
-      setTimeout(() => this._setStatus(status, ''), 5000);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // 1b. AI WRITING ASSISTANT — Article Modal
-  // ─────────────────────────────────────────────────────────────────
-  async improveArticle() {
-    const body = document.getElementById('article-body-input');
-    const btn = document.getElementById('btn-ai-improve-article');
-    const status = document.getElementById('ai-article-status');
-    if (!body || !body.value.trim()) {
-      this._setStatus(status, '⚠️ Write some content first!', true);
-      return;
-    }
-    btn.disabled = true;
-    this._setStatus(status, '✨ Improving your article...');
-    try {
-      const data = await this._aiCall('improve', { text: body.value, type: 'article' });
-      body.value = data.improved;
-      this._setStatus(status, '✅ Article improved!');
-      setTimeout(() => this._setStatus(status, ''), 4000);
-    } catch (e) {
-      this._setStatus(status, '❌ ' + e.message, true);
-      setTimeout(() => this._setStatus(status, ''), 5000);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // 1c. AI CAPTION ASSISTANT — Photo Post
-  // ─────────────────────────────────────────────────────────────────
-  async improvePhotoCaption() {
-    const input = document.getElementById('photo-caption-input');
-    const btn = document.getElementById('btn-ai-improve-photo');
-    const status = document.getElementById('ai-photo-status');
-    if (!input || !input.value.trim()) {
-      this._setStatus(status, '⚠️ Write a rough caption first!', true);
-      return;
-    }
-    btn.disabled = true;
-    this._setStatus(status, '✨ AI is polishing your caption...');
-    try {
-      const data = await this._aiCall('improve', { text: input.value, type: 'thought' });
-      input.value = data.improved;
-      this._setStatus(status, '✅ Caption improved!');
-      setTimeout(() => this._setStatus(status, ''), 4000);
-    } catch (e) {
-      this._setStatus(status, '❌ ' + e.message, true);
-      setTimeout(() => this._setStatus(status, ''), 5000);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // 2. AUTO-SUMMARIZE — Article Modal → fills subtitle
-  // ─────────────────────────────────────────────────────────────────
-  async summarizeArticle() {
-    const body = document.getElementById('article-body-input');
-    const title = document.getElementById('article-title-input');
-    const subtitle = document.getElementById('article-subtitle-input');
-    const btn = document.getElementById('btn-ai-summarize-article');
-    const status = document.getElementById('ai-article-status');
-    if (!body || !body.value.trim()) {
-      this._setStatus(status, '⚠️ Write some article content first!', true);
-      return;
-    }
-    btn.disabled = true;
-    this._setStatus(status, '📝 Generating subtitle...');
-    try {
-      const data = await this._aiCall('summarize', {
-        content: body.value,
-        title: title ? title.value : ''
-      });
-      if (subtitle) subtitle.value = data.summary;
-      this._setStatus(status, '✅ Subtitle generated!');
-      setTimeout(() => this._setStatus(status, ''), 4000);
-    } catch (e) {
-      this._setStatus(status, '❌ ' + e.message, true);
-      setTimeout(() => this._setStatus(status, ''), 5000);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // 3. CATEGORY SUGGESTER — Thought
-  // ─────────────────────────────────────────────────────────────────
-  async suggestCategoryThought() {
-    const input = document.getElementById('quick-thought-text');
-    const select = document.getElementById('composer-category');
-    const btn = document.getElementById('btn-ai-category-thought');
-    const status = document.getElementById('ai-thought-status');
-    if (!input || !input.value.trim()) {
-      this._setStatus(status, '⚠️ Write something first!', true);
-      return;
-    }
-    btn.disabled = true;
-    this._setStatus(status, '💡 Analyzing your thought...');
-    try {
-      const data = await this._aiCall('suggest-category', { text: input.value });
-      if (select) {
-        // Try to find and select the suggested option
-        for (const opt of select.options) {
-          if (opt.value.toLowerCase() === data.category.toLowerCase()) {
-            select.value = opt.value;
-            break;
-          }
-        }
-      }
-      this._setStatus(status, `💡 Suggested: ${data.category} — ${data.reason}`);
-      setTimeout(() => this._setStatus(status, ''), 5000);
-    } catch (e) {
-      this._setStatus(status, '❌ ' + e.message, true);
-      setTimeout(() => this._setStatus(status, ''), 5000);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // 3b. CATEGORY SUGGESTER — Article
-  // ─────────────────────────────────────────────────────────────────
-  async suggestCategoryArticle() {
-    const body = document.getElementById('article-body-input');
-    const title = document.getElementById('article-title-input');
-    const select = document.getElementById('article-category-input');
-    const btn = document.getElementById('btn-ai-category-article');
-    const status = document.getElementById('ai-article-status');
-    const text = (title ? title.value + ' ' : '') + (body ? body.value : '');
-    if (!text.trim()) {
-      this._setStatus(status, '⚠️ Write some content first!', true);
-      return;
-    }
-    btn.disabled = true;
-    this._setStatus(status, '💡 Analyzing content...');
-    try {
-      const data = await this._aiCall('suggest-category', { text });
-      if (select) {
-        for (const opt of select.options) {
-          if (opt.value.toLowerCase() === data.category.toLowerCase()) {
-            select.value = opt.value;
-            break;
-          }
-        }
-      }
-      this._setStatus(status, `💡 Suggested: ${data.category} — ${data.reason}`);
-      setTimeout(() => this._setStatus(status, ''), 5000);
-    } catch (e) {
-      this._setStatus(status, '❌ ' + e.message, true);
-      setTimeout(() => this._setStatus(status, ''), 5000);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // 4. AI CHAT BOT
-  // ─────────────────────────────────────────────────────────────────
-  toggleChat() {
-    const panel = document.getElementById('ai-chat-panel');
-    if (!panel) return;
-    this.chatOpen = !this.chatOpen;
-    panel.style.display = this.chatOpen ? 'flex' : 'none';
-    if (this.chatOpen) {
-      const input = document.getElementById('ai-chat-input');
-      if (input) setTimeout(() => input.focus(), 100);
-    }
-  }
-
-  _appendChatMessage(role, text) {
-    const container = document.getElementById('ai-chat-messages');
-    if (!container) return;
-    const div = document.createElement('div');
-    div.className = `ai-msg ai-msg-${role}`;
-    div.innerHTML = `<span>${this._escapeHtml(text)}</span>`;
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-  }
-
-  _showTyping() {
-    const container = document.getElementById('ai-chat-messages');
-    if (!container) return null;
-    const div = document.createElement('div');
-    div.className = 'ai-msg ai-msg-bot ai-msg-typing';
-    div.id = 'ai-typing-indicator';
-    div.innerHTML = '<span></span><span></span><span></span>';
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-    return div;
-  }
-
-  _removeTyping() {
-    const el = document.getElementById('ai-typing-indicator');
-    if (el) el.remove();
-  }
-
-  _escapeHtml(str) {
-    return String(str || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-      .replace(/\n/g, '<br>');
-  }
-
-  async sendChat() {
-    if (this.isTyping) return;
-    const input = document.getElementById('ai-chat-input');
-    const sendBtn = document.querySelector('.ai-send-btn');
-    if (!input) return;
-    const message = input.value.trim();
-    if (!message) return;
-
-    input.value = '';
-    this._appendChatMessage('user', message);
-    this.chatHistory.push({ role: 'user', text: message });
-
-    this.isTyping = true;
-    if (sendBtn) sendBtn.disabled = true;
-    this._showTyping();
-
-    try {
-      const data = await this._aiCall('chat', {
-        message,
-        history: this.chatHistory.slice(-6)
-      });
-      this._removeTyping();
-      this._appendChatMessage('bot', data.reply);
-      this.chatHistory.push({ role: 'bot', text: data.reply });
-    } catch (e) {
-      this._removeTyping();
-      this._appendChatMessage('bot', '⚠️ Sorry, I had trouble responding. Please try again!');
-    } finally {
-      this.isTyping = false;
-      if (sendBtn) sendBtn.disabled = false;
-      if (input) input.focus();
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // 5. SEMANTIC SEARCH — Intercepts the search input
-  //    Runs only when user stops typing (debounced)
-  // ─────────────────────────────────────────────────────────────────
-  _debounceSemanticSearch() {
-    clearTimeout(this._semanticTimer);
-    this._semanticTimer = setTimeout(() => this._runSemanticSearch(), 800);
-  }
-
-  async _runSemanticSearch() {
-    // Only kick in if the search bar has a meaningful query
-    const searchInput = document.getElementById('search-input');
-    if (!searchInput) return;
-    const query = searchInput.value.trim();
-    if (!query || query.length < 4) return;
-
-    // Get the currently rendered app posts
-    const app = window.readora;
-    if (!app || !app.posts || app.posts.length === 0) return;
-
-    try {
-      const postPayload = app.posts.slice(0, 30).map(p => ({
-        id: p.id,
-        title: p.title || '',
-        content: (p.content || '').substring(0, 200),
-        category: p.category || '',
-        author: p.author || ''
-      }));
-
-      const data = await this._aiCall('semantic-search', { query, posts: postPayload });
-      if (!data.rankedIds || data.aiUnavailable) return;
-
-      // Re-order app.posts according to Gemini's ranking
-      const idOrder = data.rankedIds;
-      const postMap = new Map(app.posts.map(p => [p.id, p]));
-      const reordered = [];
-      idOrder.forEach(id => { if (postMap.has(id)) reordered.push(postMap.get(id)); });
-      // Add any posts AI didn't mention (safety net)
-      app.posts.forEach(p => { if (!reordered.find(r => r.id === p.id)) reordered.push(p); });
-
-      app.posts = reordered;
-      app.render();
-    } catch (_) {
-      // Silently fail — normal keyword search still works
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // Bind all AI buttons and events
-  // ─────────────────────────────────────────────────────────────────
-  _bindAll() {
-    document.addEventListener('DOMContentLoaded', () => {
-      // Thought composer AI buttons
-      const btnImproveThought = document.getElementById('btn-ai-improve-thought');
-      if (btnImproveThought) btnImproveThought.addEventListener('click', () => this.improveThought());
-
-      const btnCategoryThought = document.getElementById('btn-ai-category-thought');
-      if (btnCategoryThought) btnCategoryThought.addEventListener('click', () => this.suggestCategoryThought());
-
-      // Photo composer AI caption button
-      const btnImprovePhoto = document.getElementById('btn-ai-improve-photo');
-      if (btnImprovePhoto) btnImprovePhoto.addEventListener('click', () => this.improvePhotoCaption());
-
-      // Article modal AI buttons
-      const btnImproveArticle = document.getElementById('btn-ai-improve-article');
-      if (btnImproveArticle) btnImproveArticle.addEventListener('click', () => this.improveArticle());
-
-      const btnSummarizeArticle = document.getElementById('btn-ai-summarize-article');
-      if (btnSummarizeArticle) btnSummarizeArticle.addEventListener('click', () => this.summarizeArticle());
-
-      const btnCategoryArticle = document.getElementById('btn-ai-category-article');
-      if (btnCategoryArticle) btnCategoryArticle.addEventListener('click', () => this.suggestCategoryArticle());
-
-      // Semantic search: debounce on search input
-      const searchInput = document.getElementById('search-input');
-      if (searchInput) {
-        searchInput.addEventListener('input', () => this._debounceSemanticSearch());
-      }
-
-      console.log('🤖 Readora AI: All features initialized!');
-    });
-  }
-}
-
-// Initialize AI module
-const _readoraAI = new ReadoraAI();

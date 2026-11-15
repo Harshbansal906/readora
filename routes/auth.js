@@ -562,10 +562,35 @@ router.post('/login', authLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/google - Direct Google Sign-In & Sign-Up
+// GET /api/auth/google/config - Expose Google OAuth Client ID for frontend GSI
+router.get('/google/config', (req, res) => {
+  res.json({
+    clientId: (process.env.GOOGLE_CLIENT_ID || '').trim()
+  });
+});
+
+// POST /api/auth/google - Direct & Official Google OAuth Sign-In & Sign-Up
 router.post('/google', async (req, res) => {
   try {
-    const { email, name, avatar, googleId } = req.body;
+    let { email, name, avatar, googleId, credential } = req.body;
+
+    // If official Google GSI credential token was passed, decode payload
+    if (credential) {
+      try {
+        const parts = credential.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          if (payload && payload.email) {
+            email = payload.email;
+            name = payload.name || name;
+            avatar = payload.picture || avatar;
+            googleId = payload.sub;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse Google credential token:', e.message);
+      }
+    }
 
     if (!email || !email.includes('@')) {
       return res.status(400).json({ success: false, message: 'Valid Google email is required.' });

@@ -102,27 +102,39 @@ async function sendVerificationEmail(toEmail, otpCode, type = 'verify') {
     }
   }
 
-  // OPTION B: GMAIL / CUSTOM SMTP (Nodemailer)
-  const user = (process.env.GMAIL_USER || process.env.SMTP_USER || '').trim();
-  const rawPass = (process.env.GMAIL_APP_PASS || process.env.SMTP_PASS || '').trim();
+  // OPTION B: GMAIL / BREVO / CUSTOM SMTP (Nodemailer)
+  const user = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+  const rawPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || '').trim();
   const pass = rawPass.replace(/\s+/g, '');
+  const smtpHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+  const smtpPort = parseInt(process.env.SMTP_PORT || (smtpHost.includes('gmail') ? '465' : '587'), 10);
+  const secure = smtpPort === 465;
 
   if (!user || !pass) {
-    throw new Error('No email provider credentials configured (RESEND_API_KEY or GMAIL_USER/GMAIL_APP_PASS)');
+    throw new Error('No email provider credentials configured (RESEND_API_KEY, SMTP_USER/SMTP_PASS, or GMAIL_USER/GMAIL_APP_PASS)');
   }
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass }
-  });
+  const transportConfig = smtpHost.includes('gmail')
+    ? {
+        service: 'gmail',
+        auth: { user, pass }
+      }
+    : {
+        host: smtpHost,
+        port: smtpPort,
+        secure: secure,
+        auth: { user, pass }
+      };
+
+  const transporter = nodemailer.createTransport(transportConfig);
+
+  const senderEmail = process.env.FROM_EMAIL || `"READORA" <harshbsl25@gmail.com>`;
+  const replyToEmail = process.env.REPLY_TO || (senderEmail.match(/<([^>]+)>/)?.[1] || 'harshbsl25@gmail.com');
 
   const mailOptions = {
-    from: process.env.FROM_EMAIL || `"READORA" <${user}>`,
+    from: senderEmail,
     to: cleanRecipient,
-    replyTo: user,
+    replyTo: replyToEmail,
     subject: emailSubject,
     text: plainText,
     html: htmlContent,
@@ -133,10 +145,10 @@ async function sendVerificationEmail(toEmail, otpCode, type = 'verify') {
     }
   };
 
-  console.log(`📨 [Gmail SMTP] Dispatching ${type} code to: ${cleanRecipient}...`);
+  console.log(`📨 [SMTP Relay (${smtpHost})] Dispatching ${type} code to: ${cleanRecipient}...`);
   const info = await transporter.sendMail(mailOptions);
-  console.log(`✅ [Gmail SMTP Delivered] ID: ${info.messageId}`);
-  return { success: true, messageId: info.messageId, provider: 'gmail' };
+  console.log(`✅ [SMTP Delivered via ${smtpHost}] ID: ${info.messageId}`);
+  return { success: true, messageId: info.messageId, provider: smtpHost.includes('brevo') ? 'brevo' : 'smtp' };
 }
 
 module.exports = { sendVerificationEmail };

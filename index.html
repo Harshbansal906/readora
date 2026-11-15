@@ -3,676 +3,347 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="READORA - Where readers become creators. Discover profound ideas, craft thoughtful long-form stories, and share micro-reflections.">
-  <title>READORA | Where readers become creators</title>
+  <meta name="description" content="READORA — A journal of long-form thought, critical essays, and reflective literature.">
+  <title>READORA | A Journal of Long-Form Thought</title>
+  
+  <!-- High-quality typography: Newsreader (headlines & body), IBM Plex Sans (interface & metadata), and Tiro/Noto Devanagari (Hindi) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Noto+Sans+Devanagari:wght@400;500;600&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/x-icon" href="https://www.bing.com/th/id/OIP.kTjssfQu3vohsl0CrLhGyAHaHa?w=183&h=211&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2">
 </head>
 <body>
 
-  <!-- Website Loading & Brand Reveal Experience -->
-  <div id="app-splash-loader" class="app-splash-loader" aria-label="Loading Readora">
-    <div class="splash-backdrop"></div>
-    <div class="splash-particles">
-      <span class="splash-dot dot-1"></span>
-      <span class="splash-dot dot-2"></span>
-      <span class="splash-dot dot-3"></span>
-      <span class="splash-dot dot-4"></span>
+  <!-- Top Publication Masthead -->
+  <header class="site-header">
+    <div class="masthead-meta-bar">
+      <span>READORA · A Journal of Essays & Long-Form Literature</span>
+      <span class="tabular-nums" id="masthead-date-stamp">Vol. IV · Issue 11 · November 2026</span>
     </div>
-    <div class="splash-content">
-      <div class="splash-logo-wrapper">
-        <div class="splash-logo-glow"></div>
-        <div class="splash-logo-card">
-          <svg class="splash-logo-svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path class="splash-stroke-spine" d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-            <path class="splash-stroke-cover" d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            <path class="splash-stroke-accent" d="M9 7h6M9 11h4"></path>
-          </svg>
-        </div>
-      </div>
-      <div class="splash-brand-title">READORA<span class="splash-dot-brand">•</span></div>
-      <div class="splash-tagline">Where readers become creators</div>
-      <div class="splash-progress-track">
-        <div class="splash-progress-bar"></div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Top Editorial App Navigation -->
-  <header class="app-header">
-    <div class="nav-inner">
-      <div class="nav-brand-group">
-        <a href="index.html" class="nav-brand-link" style="display:flex;align-items:center;gap:0.75rem;text-decoration:none;">
-          <div class="brand-logo-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
-          </div>
-          <div class="brand-text-col">
-            <span class="nav-logo-text">READORA<span class="nav-logo-dot">•</span></span>
-          </div>
-        </a>
+    <div class="masthead-main-bar">
+      <div class="brand-group">
+        <a href="#/" class="brand-title" title="READORA Home">READORA</a>
+        <span class="brand-tagline">Where readers become creators</span>
       </div>
 
-      <!-- Realtime Editorial Search -->
-      <div class="nav-search">
-        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="text" id="search-input" placeholder="Search essays, thoughts, authors, or topics...">
-        <kbd class="search-kbd-badge">Ctrl K</kbd>
+      <!-- Understated Hairline Search -->
+      <div class="header-search">
+        <svg class="header-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="search-input" class="header-search-input" placeholder="Search essays, topics, or authors...">
       </div>
 
-      <!-- Nav CTA & Profile -->
-      <div class="nav-cta-group">
-        <!-- Theme Toggle Button -->
-        <button id="btn-theme-toggle" class="btn-icon-nav" title="Toggle Theme (Light / Dark)" aria-label="Toggle dark mode">
-          <svg id="theme-toggle-icon-sun" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-          <svg id="theme-toggle-icon-moon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+      <!-- Header Navigation & Single Primary Write Action -->
+      <div class="header-actions">
+        <a href="#/" id="nav-home-btn" class="nav-text-link active">Essays</a>
+        <a href="#/explore" id="nav-explore-btn" class="nav-text-link">Explore</a>
+        <a href="#/saved" id="nav-saved-btn" class="nav-text-link">Saved</a>
+
+        <!-- AI Reader Assistant Trigger (moved into header to prevent overlapping text) -->
+        <button id="btn-toggle-ai-panel" class="btn-icon-quiet" title="Readora AI Reader Assistant" aria-label="Open AI Assistant">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
         </button>
 
-        <!-- Notifications Bell -->
-        <button id="btn-notifications" class="btn-icon-nav" title="Notifications">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          <span id="notif-badge" class="notif-badge" style="display: none;">0</span>
+        <!-- Theme Toggle -->
+        <button id="btn-theme-toggle" class="btn-icon-quiet" title="Toggle Light / Inverted Dark Mode" aria-label="Toggle theme">
+          <svg id="theme-toggle-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          <svg id="theme-toggle-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
         </button>
 
-        <button id="btn-open-write-article" class="btn-nav-write">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-          <span>Write Story</span>
+        <!-- Notifications Indicator -->
+        <button id="btn-notifications" class="btn-icon-quiet" title="Notifications" aria-label="Notifications" style="display:none;">
+          <span id="notif-badge">0</span>
         </button>
 
-        <div class="user-profile-badge" id="user-profile-badge" title="View Profile">
-          <div class="user-avatar-sm">HB</div>
-          <span class="user-name-sm">Harsh</span>
-        </div>
+        <!-- User Identity Button -->
+        <button id="user-profile-badge" class="user-identity-btn" title="View Profile">
+          <span class="user-monogram" id="user-avatar-text">HB</span>
+          <span class="user-name-label" id="user-display-name">Harsh</span>
+        </button>
+
+        <!-- Single Primary Action in Header Only: Write -->
+        <button id="btn-open-write-article" class="btn-write-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          <span>Write</span>
+        </button>
       </div>
     </div>
   </header>
 
-  <!-- Main Container -->
-  <main class="app-container">
-    
-    <!-- Left Navigation Sidebar -->
-    <aside class="left-sidebar">
-      <nav class="sidebar-nav-menu">
-        <a href="#/" id="nav-home-btn" class="sidebar-item active" title="Home Feed">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-          <span>Home Feed</span>
-        </a>
-        <a href="#/explore" id="nav-explore-btn" class="sidebar-item" title="Explore & Discover">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <span>Explore</span>
-        </a>
-        <a href="#/write" id="nav-write-btn" class="sidebar-item" title="Write Article">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-          <span>Write Article</span>
-        </a>
-        <a href="#/dashboard" id="nav-dashboard-btn" class="sidebar-item" title="Creator Dashboard">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          <span>Dashboard</span>
-        </a>
-        <a href="#/notifications" id="nav-notifs-btn" class="sidebar-item" title="Notifications">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          <span>Notifications</span>
-          <span id="nav-notif-badge" class="notif-badge" style="display: none; margin-left: auto;">0</span>
-        </a>
-        <a href="#/saved" id="nav-saved-btn" class="sidebar-item" title="Saved Bookmarks">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-          <span>Saved Posts</span>
-        </a>
-        <a href="#" class="sidebar-item" id="nav-profile-btn" title="My Profile">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-          <span>My Profile</span>
-        </a>
-        <a href="#/settings" class="sidebar-item" id="nav-settings-btn" title="Account Settings">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span>Account Settings</span>
-        </a>
-        <a href="#" class="sidebar-item" id="nav-auth-btn" title="Account">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-          <span id="nav-auth-text">Log Out</span>
-        </a>
-      </nav>
+  <!-- Asymmetric Editorial Grid -->
+  <main class="editorial-layout">
 
-      <!-- Quick Platform Stats -->
-      <div class="sidebar-stats-card">
-        <div class="sidebar-stats-title">Readora Community</div>
-        <div class="stats-counter-row">
-          <span>Active Creators</span>
-          <strong id="stat-creators" style="color: #818cf8;">1</strong>
-        </div>
-        <div class="stats-counter-row">
-          <span>Thoughts Shared</span>
-          <strong id="stat-thoughts" style="color: #a5b4fc;">1</strong>
-        </div>
-        <div class="stats-counter-row">
-          <span>Long Articles</span>
-          <strong id="stat-articles" style="color: #6366f1;">1</strong>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Center Feed Area -->
-    <section class="center-feed">
-
-      <!-- Creator profile page (filled in by app.js) -->
-      <div id="profile-view" class="profile-view" style="display: none;"></div>
-      <!-- Explore / Discover Page (Instagram Discovery Grid - No Duplicate Widgets) -->
-      <div id="explore-view" class="explore-view" style="display: none;">
-        <div class="explore-header-card">
-          <h1 class="explore-title">Explore</h1>
-          <p class="explore-subtitle">Discover trending ideas, insightful articles, and thoughtful creators.</p>
-          
-          <!-- Explore Topic Filter Chips -->
-          <div class="explore-topics-chips" id="explore-topics-chips">
-            <button type="button" class="explore-topic-chip" data-topic="">🌟 All Topics</button>
-            <button type="button" class="explore-topic-chip" data-topic="Technology">Technology</button>
-            <button type="button" class="explore-topic-chip" data-topic="Productivity">Productivity</button>
-            <button type="button" class="explore-topic-chip" data-topic="Science">Science</button>
-            <button type="button" class="explore-topic-chip" data-topic="Design">Design</button>
-            <button type="button" class="explore-topic-chip" data-topic="Philosophy">Philosophy</button>
-            <button type="button" class="explore-topic-chip" data-topic="General">General</button>
-          </div>
-        </div>
-
-        <!-- Featured Creators Row on Explore -->
-        <div class="widget-card" style="padding: 1.15rem 1.25rem;">
-          <h3 class="widget-title" style="margin-bottom: 0.75rem;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-            <span>Featured Creators to Follow</span>
-          </h3>
-          <div class="stories-row" id="explore-creators-row" style="padding-bottom: 0.25rem;"></div>
-        </div>
-
-        <!-- Instagram-style Explore Discovery Grid -->
-        <div>
-          <h2 style="font-family: var(--font-brand); font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 1rem;">Trending Discoveries</h2>
-          <div class="explore-grid" id="explore-posts-grid">
-            <!-- Dynamically populated by app.js -->
-          </div>
-        </div>
-      </div>
-
-      <!-- Creator Dashboard View (populated by app.js) -->
-      <div id="dashboard-view" class="dashboard-view" style="display: none;"></div>
-
-      <!-- Dedicated Saved & Reading List View (populated by app.js) -->
-      <div id="saved-view" class="saved-view" style="display: none;"></div>
-
-      <!-- Account & Settings View (populated by app.js) -->
-      <div id="settings-view" class="settings-view" style="display: none;"></div>
-
-      <div id="feed-view" class="feed-view">
+    <!-- Wide Main Essay Column -->
+    <section class="essay-column">
       
-      <!-- Editorial Discovery Header (Lead Feature & Trending Strip) -->
-      <section class="editorial-discovery-masthead" id="editorial-discovery-masthead">
-        <!-- Prominent Lead Story Hero -->
-        <div class="editorial-lead-section" id="editorial-lead-section">
-          <!-- Dynamically populated from latest top story by app.js -->
+      <!-- Creator Profile View (populated on route #/u/:handle) -->
+      <div id="profile-view" class="profile-view" style="display:none;"></div>
+
+      <!-- Explore / Discover View (populated on route #/explore) -->
+      <div id="explore-view" class="explore-view" style="display:none;">
+        <div style="padding-bottom:1.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--rule);">
+          <h2 style="font-family:var(--font-serif); font-size:2rem; font-weight:500; margin-bottom:0.4rem;">Explore Archive</h2>
+          <p style="color:var(--ink-muted); font-size:0.95rem;">Essays organized by inquiry, philosophy, and creative craft.</p>
+        </div>
+        <div class="explore-grid" id="explore-posts-grid"></div>
+      </div>
+
+      <!-- Saved Bookmarks View (populated on route #/saved) -->
+      <div id="saved-view" class="saved-view" style="display:none;"></div>
+
+      <!-- Dashboard View (populated on route #/dashboard) -->
+      <div id="dashboard-view" class="dashboard-view" style="display:none;"></div>
+
+      <!-- Settings View (populated on route #/settings) -->
+      <div id="settings-view" class="settings-view" style="display:none;"></div>
+
+      <!-- Main Publication Feed View -->
+      <div id="feed-view" class="feed-view">
+
+        <!-- Lead Essay Presentation -->
+        <article class="lead-essay-article" id="editorial-lead-section">
+          <!-- Dynamically populated from latest top essay by app.js -->
+        </article>
+
+        <!-- Topic Filter Bar: Text links with hairline underline -->
+        <nav class="editorial-filter-bar" id="editorial-filter-bar" aria-label="Topic filters">
+          <button type="button" class="filter-text-btn active" data-filter="all">All Essays</button>
+          <button type="button" class="filter-text-btn" data-filter="Philosophy">Philosophy</button>
+          <button type="button" class="filter-text-btn" data-filter="Technology">Technology</button>
+          <button type="button" class="filter-text-btn" data-filter="Culture">Culture</button>
+          <button type="button" class="filter-text-btn" data-filter="Design">Design</button>
+          <button type="button" class="filter-text-btn" data-filter="Science">Science</button>
+          <button type="button" class="filter-text-btn" data-filter="following">Following</button>
+        </nav>
+
+        <!-- Vertical Stream of Essays -->
+        <div class="essay-feed-stream" id="posts-stream">
+          <!-- Dynamically populated by app.js -->
         </div>
 
-        <!-- Numbered Editorial Trending Strip -->
-        <div class="editorial-trending-strip" id="editorial-trending-strip">
-          <div class="trending-strip-header">
-            <span class="trending-strip-icon">✦</span>
-            <span class="trending-strip-title">TRENDING STORIES ON READORA</span>
-          </div>
-          <div class="editorial-trending-grid" id="editorial-trending-grid">
-            <!-- Dynamically populated with 01, 02, 03 cards by app.js -->
-          </div>
+      </div>
+    </section>
+
+    <!-- Narrow Editorial Sidebar Column -->
+    <aside class="sidebar-column">
+
+      <!-- Reading Now Section -->
+      <section class="reading-now-section">
+        <div class="sidebar-section-header">
+          <span class="sidebar-section-title">Reading Now</span>
+          <span class="sidebar-section-subtitle">Staff Selection</span>
+        </div>
+        <div id="reading-now-list">
+          <article class="reading-now-item">
+            <div class="reading-now-label">Long-form Reflection</div>
+            <h4 class="reading-now-title" onclick="window.readoraApp && window.readoraApp.openFullArticle('post_solitude_1')">The Architecture of Solitude</h4>
+            <p class="reading-now-excerpt">Why deep creative work demands physical boundaries and an unconnected thinking room.</p>
+            <div class="reading-now-byline">Julian Mercer · 11 min read</div>
+          </article>
+          <article class="reading-now-item">
+            <div class="reading-now-label">Essay</div>
+            <h4 class="reading-now-title" onclick="window.readoraApp && window.readoraApp.openFullArticle('post_feed_2')">Against the Feed: In Defense of the Slow Journal</h4>
+            <p class="reading-now-excerpt">How the brevity of modern feeds trains cognitive habits away from sustained reflection.</p>
+            <div class="reading-now-byline">Elena Vance · 8 min read</div>
+          </article>
         </div>
       </section>
 
-      <!-- Preserved Hidden Stats Counter Elements for App Controller Animation Binding -->
-      <div style="display:none;" aria-hidden="true">
-        <span id="hero-stat-articles">0</span>
-        <span id="hero-stat-thoughts">0</span>
-        <span id="hero-stat-creators">0</span>
-        <button id="btn-hero-write"></button>
-        <button id="btn-hero-explore"></button>
-      </div>
-
-      <!-- Editorial Creators Spotlight Row -->
-      <div class="stories-row" id="stories-row"></div>
-
-      <!-- Modern Streamlined Composer -->
-      <div class="thought-composer-card">
-        <div class="composer-top">
-          <div class="author-avatar user-avatar-composer">HB</div>
-          <textarea id="quick-thought-text" class="composer-input" placeholder="What's on your mind? Share an insight, reflection, or quote..."></textarea>
+      <!-- Trending Section: Numbered 01 to 05 in Oxblood Accent -->
+      <section class="trending-section">
+        <div class="sidebar-section-header">
+          <span class="sidebar-section-title">Trending</span>
+          <span class="sidebar-section-subtitle">This Month</span>
         </div>
-
-        <!-- Optional Photo Drawer -->
-        <div id="composer-photo-drawer" class="composer-photo-drawer" style="display: none;">
-          <div style="display:flex;gap:0.5rem;align-items:center;">
-            <input type="url" id="photo-url-input" class="composer-photo-input" placeholder="Paste image URL (https://...) or choose file" style="flex:1;" />
-            <label class="btn-file-upload" title="Upload Image from Device" style="cursor:pointer;padding:0.45rem 0.75rem;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;font-size:0.8rem;white-space:nowrap;display:flex;align-items:center;gap:0.35rem;color:var(--text-main);">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <span>Upload</span>
-              <input type="file" id="photo-file-input" accept="image/*" style="display:none;" />
-            </label>
-          </div>
-          <div id="photo-upload-spinner" style="display:none;font-size:0.75rem;color:var(--accent-primary);padding:0.25rem 0.5rem;">Uploading image to secure storage...</div>
-          <div id="photo-preview-box" class="photo-preview-box" style="display: none;">
-            <img id="photo-preview-img" src="" alt="Preview" />
-          </div>
+        <div class="trending-numbered-list" id="editorial-trending-grid">
+          <!-- Dynamically populated with 01-05 essays by app.js -->
         </div>
+      </section>
 
-        <div id="ai-thought-status" class="ai-status-text" style="display:none; padding: 0.35rem 0.5rem;"></div>
-
-        <div class="composer-toolbar">
-          <div class="composer-options">
-            <!-- Photo Drawer Toggle -->
-            <button type="button" id="btn-toggle-photo" class="composer-action-btn" title="Add Photo">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-              <span>Photo</span>
-            </button>
-
-            <!-- Article Studio Modal Trigger -->
-            <button type="button" id="btn-write-long-article" class="composer-action-btn" title="Write Long Article">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-              <span>Article</span>
-            </button>
-
-            <!-- Topic Selector Dropdown -->
-            <select id="composer-category" class="composer-select" title="Topic">
-              <option value="General">General</option>
-              <option value="Technology">Technology</option>
-              <option value="Productivity">Productivity</option>
-              <option value="Science">Science</option>
-              <option value="Design">Design</option>
-              <option value="Philosophy">Philosophy</option>
-            </select>
-
-            <!-- AI Polish -->
-            <button type="button" id="btn-ai-improve-thought" class="composer-action-btn" title="Let AI polish your writing">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span>AI Polish</span>
-            </button>
-          </div>
-
-          <div style="display:flex; align-items:center; gap:0.75rem;">
-            <span id="thought-char-count" class="char-counter">0 / 280</span>
-            <button type="button" id="btn-publish-thought" class="composer-btn-publish">
-              <span>Share</span>
-            </button>
-          </div>
+      <!-- Topics with Relative Volume Bars -->
+      <section class="topics-section">
+        <div class="sidebar-section-header">
+          <span class="sidebar-section-title">Topics</span>
+          <span class="sidebar-section-subtitle">Volume</span>
         </div>
-      </div>
-
-      <!-- Feed Category Filter Tabs (Articles prominent!) -->
-      <div class="feed-filter-bar">
-        <button class="feed-tab active" data-filter="all">All Feed</button>
-        <button class="feed-tab" data-filter="articles">Articles</button>
-        <button class="feed-tab" data-filter="thoughts">Thoughts</button>
-        <button class="feed-tab" data-filter="images">Photos</button>
-        <button class="feed-tab" data-filter="following">Following</button>
-        <button class="feed-tab" data-filter="saved">Saved</button>
-      </div>
-
-      <!-- Dynamic Post Feed -->
-      <div class="posts-stream" id="posts-stream">
-        <!-- Injected dynamically via app.js -->
-      </div>
-      </div><!-- /feed-view -->
-    </section>
-
-    <!-- Right Sidebar (Trending & Creators) -->
-    <aside class="right-sidebar">
-      
-      <!-- Trending Widget -->
-      <div class="widget-card">
-        <h3 class="widget-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-          <span>Trending Topics</span>
-        </h3>
-        <div class="trending-topic-list" id="trending-topics-list">
-          <!-- Dynamically populated from SQLite database -->
+        <div class="topics-volume-list" id="trending-topics-list">
+          <!-- Dynamically populated by app.js -->
         </div>
-      </div>
+      </section>
 
-      <!-- Suggested Creators -->
-      <div class="widget-card">
-        <h3 class="widget-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-          <span>Featured Creators</span>
-        </h3>
-        <div class="creator-suggestion-list" id="featured-creators-list">
-          <!-- Dynamically populated from SQLite database -->
+      <!-- Writers to Read Section with Text "Follow" Link -->
+      <section class="writers-section">
+        <div class="sidebar-section-header">
+          <span class="sidebar-section-title">Writers to Read</span>
+          <span class="sidebar-section-subtitle">Directory</span>
         </div>
-      </div>
+        <div class="writers-directory-list" id="featured-creators-list">
+          <!-- Dynamically populated by app.js -->
+        </div>
+      </section>
+
+      <!-- Journal Colophon -->
+      <footer class="sidebar-colophon">
+        <p>READORA is an independent journal for long-form essays, critical reflections, and slow reading across India.</p>
+      </footer>
 
     </aside>
+
   </main>
 
-  <!-- Write Long Article Modal -->
-  <div id="write-article-modal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 760px;">
-      <button class="modal-close-btn" aria-label="Close modal">✕</button>
-      
-      <div class="editor-header-bar">
-        <div>
-          <h2 class="modal-header-title" style="margin-bottom: 0.2rem;">Article Studio</h2>
-          <span id="article-draft-status" class="draft-status-pill" style="display:none;">Saved to Drafts</span>
-        </div>
-        <div class="editor-mode-toggle">
-          <button type="button" class="editor-mode-btn active" id="editor-tab-write">✍️ Write</button>
-          <button type="button" class="editor-mode-btn" id="editor-tab-preview">👁️ Live Preview</button>
+  <!-- Distraction-Free Editorial Article Reading Canvas -->
+  <div id="read-article-modal" class="reader-modal-canvas" role="dialog" aria-modal="true" aria-label="Essay Reader">
+    <div class="reader-top-sticky">
+      <div class="reader-top-inner">
+        <button type="button" class="reader-back-action modal-close-btn" aria-label="Close reader">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          <span>Return to essays</span>
+        </button>
+
+        <span id="reader-nav-title" class="reader-nav-headline"></span>
+
+        <div class="reader-tool-actions">
+          <button type="button" id="reader-btn-bookmark" class="btn-icon-quiet" title="Save to Reading List">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+          </button>
+          <button type="button" id="reader-btn-share" class="btn-icon-quiet" title="Copy Essay Link">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+          </button>
+          <button type="button" class="btn-icon-quiet modal-close-btn" aria-label="Close">✕</button>
         </div>
       </div>
-      
-      <form id="publish-article-form">
+      <div class="reading-progress-track">
+        <div id="reading-progress-bar" class="reading-progress-fill"></div>
+      </div>
+    </div>
+
+    <!-- Scrollable Prose Reading Workspace -->
+    <div class="reader-prose-container" id="read-article-container">
+      <!-- Populated dynamically by openFullArticle() in app.js -->
+    </div>
+  </div>
+
+  <!-- Writer Manuscript Modal (Write Essay) -->
+  <div id="write-article-modal" class="modal-scrim" role="dialog" aria-modal="true" aria-label="Compose Essay">
+    <div class="manuscript-card">
+      <div class="manuscript-header">
+        <h2 class="manuscript-title">New Essay Manuscript</h2>
+        <button type="button" class="btn-icon-quiet modal-close-btn" aria-label="Close manuscript modal">✕</button>
+      </div>
+
+      <form id="publish-article-form" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
         <input type="hidden" id="editing-article-id" value="">
 
-        <div id="editor-write-pane">
-          <div class="form-group">
-            <label for="article-title-input">Article Title</label>
-            <input type="text" id="article-title-input" class="form-input" placeholder="e.g., The Architecture of Reliable Autonomous Systems" required>
+        <div class="manuscript-body-scroll">
+          <div class="manuscript-form-group">
+            <label for="article-title-input" class="manuscript-label">Essay Title</label>
+            <input type="text" id="article-title-input" class="manuscript-input manuscript-title-input" placeholder="e.g. The Architecture of Solitude" required>
           </div>
 
-          <div class="form-group">
-            <label for="article-subtitle-input">Subtitle / Hook</label>
-            <input type="text" id="article-subtitle-input" class="form-input" placeholder="A brief one-liner summarizing your core idea...">
+          <div class="manuscript-form-group">
+            <label for="article-subtitle-input" class="manuscript-label">Subtitle / Thesis Deck</label>
+            <input type="text" id="article-subtitle-input" class="manuscript-input" placeholder="A two-line summary articulating the core philosophical inquiry...">
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div class="form-group">
-              <label for="article-category-input">Category</label>
-              <select id="article-category-input" class="form-input">
-                <option value="Technology">Technology</option>
-                <option value="Programming">Programming</option>
-                <option value="Artificial Intelligence">Artificial Intelligence</option>
-                <option value="Productivity">Productivity</option>
-                <option value="Career">Career</option>
-                <option value="Science">Science</option>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;" class="manuscript-form-group">
+            <div>
+              <label for="article-category-input" class="manuscript-label">Topic Inquiry</label>
+              <select id="article-category-input" class="manuscript-input">
                 <option value="Philosophy">Philosophy</option>
-                <option value="General">General</option>
+                <option value="Technology">Technology</option>
+                <option value="Culture">Culture</option>
+                <option value="Design">Design</option>
+                <option value="Science">Science</option>
+                <option value="History">History</option>
+                <option value="Literature">Literature</option>
               </select>
             </div>
-            <div class="form-group">
-              <label for="article-cover-input">Cover Image (Optional)</label>
-              <div style="display:flex;gap:0.5rem;align-items:center;">
-                <input type="url" id="article-cover-input" class="form-input" placeholder="Paste image URL (https://...) or upload file" style="flex:1;">
-                <label class="btn-file-upload" title="Upload Cover Image" style="cursor:pointer;padding:0.5rem 0.8rem;background:var(--bg-card);border:1px solid var(--border-light);border-radius:8px;font-size:0.85rem;white-space:nowrap;display:flex;align-items:center;gap:0.35rem;color:var(--text-main);">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <div>
+              <label for="article-cover-input" class="manuscript-label">Author Image / Cover URL (Optional)</label>
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                <input type="url" id="article-cover-input" class="manuscript-input" placeholder="Leave empty for typographic titleplate">
+                <label class="btn-secondary-quiet" style="cursor:pointer; white-space:nowrap; padding:0.6rem 0.8rem;" title="Upload image from device">
                   <span>Upload</span>
-                  <input type="file" id="article-cover-file-input" accept="image/*" style="display:none;" />
+                  <input type="file" id="article-cover-file-input" accept="image/*" style="display:none;">
                 </label>
               </div>
-              <div id="article-cover-spinner" style="display:none;font-size:0.75rem;color:var(--accent-primary);padding:0.25rem 0.2rem;">Uploading cover image...</div>
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="article-body-input">Article Content (Markdown supported)</label>
-            <div class="editor-formatting-toolbar" id="editor-toolbar">
-              <button type="button" class="editor-format-btn" data-format="bold" title="Bold"><b>B</b></button>
-              <button type="button" class="editor-format-btn" data-format="italic" title="Italic"><i>I</i></button>
-              <button type="button" class="editor-format-btn" data-format="h2" title="Heading 2">H2</button>
-              <button type="button" class="editor-format-btn" data-format="h3" title="Heading 3">H3</button>
-              <button type="button" class="editor-format-btn" data-format="quote" title="Quote">“”</button>
-              <button type="button" class="editor-format-btn" data-format="bullet" title="Bullet List">• List</button>
-              <button type="button" class="editor-format-btn" data-format="numbered" title="Numbered List">1. List</button>
-              <button type="button" class="editor-format-btn" data-format="link" title="Insert Link">🔗 Link</button>
-              <button type="button" class="editor-format-btn" data-format="code" title="Code Block">&lt;/&gt;</button>
-            </div>
-            <div class="editor-textarea-wrap">
-              <textarea id="article-body-input" class="form-input" style="min-height: 240px; resize: vertical;" placeholder="Write your full article here with headings, reflections, and insights..." required></textarea>
-            </div>
-            <div class="editor-meta-stats" id="article-stats-bar">
-              <span id="article-word-count">0 words • 0 characters</span>
-              <span id="article-read-time">~1 min read</span>
-            </div>
-          </div>
-
-          <!-- AI Toolbar for Article Modal -->
-          <div class="ai-article-toolbar">
-            <button type="button" id="btn-ai-improve-article" class="ai-action-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              ✨ Improve Writing
-            </button>
-            <button type="button" id="btn-ai-summarize-article" class="ai-action-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
-              📝 Auto-Generate Subtitle
-            </button>
-            <button type="button" id="btn-ai-category-article" class="ai-action-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-              💡 Suggest Category
-            </button>
-            <span id="ai-article-status" class="ai-status-text" style="display:none;"></span>
+          <div class="manuscript-form-group">
+            <label for="article-body-input" class="manuscript-label">Essay Prose (Markdown supported)</label>
+            <textarea id="article-body-input" class="manuscript-input manuscript-textarea" placeholder="Begin your essay here. Structure thoughts with headings (##), reflections, and quotations (>)..." required></textarea>
           </div>
         </div>
 
-        <!-- Live Preview Pane -->
-        <div id="editor-preview-pane" class="editor-preview-container" style="display:none;"></div>
-
-        <div class="editor-actions-row">
-          <div style="display:flex; gap:0.5rem;">
-            <button type="button" id="btn-save-draft" class="btn-dash-action" title="Save draft without publishing">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-              Save Draft
-            </button>
-            <button type="button" id="btn-clear-editor" class="btn-dash-action btn-dash-danger" title="Discard unsaved changes">
-              ✕ Discard
-            </button>
+        <div class="manuscript-footer">
+          <div class="editor-meta-stats manuscript-word-count">
+            <span id="article-word-count" class="tabular-nums">0 words</span> · 
+            <span id="article-read-time" class="tabular-nums">~1 min read</span>
           </div>
-          <button type="submit" id="btn-submit-publish" class="btn-auth-primary" style="margin:0; width:auto; padding: 0.65rem 1.4rem;">
-            Publish Article 🚀
-          </button>
+
+          <div class="manuscript-actions-right">
+            <button type="button" id="btn-save-draft" class="btn-secondary-quiet">Save Draft</button>
+            <button type="button" id="btn-clear-editor" class="btn-secondary-quiet">Discard</button>
+            <button type="submit" id="btn-submit-publish" class="btn-write-primary">Publish Essay</button>
+          </div>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Distraction-Free Editorial Article Reading Canvas -->
-  <div id="read-article-modal" class="modal-overlay reader-modal-canvas">
-    <div class="reader-viewport">
-      <!-- Sticky Top Reading Header -->
-      <header class="reader-top-bar">
-        <div class="reader-top-inner">
-          <button type="button" class="reader-back-btn modal-close-btn" aria-label="Back to stories">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            <span>Back</span>
-          </button>
-          
-          <div class="reader-nav-title-wrap">
-            <span id="reader-nav-title" class="reader-nav-title"></span>
-          </div>
-
-          <div class="reader-top-actions">
-            <button type="button" id="reader-btn-font-toggle" class="reader-icon-btn" title="Adjust Reading Font Size">Aa</button>
-            <button type="button" id="reader-btn-bookmark" class="reader-icon-btn" title="Save Story">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-            </button>
-            <button type="button" id="reader-btn-share" class="reader-icon-btn" title="Share Story">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            </button>
-            <button type="button" class="reader-close-btn modal-close-btn" aria-label="Close reader">✕</button>
-          </div>
-        </div>
-        <div class="reading-progress-container">
-          <div id="reading-progress-bar" class="reading-progress-bar"></div>
-        </div>
-      </header>
-
-      <!-- Scrollable Reading Workspace -->
-      <div class="reader-scroll-container" id="reader-scroll-container">
-        <div class="reader-layout-wrap">
-          <!-- Sticky Left Table of Contents (Desktop) -->
-          <aside class="reader-toc-sidebar" id="reader-toc-sidebar">
-            <div class="reader-toc-sticky">
-              <div class="reader-toc-label">TABLE OF CONTENTS</div>
-              <nav id="reader-toc-nav" class="reader-toc-nav"></nav>
-            </div>
-          </aside>
-
-          <!-- Core Reading Column (720px max-width, Lora typography) -->
-          <main class="reader-article-column" id="read-article-container">
-            <!-- Dynamically populated by app.js openFullArticle() -->
-          </main>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Profile Modal -->
-  <div id="profile-modal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 460px; text-align: center;">
-      <button class="modal-close-btn" aria-label="Close modal">✕</button>
-      
-      <div id="profile-modal-avatar" class="author-avatar" style="width: 72px; height: 72px; font-size: 1.75rem; margin: 0 auto 1rem auto; border: 3px solid var(--accent-primary);">HB</div>
-      <h2 id="profile-modal-name" style="font-family: var(--font-brand); font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.25rem;">Harsh Bansal</h2>
-      <p id="profile-modal-handle" style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 0.75rem;">@harshbansal</p>
-      <p id="profile-modal-bio" style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.5; margin-bottom: 1.25rem; padding: 0 0.5rem;">
-        Creator, reader, and software developer. Passionate about sharing thoughtful reflections, tech insights, and creative writing.
-      </p>
-
-      <div style="display: flex; justify-content: space-around; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem 0.5rem; margin-bottom: 1.25rem;">
-        <div>
-          <div id="profile-modal-thoughts" style="font-size: 1.2rem; font-weight: 800; color: var(--text-main);">0</div>
-          <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Thoughts</div>
-        </div>
-        <div>
-          <div id="profile-modal-articles" style="font-size: 1.2rem; font-weight: 800; color: var(--text-main);">0</div>
-          <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Articles</div>
-        </div>
-        <div>
-          <div id="profile-modal-followers" style="font-size: 1.2rem; font-weight: 800; color: var(--accent-primary);">0</div>
-          <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Followers</div>
-        </div>
-        <div>
-          <div id="profile-modal-following" style="font-size: 1.2rem; font-weight: 800; color: var(--text-muted);">0</div>
-          <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Following</div>
-        </div>
-      </div>
-
-      <button id="btn-view-profile" class="btn-auth-primary" style="margin-top: 0; margin-bottom: 0.5rem;">View My Profile Page</button>
-      <a href="#/settings" id="btn-modal-settings" class="btn-auth-guest" style="display:block; text-align:center; text-decoration:none; margin-bottom: 0.5rem; padding: 0.6rem 1rem;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-        Account & Settings
-      </a>
-      <button id="btn-logout" class="btn-auth-guest" style="width: 100%; cursor: pointer;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
-        Switch Account / Log Out
-      </button>
-    </div>
-  </div>
-
-  <!-- Edit Profile Modal -->
-  <div id="edit-profile-modal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 480px;">
-      <button class="modal-close-btn" aria-label="Close modal">✕</button>
-      <h2 class="modal-header-title">Edit Profile</h2>
-
-      <div id="edit-profile-error" style="display: none; background: rgba(244, 63, 94, 0.12); border: 1px solid #f43f5e; color: #fecdd3; padding: 0.6rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; text-align: center;"></div>
-
-      <form id="edit-profile-form">
-        <div class="form-group">
-          <label for="edit-profile-name">Name</label>
-          <input type="text" id="edit-profile-name" class="form-input" maxlength="50" placeholder="Your name" required>
-        </div>
-        <div class="form-group">
-          <label for="edit-profile-bio">Bio</label>
-          <textarea id="edit-profile-bio" class="form-input" maxlength="200" style="min-height: 100px; resize: vertical;" placeholder="Tell readers a little about yourself (max 200 characters)"></textarea>
-        </div>
-        <button type="submit" id="btn-save-profile" class="btn-auth-primary">Save Changes</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Notifications Modal -->
-  <div id="notifications-modal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 480px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-        <h2 class="modal-header-title" style="margin:0;">🔔 Notifications</h2>
-        <div style="display:flex; align-items:center; gap:0.5rem;">
-          <button type="button" id="btn-mark-all-read" class="ai-action-btn" style="padding:0.3rem 0.6rem; font-size:0.75rem;">Mark all as read</button>
-          <button class="modal-close-btn" aria-label="Close modal">✕</button>
-        </div>
-      </div>
-      <div id="notifications-list" class="notifications-list">
-        <div style="text-align:center; padding: 2rem 0; color: var(--text-dim); font-size: 0.9rem;">
-          No notifications yet. When people like, comment, or follow you, they will appear here!
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Interactive Toast Notification -->
-  <div id="toast" class="toast" role="status" aria-live="polite">
-    <div class="toast-body">
-      <div id="toast-icon-wrap" class="toast-icon-wrap">✨</div>
-      <div id="toast-text-content" class="toast-text-content">Action completed successfully!</div>
-    </div>
-    <div class="toast-progress-track">
-      <div id="toast-progress-bar" class="toast-progress-bar"></div>
-    </div>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════
-       AI CHAT BOT WIDGET
-  ═══════════════════════════════════════════════════ -->
-  <div id="ai-chat-fab" title="Chat with Readora AI" onclick="window.readoraAI && window.readoraAI.toggleChat()">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-    <span class="ai-fab-label">Readora AI</span>
-    <span id="ai-chat-badge" class="ai-chat-badge" style="display:none;"></span>
-  </div>
-
-  <div id="ai-chat-panel" class="ai-chat-panel" style="display:none;">
-    <div class="ai-chat-header">
-      <div style="display:flex;align-items:center;gap:0.6rem;">
-        <div class="ai-avatar-dot">✨</div>
-        <div>
-          <div style="font-weight:700;font-size:0.95rem;color:#fff;">Readora AI</div>
-          <div style="font-size:0.72rem;color:#a5b4fc;">Powered by Gemini · Always ready</div>
-        </div>
-      </div>
-      <button onclick="window.readoraAI && window.readoraAI.toggleChat()" class="ai-chat-close">✕</button>
+  <!-- AI Reader Assistant Docked Panel (Does NOT float or overlap reading prose) -->
+  <aside id="ai-chat-panel" class="ai-docked-panel" aria-label="Readora AI Reader Assistant">
+    <div class="ai-panel-header">
+      <div class="ai-panel-title">Readora AI Assistant</div>
+      <button type="button" id="btn-close-ai-panel" class="btn-icon-quiet" aria-label="Close assistant">✕</button>
     </div>
 
-    <div id="ai-chat-messages" class="ai-chat-messages">
-      <div class="ai-msg ai-msg-bot">
-        <span>👋 Hi! I'm your Readora AI assistant. I can help you find topics, improve your writing, or just chat about ideas. What's on your mind?</span>
+    <div class="ai-messages-scroll" id="ai-chat-messages">
+      <div class="ai-bubble ai-bubble-bot">
+        <span>Greetings. I am your reading companion on Readora. Ask me to synthesize an essay, suggest related philosophical inquiries, or critique a draft.</span>
       </div>
     </div>
 
-    <div class="ai-chat-input-row">
-      <input type="text" id="ai-chat-input" placeholder="Ask me anything..." maxlength="400"
-             onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); window.readoraAI && window.readoraAI.sendChat(); }">
-      <button onclick="window.readoraAI && window.readoraAI.sendChat()" class="ai-send-btn" title="Send">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-      </button>
+    <div class="ai-input-dock">
+      <input type="text" id="ai-chat-input" class="ai-input-field" placeholder="Ask about this essay or inquiry...">
+      <button type="button" id="btn-send-ai-chat" class="btn-write-primary" style="padding:0.45rem 0.75rem;">Send</button>
     </div>
+  </aside>
+
+  <!-- Interactive Quiet Toast Notification -->
+  <div id="toast" class="toast-quiet" role="status" aria-live="polite">
+    <span id="toast-text-content">Action completed.</span>
   </div>
 
-  <script src="app.js"></script>
-
-  <!-- Mobile Bottom Navigation Bar -->
-  <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
-    <a href="#/" class="mobile-nav-item active" id="mob-nav-home" title="Home Feed">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-      <span>Home</span>
+  <!-- Mobile Bottom Navigation Bar (Mobile-first, strictly zero horizontal scrolling at 375px) -->
+  <nav class="mobile-bottom-bar" id="mobile-bottom-nav">
+    <a href="#/" class="mobile-nav-btn active" id="mob-nav-home" title="Essays">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+      <span>Essays</span>
     </a>
-    <a href="#/explore" class="mobile-nav-item" id="mob-nav-explore" title="Explore">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <a href="#/explore" class="mobile-nav-btn" id="mob-nav-explore" title="Topics">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       <span>Explore</span>
     </a>
-    <button type="button" class="mobile-nav-item mobile-nav-create" id="mob-nav-create" title="Create">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <button type="button" class="mobile-nav-btn" id="mob-nav-write" title="Write">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+      <span>Write</span>
     </button>
-    <button type="button" class="mobile-nav-item" id="mob-nav-notifs" title="Notifications">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-      <span id="mob-notif-badge" class="mobile-nav-badge" style="display:none;">0</span>
-      <span>Alerts</span>
-    </button>
-    <a href="#" class="mobile-nav-item" id="mob-nav-profile" title="Profile">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+    <a href="#/saved" class="mobile-nav-btn" id="mob-nav-saved" title="Saved">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+      <span>Saved</span>
+    </a>
+    <a href="#/profile" class="mobile-nav-btn" id="mob-nav-profile" title="Profile">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
       <span>Profile</span>
     </a>
   </nav>
+
+  <!-- Core Application Script -->
+  <script src="app.js"></script>
 
 </body>
 </html>

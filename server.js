@@ -32,6 +32,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // SECURITY: never serve the database, server code, config or secrets as static files
 app.use((req, res, next) => {
   const p = decodeURIComponent(req.path).toLowerCase();
+  // Allow public translation JSON files and user uploads
+  if (p.startsWith('/locales/') && (p.endsWith('/en.json') || p.endsWith('/hi.json'))) {
+    return next();
+  }
+  if (p.startsWith('/uploads/')) {
+    return next();
+  }
   const blockedExt = /\.(db|sqlite|sqlite3|env|json|md|yaml|yml|log|lock)$/;
   const blockedPath = /^\/(server\.js|procfile|license|\.git|node_modules|db|routes|middleware|utils|scripts)(\/|$|\.)/;
   if (blockedExt.test(p) || blockedPath.test(p)) {
