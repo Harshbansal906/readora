@@ -156,6 +156,57 @@ router.get('/', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/posts/following - Cursor-paginated feed of followed authors (Phase 5)
+router.get('/following', authMiddleware, async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const cursor = req.query.cursor;
+
+    let query = `
+      SELECT * FROM posts 
+      WHERE author_id IN (SELECT following_id FROM follows WHERE follower_id = ?)
+    `;
+    const params = [currentUserId];
+
+    if (cursor) {
+      const parts = cursor.split('___');
+      if (parts.length === 2) {
+        const [cursorDate, cursorId] = parts;
+        query += ` AND (created_at < ? OR (created_at = ? AND id < ?))`;
+        params.push(cursorDate, cursorDate, cursorId);
+      } else {
+        query += ` AND created_at < ?`;
+        params.push(cursor);
+      }
+    }
+
+    query += ` ORDER BY created_at DESC, id DESC LIMIT ?`;
+    params.push(limit + 1);
+
+    const rawPosts = await db.allAsync(query, params);
+    let nextCursor = null;
+
+    if (rawPosts.length > limit) {
+      const lastItem = rawPosts[limit - 1];
+      nextCursor = `${lastItem.created_at}___${lastItem.id}`;
+      rawPosts.pop();
+    }
+
+    const posts = await formatPosts(rawPosts, currentUserId);
+
+    res.json({
+      success: true,
+      count: posts.length,
+      posts,
+      nextCursor
+    });
+  } catch (error) {
+    console.error('Following feed error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch following feed.' });
+  }
+});
+
 // GET /api/posts/user/:handle or /api/posts/profile/:handle - Public creator profile
 router.get(['/user/:handle', '/profile/:handle'], optionalAuthMiddleware, async (req, res) => {
   try {
@@ -712,7 +763,7 @@ router.get('/featured-creators', optionalAuthMiddleware, async (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
     const users = await db.allAsync(`
-      SELECT u.id, u.name, u.handle, u.avatar, u.bio,
+      SELECT u.id, u.name, u.handle, u.avatar, u.avatar_url, u.bio,
         (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as posts_count
       FROM users u
@@ -732,6 +783,7 @@ router.get('/featured-creators', optionalAuthMiddleware, async (req, res) => {
         name: u.name,
         handle: u.handle,
         avatar: u.avatar || u.name.substring(0, 2).toUpperCase(),
+        avatar_url: u.avatar_url || null,
         bio: u.bio,
         followers: u.followers || 0,
         postsCount: u.posts_count || 0,

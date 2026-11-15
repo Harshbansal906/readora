@@ -847,19 +847,50 @@ class ReadoraApp {
           <div class="writer-handle-meta">${esc(w.handle)} · <span class="tabular-nums">${esc(w.readers)}</span></div>
         </div>
         <button type="button" class="btn-follow-text ${w.isFollowing ? 'following' : ''}" 
+                aria-live="polite"
+                aria-label="${w.isFollowing ? 'Following ' + esc(w.name) + '. Click to unfollow.' : 'Follow ' + esc(w.name)}"
                 onclick="window.readoraApp.toggleFollowWriter(${idx})">
-          ${w.isFollowing ? 'Following' : 'Follow'}
+          ${w.isFollowing ? esc(t('following', 'Following')) : esc(t('follow', 'Follow'))}
         </button>
       </div>
     `).join('');
   }
 
-  toggleFollowWriter(idx) {
-    if (this.writers[idx]) {
-      this.writers[idx].isFollowing = !this.writers[idx].isFollowing;
-      this.renderWriters();
-      this.showToast(this.writers[idx].isFollowing ? `Now following ${this.writers[idx].name}` : `Unfollowed ${this.writers[idx].name}`);
+  async toggleFollowWriter(idx) {
+    const writer = this.writers[idx];
+    if (!writer) return;
+
+    if (!this.currentUser) {
+      this.showToast('Please sign in to follow authors.');
+      return;
     }
+
+    const wasFollowing = writer.isFollowing;
+    const targetUserId = writer.id || writer.handle;
+    const method = wasFollowing ? 'DELETE' : 'POST';
+
+    // Optimistic UI update
+    writer.isFollowing = !wasFollowing;
+    this.renderWriters();
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/users/${targetUserId}/follow`, {
+        method,
+        headers: this.authHeaders()
+      });
+      const data = await res.json();
+      if (data.success) {
+        writer.isFollowing = data.isFollowing;
+        this.showToast(data.message || (data.isFollowing ? `Now following ${writer.name}` : `Unfollowed ${writer.name}`));
+      } else {
+        writer.isFollowing = wasFollowing;
+        this.showToast(data.message || 'Follow action failed.');
+      }
+    } catch (e) {
+      writer.isFollowing = wasFollowing;
+      this.showToast('Network error during follow action.');
+    }
+    this.renderWriters();
   }
 
   filterByTopic(topic) {
@@ -867,10 +898,89 @@ class ReadoraApp {
   }
 
   // ------------------------------------------------------------------------
+  // PHASE 5: FOLLOWING FEED (Cursor-based pagination)
+  // ------------------------------------------------------------------------
+  async fetchFollowingFeed(loadMore = false) {
+    if (!this.currentUser) {
+      if (this.postsContainer) {
+        this.postsContainer.innerHTML = `
+          <div class="editorial-empty-state">
+            <h4 class="empty-state-title">Sign in to view your feed</h4>
+            <p class="empty-state-text">Sign in to read latest essays from writers and authors you follow.</p>
+            <a href="login.html" class="empty-state-action" style="display:inline-block; margin-top:1rem; text-decoration:none;">Log In to Readora →</a>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    let url = `${this.apiBase}/api/posts/following?limit=20`;
+    if (loadMore && this.followingNextCursor) {
+      url += `&cursor=${encodeURIComponent(this.followingNextCursor)}`;
+    }
+
+    try {
+      const res = await fetch(url, { headers: this.authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          this.followingNextCursor = data.nextCursor;
+          if (loadMore) {
+            this.followingPosts = [...(this.followingPosts || []), ...(data.posts || [])];
+          } else {
+            this.followingPosts = data.posts || [];
+          }
+          this.renderFollowingStream();
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch following feed', e);
+    }
+  }
+
+  renderFollowingStream() {
+    if (!this.postsContainer) return;
+
+    if (!this.followingPosts || this.followingPosts.length === 0) {
+      this.postsContainer.innerHTML = `
+        <div class="editorial-empty-state">
+          <h4 class="empty-state-title">Your Following Feed is Quiet</h4>
+          <p class="empty-state-text">You are not following anyone yet. Explore writers to find people whose essays you like.</p>
+          <button type="button" class="empty-state-action" onclick="window.location.hash='#/explore'">
+            Explore Writers & Topics →
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    let html = this.followingPosts.map(p => this.renderPostCard(p)).join('');
+    if (this.followingNextCursor) {
+      html += `
+        <div style="text-align:center; padding:2rem 0;">
+          <button type="button" id="btn-load-more-following" class="empty-state-action" onclick="window.readoraApp.fetchFollowingFeed(true)">
+            Load more essays
+          </button>
+        </div>
+      `;
+    }
+    this.postsContainer.innerHTML = html;
+  }
+
+  // ------------------------------------------------------------------------
   // MAIN RENDER PIPELINE
   // ------------------------------------------------------------------------
   render() {
     if (!this.postsContainer) return;
+
+    if (this.currentFilter === 'following') {
+      if (this.leadContainer) this.leadContainer.style.display = 'none';
+      this.fetchFollowingFeed(false);
+      this.renderTrending();
+      this.renderTopics();
+      this.renderWriters();
+      return;
+    }
 
     // Filter posts
     let filtered = this.posts.filter(p => {
@@ -1184,28 +1294,86 @@ class ReadoraApp {
     `;
   }
 
-  renderProfileView(handle) {
+  async renderProfileView(handle) {
     const profView = document.getElementById('profile-view');
     if (!profView) return;
     profView.style.display = 'block';
 
     const cleanHandle = handle.startsWith('@') ? handle : '@' + handle;
-    const authorEssays = this.posts.filter(p => p.handle && p.handle.toLowerCase() === cleanHandle.toLowerCase());
+    let profileData = null;
+    let authorEssays = this.posts.filter(p => p.handle && p.handle.toLowerCase() === cleanHandle.toLowerCase());
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/posts/profile/${encodeURIComponent(cleanHandle)}`, {
+        headers: this.authHeaders()
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.success && d.profile) {
+          profileData = d.profile;
+          if (Array.isArray(d.posts) && d.posts.length > 0) {
+            authorEssays = d.posts;
+          }
+        }
+      }
+    } catch (e) {}
+
+    const name = profileData ? profileData.name : (authorEssays.length > 0 ? authorEssays[0].author : cleanHandle);
+    const bio = (profileData && profileData.bio) ? profileData.bio : 'Writer and essayist contributing to long-form critical inquiry on Readora.';
+    const initials = (name || 'CR').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const avatarUrl = profileData && profileData.avatar_url ? profileData.avatar_url : null;
+    const isMe = profileData ? profileData.isMe : (this.currentUser && this.currentUser.handle && this.currentUser.handle.toLowerCase() === cleanHandle.toLowerCase());
+    const isFollowing = profileData ? profileData.isFollowing : false;
+    const followers = profileData && profileData.stats ? profileData.stats.followers : 0;
+    const authorId = profileData ? profileData.id : null;
+
+    const avatarHtml = avatarUrl
+      ? `<img src="${esc(avatarUrl)}" alt="Profile photo of ${esc(name)}" style="width:80px; height:80px; border-radius:var(--radius-sm); object-fit:cover; border:1px solid var(--rule);" />`
+      : `<div class="user-monogram" style="width:80px; height:80px; font-size:1.6rem; border-radius:var(--radius-sm); border:1px solid var(--rule); display:flex; align-items:center; justify-content:center; background:var(--bg-paper-subtle); color:var(--accent); font-family:var(--font-serif);">${esc(initials)}</div>`;
 
     profView.innerHTML = `
       <div style="padding-bottom:1.5rem; margin-bottom:2rem; border-bottom:1px solid var(--rule);">
-        <h2 style="font-family:var(--font-serif); font-size:2.2rem; font-weight:500; margin-bottom:0.35rem;">
-          ${esc(authorEssays.length > 0 ? authorEssays[0].author : cleanHandle)}
-        </h2>
-        <div style="font-size:0.85rem; color:var(--ink-muted); margin-bottom:0.75rem;">
-          <span>${esc(cleanHandle)}</span> · <span>Essayist on Readora</span>
+        <div style="display:flex; gap:1.5rem; align-items:flex-start; flex-wrap:wrap; margin-bottom:1rem;">
+          ${avatarHtml}
+          <div style="flex:1; min-width:240px;">
+            <h2 style="font-family:var(--font-serif); font-size:2.2rem; font-weight:500; margin-bottom:0.25rem;">
+              ${esc(name)}
+            </h2>
+            <div style="font-size:0.85rem; color:var(--ink-muted); margin-bottom:0.6rem;">
+              <span>${esc(cleanHandle)}</span> · 
+              <span class="tabular-nums">${formatIndianNumber(followers)} followers</span> · 
+              <span class="tabular-nums">${formatIndianNumber(authorEssays.length)} essays</span>
+            </div>
+            <p style="color:var(--ink-secondary); font-size:0.95rem; max-width:540px; line-height:1.55; margin-bottom:1rem;">
+              ${esc(bio)}
+            </p>
+            ${!isMe && authorId ? `
+              <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                <button type="button" id="btn-profile-follow" class="btn-follow-text ${isFollowing ? 'following' : ''}"
+                        aria-live="polite"
+                        aria-label="${isFollowing ? 'Following ' + esc(name) + '. Click to unfollow.' : 'Follow ' + esc(name)}"
+                        onclick="window.readoraApp.toggleProfileFollow('${esc(authorId)}', ${isFollowing})">
+                  ${isFollowing ? esc(t('following', 'Following')) : esc(t('follow', 'Follow'))}
+                </button>
+                <button type="button" id="btn-profile-friend" class="btn-icon-quiet" style="font-size:0.85rem; padding:0.4rem 0.8rem; border:1px solid var(--rule);"
+                        onclick="window.readoraApp.handleProfileFriendAction('${esc(authorId)}')">
+                  Add Friend
+                </button>
+                <button type="button" id="btn-profile-call" class="btn-icon-quiet" style="font-size:0.85rem; padding:0.4rem 0.8rem; border:1px solid var(--rule); display:none;"
+                        onclick="window.readoraApp.initiateCall('${esc(authorId)}', '${esc(name)}')">
+                  📞 Call
+                </button>
+                <button type="button" class="btn-icon-quiet" style="font-size:0.8rem; color:var(--ink-muted); padding:0.4rem 0.6rem;"
+                        title="Block this user" onclick="window.readoraApp.blockUserFromProfile('${esc(authorId)}')">
+                  Block
+                </button>
+              </div>
+            ` : ''}
+          </div>
         </div>
-        <p style="color:var(--ink-secondary); font-size:0.95rem; max-width:540px; line-height:1.55;">
-          Dedicated to critical inquiries, long-form literature, and quiet contemplation.
-        </p>
       </div>
       <div class="sidebar-section-header">
-        <span class="sidebar-section-title">Published Essays (${authorEssays.length})</span>
+        <span class="sidebar-section-title">Published Essays (${formatIndianNumber(authorEssays.length)})</span>
       </div>
       <div class="essay-feed-stream">
         ${authorEssays.length > 0
@@ -1213,6 +1381,56 @@ class ReadoraApp {
           : '<div class="editorial-empty-state"><p class="empty-state-text">No essays published under this author handle yet.</p></div>'}
       </div>
     `;
+
+    // Check friendship status if authorId is available
+    if (!isMe && authorId && this.currentUser) {
+      this.checkFriendshipStatus(authorId);
+    }
+  }
+
+  async toggleProfileFollow(authorId, currentlyFollowing) {
+    if (!this.currentUser) {
+      this.showToast('Please sign in to follow authors.');
+      return;
+    }
+    const method = currentlyFollowing ? 'DELETE' : 'POST';
+    try {
+      const res = await fetch(`${this.apiBase}/api/users/${authorId}/follow`, {
+        method,
+        headers: this.authHeaders()
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast(data.message);
+        // Re-render current profile view
+        const hash = window.location.hash || '';
+        const m = /^#\/(u|profile)\/(.+)$/.exec(hash);
+        if (m) this.renderProfileView(decodeURIComponent(m[2]));
+      } else {
+        this.showToast(data.message || 'Follow action failed.');
+      }
+    } catch (e) {
+      this.showToast('Failed to update follow status.');
+    }
+  }
+
+  async blockUserFromProfile(targetUserId) {
+    if (!confirm('Are you sure you want to block this user? This will remove friendships and follows both ways.')) return;
+    try {
+      const res = await fetch(`${this.apiBase}/api/users/${targetUserId}/block`, {
+        method: 'POST',
+        headers: this.authHeaders()
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast('User blocked.');
+        window.location.hash = '#/';
+      } else {
+        this.showToast(data.message || 'Failed to block user.');
+      }
+    } catch (e) {
+      this.showToast('Failed to block user.');
+    }
   }
 
   async renderSettings() {
