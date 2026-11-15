@@ -15,15 +15,39 @@ const postRoutes = require('./routes/posts');
 const aiRoutes = require('./routes/ai');
 const uploadRoutes = require('./routes/upload');
 const userRoutes = require('./routes/users');
+const friendsRoutes = require('./routes/friends');
+const notificationsRoutes = require('./routes/notifications');
+const callsRoutes = require('./routes/calls');
+const searchRoutes = require('./routes/search');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Production Security Headers (disables CSP to allow remote Unsplash images & Google Fonts)
+// Production Security Headers with LiveKit & Google Fonts CSP (Phase 11)
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://res.cloudinary.com", "https://*.googleusercontent.com", "https://*.bing.com"],
+      connectSrc: ["'self'", "https://*", "wss://*"],
+      frameSrc: ["'self'", "https://accounts.google.com"],
+      mediaSrc: ["'self'", "blob:", "data:"],
+      objectSrc: ["'none'"]
+    }
+  },
   crossOriginEmbedderPolicy: false
 }));
+
+// Request ID logging middleware
+app.use((req, res, next) => {
+  const reqId = req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  req.id = reqId;
+  res.setHeader('X-Request-Id', reqId);
+  next();
+});
 
 // CORS and Body Parsing Middlewares
 app.use(cors());
@@ -55,11 +79,15 @@ app.use(express.static(path.join(__dirname)));
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/friends', friendsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/calls', callsRoutes);
+app.use('/api/search', searchRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
 
-// Enhanced Production Health check endpoint
-app.get('/api/health', async (req, res) => {
+// Enhanced Production Health check endpoint (serves both /health and /api/health)
+app.get(['/health', '/api/health'], async (req, res) => {
   let dbStatus = 'healthy';
   try {
     await db.getAsync('SELECT 1');
@@ -67,12 +95,13 @@ app.get('/api/health', async (req, res) => {
     dbStatus = 'degraded';
   }
 
-  res.json({
-    status: 'online',
+  res.status(dbStatus === 'healthy' ? 200 : 503).json({
+    status: dbStatus === 'healthy' ? 'online' : 'degraded',
     app: 'READORA',
     tagline: 'Where readers become creators.',
     database: db.isPostgres ? 'postgresql' : 'sqlite',
     databaseStatus: dbStatus,
+    requestId: req.id,
     timestamp: new Date().toISOString()
   });
 });

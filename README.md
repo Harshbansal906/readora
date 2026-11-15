@@ -93,25 +93,35 @@ Every statistic, post count, like, bookmark, comment, and social follow is power
 ```
 readora/
 ├── db/
-│   └── database.js          # SQLite connection, Promise wrappers & auto-migration engine
+│   └── database.js          # SQLite / PostgreSQL dual-engine & auto-migration
+├── locales/
+│   ├── en.json              # English UI localization dictionary
+│   └── hi.json              # Authentic Devanagari Hindi localization dictionary
 ├── middleware/
 │   └── authMiddleware.js    # JWT verification & optional auth extractors
 ├── routes/
 │   ├── auth.js              # Signup, OTP verification, login & profile endpoints
-│   └── posts.js             # Thoughts, articles, likes, bookmarks, comments & stats
-├── utils/
-│   └── mailer.js            # Nodemailer transport & HTML verification templates
+│   ├── posts.js             # Essays, following feed, draft autosave & reactions
+│   ├── users.js             # Avatar sharp WebP cropping, follow graph & blocking
+│   ├── friends.js           # Mutual friend requests, accept, decline, remove
+│   ├── notifications.js     # Grouped notifications (Today, This week, Earlier)
+│   ├── calls.js             # Friends-only audio/video calling token (LiveKit)
+│   ├── search.js            # SQLite FTS5 Full-Text Search across essays, writers, topics
+│   ├── ai.js                # Gemini AI reading assistant endpoint
+│   └── upload.js            # Cloudinary permanent media upload
+├── scripts/
+│   ├── seed.js              # Seeds 14 Indian authors, 24 essays & follow graph
+│   └── migrate_phase_updates.js # Database migration for tables & FTS5
+├── test/
+│   └── test_runner.js       # Automated 25+ test suite
+├── index.html               # Main quiet editorial reading interface
 ├── account.html             # Multi-step Real User OTP registration UI
-├── app.js                   # Client-side core application controller
-├── DEPLOYMENT_GUIDE.md      # Comprehensive production deployment walkthrough
-├── index.html               # Main platform feed, composer, modals & widgets
 ├── login.html               # Sign-in & guest access portal
-├── package.json             # Project dependencies & startup scripts
-├── Procfile                 # Production web process definition
+├── app.js                   # Client-side core application controller
+├── style.css                # Warm paper & oxblood print-inspired design system
 ├── render.yaml              # Render Cloud deployment blueprint
-├── style.css                # Dark crimson aesthetic design system
 ├── .env.example             # Clean environment variable template
-└── .gitignore               # Excludes secrets, databases, logs, and dependencies
+└── package.json             # Project dependencies & startup scripts
 ```
 
 ---
@@ -119,7 +129,7 @@ readora/
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
-- **Node.js** (v18.0.0 or higher recommended)
+- **Node.js** (v18.0.0 or higher)
 - **npm** (bundled with Node.js)
 - **Git**
 
@@ -134,36 +144,22 @@ cd readora
 npm install
 ```
 
-### 4. Configure Environment Variables
-Copy the example environment configuration:
+### 4. Database Setup & Seed
+Populate the 14 realistic Indian authors, 24 full-length essays, and relational follow graph:
 ```bash
-cp .env.example .env
+npm run seed
 ```
 
-Edit `.env` with your credentials:
-```env
-PORT=5000
-NODE_ENV=development
-JWT_SECRET=your_super_secret_jwt_key
-DB_PATH=./readora.db
-
-# Email OTP Service (Optional for development / Required for production)
-GMAIL_USER=your_email@gmail.com
-GMAIL_APP_PASS=your_16_character_app_password
-FROM_EMAIL="READORA Team" <your_email@gmail.com>
+### 5. Run Automated Tests
+```bash
+npm test
 ```
 
-> **Note:** To generate a 16-character Gmail App Password, visit: [Google Account App Passwords](https://myaccount.google.com/apppasswords).
-
-### 5. Start the Server
+### 6. Start the Server
 ```bash
 npm start
 ```
-
-Open your browser and navigate to:
-```
-http://localhost:5000
-```
+Navigate to `http://localhost:5000` in your browser.
 
 ---
 
