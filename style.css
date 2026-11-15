@@ -1982,3 +1982,24 @@ img {
   color: var(--ink-muted);
   margin-top: 0.2rem;
 }
+
+/* --------------------------------------------------------------------------
+   EDITORIAL FULL VIEWS (Settings, Explore, Saved, Profile)
+   -------------------------------------------------------------------------- */
+.settings-view,
+.explore-view,
+.saved-view,
+.profile-view,
+.dashboard-view {
+  width: 100%;
+  max-width: 760px;
+  min-height: 50vh;
+  padding: 0.5rem 0 3rem 0;
+  color: var(--ink);
+  animation: fadeInView 0.2s ease-in-out;
+}
+
+@keyframes fadeInView {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -675,7 +675,7 @@ class ReadoraApp {
         if (this.currentUser) {
           window.location.hash = profileLink(this.currentUser.handle);
         } else {
-          window.location.href = 'practise.html';
+          window.location.href = 'login.html';
         }
       });
     }
@@ -690,9 +690,10 @@ class ReadoraApp {
   }
 
   handleRoute() {
-    const hash = window.location.hash || '';
-    const m = /^#\/(u|profile)\/(.+)$/.exec(hash);
-    const artM = /^#\/(article|post|essay)\/(.+)$/.exec(hash);
+    const rawHash = window.location.hash || '';
+    const hash = rawHash.replace(/\/$/, '');
+    const m = /^#\/(u|profile)\/(.+)$/.exec(hash) || /^#(u|profile)\/(.+)$/.exec(hash);
+    const artM = /^#\/(article|post|essay)\/(.+)$/.exec(hash) || /^#(article|post|essay)\/(.+)$/.exec(hash);
 
     // Hide all full views
     ['feed-view', 'explore-view', 'saved-view', 'dashboard-view', 'settings-view', 'profile-view'].forEach(id => {
@@ -708,15 +709,15 @@ class ReadoraApp {
     } else if (m) {
       const handle = decodeURIComponent(m[2]);
       this.renderProfileView(handle);
-    } else if (hash === '#/explore') {
+    } else if (hash === '#/explore' || hash === '#explore') {
       const exp = document.getElementById('explore-view');
       if (exp) exp.style.display = 'block';
       this.renderExplore();
-    } else if (hash === '#/saved') {
+    } else if (hash === '#/saved' || hash === '#saved') {
       const saved = document.getElementById('saved-view');
       if (saved) saved.style.display = 'block';
       this.renderSaved();
-    } else if (hash === '#/settings') {
+    } else if (hash === '#/settings' || hash === '#settings') {
       const sett = document.getElementById('settings-view');
       if (sett) sett.style.display = 'block';
       this.renderSettings();
@@ -734,15 +735,10 @@ class ReadoraApp {
     const saved = document.getElementById('nav-saved-btn');
     const settings = document.getElementById('nav-settings-btn');
 
-    if (home) home.classList.toggle('active', !hash || hash === '#/');
-    if (explore) explore.classList.toggle('active', hash === '#/explore');
-    if (saved) saved.classList.toggle('active', hash === '#/saved');
-    if (settings) settings.classList.toggle('active', hash === '#/settings');
-  }
-
-    if (home) home.classList.toggle('active', !hash || hash === '#/');
-    if (explore) explore.classList.toggle('active', hash === '#/explore');
-    if (saved) saved.classList.toggle('active', hash === '#/saved');
+    if (home) home.classList.toggle('active', !hash || hash === '#/' || hash === '#' || hash === '#home');
+    if (explore) explore.classList.toggle('active', hash === '#/explore' || hash === '#explore');
+    if (saved) saved.classList.toggle('active', hash === '#/saved' || hash === '#saved');
+    if (settings) settings.classList.toggle('active', hash === '#/settings' || hash === '#settings');
   }
 
   // ------------------------------------------------------------------------
