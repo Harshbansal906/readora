@@ -203,8 +203,8 @@ router.post('/:id/follow', authMiddleware, async (req, res) => {
       // Create notification
       const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       await db.runAsync(
-        `INSERT INTO notifications (id, user_id, actor_id, type, payload, created_at) VALUES (?, ?, ?, 'follow', ?, datetime('now'))`,
-        [notifId, targetUserId, followerId, JSON.stringify({ message: `${req.user.name} started following you.` })]
+        `INSERT INTO notifications (id, user_id, actor_id, actor_name, actor_avatar, type, message, payload, is_read, created_at) VALUES (?, ?, ?, ?, ?, 'follow', ?, ?, 0, datetime('now'))`,
+        [notifId, targetUserId, followerId, req.user.name, req.user.avatar || 'RD', `${req.user.name} started following you.`, JSON.stringify({ message: `${req.user.name} started following you.` })]
       );
     }
 
@@ -359,3 +359,4 @@ router.get('/blocked', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
