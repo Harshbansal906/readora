@@ -1914,3 +1914,71 @@ img {
     display: none;
   }
 }
+
+/* ==========================================================================
+   Phase 10: Grouped Search Dropdown Styles
+   ========================================================================== */
+.search-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 380px;
+  max-width: 90vw;
+  max-height: 420px;
+  overflow-y: auto;
+  background: var(--bg-paper);
+  border: 1px solid var(--rule);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  padding: 0.5rem;
+}
+
+[data-theme="dark"] .search-dropdown-menu {
+  background: var(--bg-paper);
+  border-color: var(--rule-dark);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.search-group-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  margin-top: 0.5rem;
+}
+
+.search-group-header:first-child {
+  margin-top: 0;
+}
+
+.search-result-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+
+.search-result-item:hover,
+.search-result-item:focus {
+  background: var(--bg-paper-hover);
+}
+
+.search-item-title {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.search-item-meta {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  margin-top: 0.2rem;
+}

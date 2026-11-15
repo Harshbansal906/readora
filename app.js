@@ -358,6 +358,7 @@ class ReadoraApp {
     this.render();
     this.handleRoute();
     this.syncWithBackend();
+    this.initNotifications();
 
     window.addEventListener('hashchange', () => this.handleRoute());
     window.addEventListener('popstate', () => this.handlePopState());
@@ -521,15 +522,33 @@ class ReadoraApp {
   }
 
   bindEvents() {
-    // Search input with debounce
+    // Search input with 250ms debounce & grouped dropdown (Phase 10)
     if (this.searchInput) {
       let timer = null;
+      const dropdown = document.getElementById('search-results-dropdown');
+
       this.searchInput.addEventListener('input', (e) => {
         clearTimeout(timer);
-        timer = setTimeout(() => {
-          this.activeSearchQuery = e.target.value.toLowerCase().trim();
+        const query = e.target.value.trim();
+        this.activeSearchQuery = query.toLowerCase();
+
+        if (!query) {
+          if (dropdown) dropdown.style.display = 'none';
           this.render();
-        }, 150);
+          return;
+        }
+
+        timer = setTimeout(async () => {
+          this.render();
+          await this.executeGroupedSearch(query);
+        }, 250);
+      });
+
+      // Close search dropdown on click outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.header-search') && dropdown) {
+          dropdown.style.display = 'none';
+        }
       });
     }
 
@@ -559,8 +578,26 @@ class ReadoraApp {
       btn.addEventListener('click', () => {
         if (this.readerModal) this.readerModal.classList.remove('active');
         if (this.writeModal) this.writeModal.classList.remove('active');
+        const notifModal = document.getElementById('notifications-modal');
+        if (notifModal) notifModal.classList.remove('active');
+        const callModal = document.getElementById('call-modal');
+        if (callModal) callModal.classList.remove('active');
       });
     });
+
+    // Formatting toolbar buttons in editor
+    document.querySelectorAll('.btn-format-cmd').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const fmt = btn.dataset.format;
+        if (fmt) this.applyFormatting(fmt);
+      });
+    });
+
+    // Save draft button & on-blur autosave
+    const saveDraftBtn = document.getElementById('btn-save-draft');
+    if (saveDraftBtn) {
+      saveDraftBtn.addEventListener('click', () => this.saveDraft(false));
+    }
 
     // Write form submit
     const writeForm = document.getElementById('publish-article-form');
@@ -568,18 +605,37 @@ class ReadoraApp {
       writeForm.addEventListener('submit', (e) => this.handlePublishEssay(e));
     }
 
-    // Word counter in write modal
+    // Word counter & on blur autosave in write modal
     const bodyInput = document.getElementById('article-body-input');
     if (bodyInput) {
-      bodyInput.addEventListener('input', () => {
-        const words = (bodyInput.value.trim().match(/\S+/g) || []).length;
-        const readTime = Math.max(1, Math.ceil(words / 180));
-        const wcEl = document.getElementById('article-word-count');
-        const rtEl = document.getElementById('article-read-time');
-        if (wcEl) wcEl.textContent = `${words} words`;
-        if (rtEl) rtEl.textContent = `~${readTime} min read`;
+      bodyInput.addEventListener('input', () => this.updateWordCount());
+      bodyInput.addEventListener('blur', () => this.saveDraft(true));
+    }
+
+    // Notifications modal trigger
+    const notifBtn = document.getElementById('btn-notifications');
+    const notifModal = document.getElementById('notifications-modal');
+    if (notifBtn && notifModal) {
+      notifBtn.addEventListener('click', () => {
+        notifModal.classList.add('active');
+        this.loadNotifications();
       });
     }
+
+    const markAllReadBtn = document.getElementById('btn-mark-all-read');
+    if (markAllReadBtn) {
+      markAllReadBtn.addEventListener('click', () => this.markAllNotificationsRead());
+    }
+
+    // Call controls
+    const callMuteBtn = document.getElementById('btn-call-mute');
+    if (callMuteBtn) callMuteBtn.addEventListener('click', () => this.toggleCallMute());
+
+    const callVideoBtn = document.getElementById('btn-call-video');
+    if (callVideoBtn) callVideoBtn.addEventListener('click', () => this.toggleCallVideo());
+
+    const callEndBtn = document.getElementById('btn-call-end');
+    if (callEndBtn) callEndBtn.addEventListener('click', () => this.endCall());
 
     // AI Assistant Panel Toggle (docked, does not float over content)
     const toggleAiBtn = document.getElementById('btn-toggle-ai-panel');
@@ -1160,12 +1216,102 @@ class ReadoraApp {
   // ------------------------------------------------------------------------
   // WRITE ESSAY MANUSCRIPT MODAL
   // ------------------------------------------------------------------------
-  openWriteModal() {
-    if (this.writeModal) {
-      this.writeModal.classList.add('active');
-      const titleInput = document.getElementById('article-title-input');
-      if (titleInput) titleInput.focus();
+  async openWriteModal() {
+    if (!this.writeModal) return;
+    this.writeModal.classList.add('active');
+    const titleInput = document.getElementById('article-title-input');
+    if (titleInput) titleInput.focus();
+
+    // Restore draft if available
+    if (this.currentUser) {
+      try {
+        const res = await fetch(`${this.apiBase}/api/posts/draft`, { headers: this.authHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.draft) {
+            const d = data.draft;
+            if (titleInput && !titleInput.value) titleInput.value = d.title || '';
+            const subInput = document.getElementById('article-subtitle-input');
+            if (subInput && !subInput.value) subInput.value = d.subtitle || '';
+            const catInput = document.getElementById('article-category-input');
+            if (catInput && d.category) catInput.value = d.category;
+            const bodyInput = document.getElementById('article-body-input');
+            if (bodyInput && !bodyInput.value) bodyInput.value = d.content || '';
+            this.updateWordCount();
+            const ind = document.getElementById('draft-status-indicator');
+            if (ind) ind.textContent = 'Restored draft';
+          }
+        }
+      } catch (e) {}
     }
+
+    // Start 10s autosave interval while write modal is active
+    if (this.draftAutosaveTimer) clearInterval(this.draftAutosaveTimer);
+    this.draftAutosaveTimer = setInterval(() => {
+      if (this.writeModal && this.writeModal.classList.contains('active')) {
+        this.saveDraft(true);
+      }
+    }, 10000);
+  }
+
+  updateWordCount() {
+    const bodyInput = document.getElementById('article-body-input');
+    if (!bodyInput) return;
+    const words = (bodyInput.value.trim().match(/\S+/g) || []).length;
+    const readTime = Math.max(1, Math.ceil(words / 180));
+    const wcEl = document.getElementById('article-word-count');
+    const rtEl = document.getElementById('article-read-time');
+    if (wcEl) wcEl.textContent = `${formatIndianNumber(words)} words`;
+    if (rtEl) rtEl.textContent = `~${readTime} min read`;
+  }
+
+  async saveDraft(isSilent = false) {
+    if (!this.currentUser) return;
+    const title = document.getElementById('article-title-input')?.value || '';
+    const subtitle = document.getElementById('article-subtitle-input')?.value || '';
+    const category = document.getElementById('article-category-input')?.value || 'Philosophy';
+    const content = document.getElementById('article-body-input')?.value || '';
+    const coverImage = document.getElementById('article-cover-input')?.value || '';
+
+    if (!title && !content) return;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/posts/draft`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ title, subtitle, category, content, coverImage })
+      });
+      if (res.ok) {
+        const ind = document.getElementById('draft-status-indicator');
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
+        if (ind) ind.textContent = `Draft saved at ${timeStr}`;
+        if (!isSilent) this.showToast('Draft saved securely.');
+      }
+    } catch (e) {}
+  }
+
+  applyFormatting(cmd) {
+    const textarea = document.getElementById('article-body-input');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end);
+    let replacement = '';
+
+    switch (cmd) {
+      case 'h2': replacement = `\n## ${selected || 'Heading'}\n`; break;
+      case 'h3': replacement = `\n### ${selected || 'Subheading'}\n`; break;
+      case 'bold': replacement = `**${selected || 'bold text'}**`; break;
+      case 'italic': replacement = `*${selected || 'italic text'}*`; break;
+      case 'quote': replacement = `\n> ${selected || 'Quotation'}\n`; break;
+      case 'link': replacement = `[${selected || 'Link Title'}](https://example.com)`; break;
+      default: return;
+    }
+
+    textarea.setRangeText(replacement, start, end, 'end');
+    textarea.focus();
+    this.updateWordCount();
   }
 
   async handlePublishEssay(e) {
@@ -1668,6 +1814,397 @@ class ReadoraApp {
       }
     } catch (e) {
       this.showToast('Failed to unblock.');
+    }
+  }
+
+  // ------------------------------------------------------------------------
+  // PHASE 7: NOTIFICATIONS (Polling & Modal)
+  // ------------------------------------------------------------------------
+  initNotifications() {
+    if (!this.currentUser) return;
+    const notifBtn = document.getElementById('btn-notifications');
+    if (notifBtn) notifBtn.style.display = 'inline-flex';
+
+    this.pollNotifications();
+    // Poll every 30 seconds, paused when tab is hidden
+    if (this.notifPollTimer) clearInterval(this.notifPollTimer);
+    this.notifPollTimer = setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        this.pollNotifications();
+      }
+    }, 30000);
+  }
+
+  async pollNotifications() {
+    if (!this.currentUser) return;
+    try {
+      const res = await fetch(`${this.apiBase}/api/notifications/unread-count`, { headers: this.authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const badge = document.getElementById('notif-badge');
+        if (badge) {
+          if (data.count > 0) {
+            badge.style.display = 'inline-block';
+            badge.textContent = data.count > 99 ? '99+' : data.count;
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  async loadNotifications() {
+    const container = document.getElementById('notifications-list-container');
+    if (!container) return;
+    container.innerHTML = '<p style="color:var(--ink-muted); font-size:0.9rem;">Loading notifications...</p>';
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/notifications`, { headers: this.authHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+
+      const { today, this_week, earlier } = data.notifications;
+      const total = today.length + this_week.length + earlier.length;
+
+      if (total === 0) {
+        container.innerHTML = `
+          <div class="editorial-empty-state" style="padding:2rem 0;">
+            <p class="empty-state-text">No notifications yet. Activity on your essays, friend requests, and calls will appear here.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const renderGroup = (title, items) => {
+        if (!items || items.length === 0) return '';
+        return `
+          <div style="margin-bottom:1.5rem;">
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-muted); margin-bottom:0.75rem; font-weight:600;">
+              ${title}
+            </div>
+            ${items.map(n => `
+              <div style="display:flex; gap:0.75rem; align-items:flex-start; padding:0.6rem 0; border-bottom:1px solid var(--rule); ${n.read ? 'opacity:0.75;' : 'font-weight:500;'}">
+                <div class="user-monogram" style="width:36px; height:36px; font-size:0.8rem; border-radius:var(--radius-sm); border:1px solid var(--rule); display:flex; align-items:center; justify-content:center; background:var(--bg-paper-subtle); color:var(--accent);">
+                  ${esc(n.actor.avatar)}
+                </div>
+                <div style="flex:1;">
+                  <div style="font-size:0.85rem; line-height:1.4;">${esc(n.message)}</div>
+                  <div style="font-size:0.75rem; color:var(--ink-muted); margin-top:0.2rem;" class="tabular-nums">${esc(formatIndianDate(n.created_at))}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      };
+
+      container.innerHTML = `
+        ${renderGroup('Today', today)}
+        ${renderGroup('This Week', this_week)}
+        ${renderGroup('Earlier', earlier)}
+      `;
+    } catch (e) {
+      container.innerHTML = '<p style="color:var(--accent); font-size:0.9rem;">Failed to load notifications.</p>';
+    }
+  }
+
+  async markAllNotificationsRead() {
+    try {
+      const res = await fetch(`${this.apiBase}/api/notifications/mark-read`, {
+        method: 'POST',
+        headers: this.authHeaders()
+      });
+      const data = await res.json();
+      if (data.success) {
+        const badge = document.getElementById('notif-badge');
+        if (badge) badge.style.display = 'none';
+        this.loadNotifications();
+        this.showToast('All notifications marked as read.');
+      }
+    } catch (e) {}
+  }
+
+  // ------------------------------------------------------------------------
+  // PHASE 6: FRIENDSHIP CONTROLS
+  // ------------------------------------------------------------------------
+  async checkFriendshipStatus(targetUserId) {
+    try {
+      const res = await fetch(`${this.apiBase}/api/friends/status/${targetUserId}`, { headers: this.authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const friendBtn = document.getElementById('btn-profile-friend');
+        const callBtn = document.getElementById('btn-profile-call');
+        if (friendBtn) {
+          this.currentFriendStatus = data.status;
+          if (data.status === 'friends') {
+            friendBtn.textContent = 'Friends ✓';
+            friendBtn.style.color = 'var(--ink)';
+            if (callBtn) callBtn.style.display = 'inline-block';
+          } else if (data.status === 'pending_outgoing') {
+            friendBtn.textContent = 'Request Sent (Cancel)';
+            friendBtn.style.color = 'var(--ink-muted)';
+            if (callBtn) callBtn.style.display = 'none';
+          } else if (data.status === 'pending_incoming') {
+            friendBtn.textContent = 'Accept Request';
+            friendBtn.style.color = 'var(--accent)';
+            if (callBtn) callBtn.style.display = 'none';
+          } else {
+            friendBtn.textContent = 'Add Friend';
+            friendBtn.style.color = 'var(--ink)';
+            if (callBtn) callBtn.style.display = 'none';
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  async handleProfileFriendAction(targetUserId) {
+    if (!this.currentUser) {
+      this.showToast('Please sign in to add friends.');
+      return;
+    }
+
+    const st = this.currentFriendStatus || 'none';
+    if (st === 'none') {
+      try {
+        const res = await fetch(`${this.apiBase}/api/friends/request`, {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ targetUserId })
+        });
+        const d = await res.json();
+        this.showToast(d.message);
+        this.checkFriendshipStatus(targetUserId);
+      } catch (e) {
+        this.showToast('Failed to send request.');
+      }
+    } else if (st === 'pending_outgoing') {
+      try {
+        const res = await fetch(`${this.apiBase}/api/friends/cancel`, {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ targetUserId })
+        });
+        const d = await res.json();
+        this.showToast(d.message);
+        this.checkFriendshipStatus(targetUserId);
+      } catch (e) {
+        this.showToast('Failed to cancel request.');
+      }
+    } else if (st === 'pending_incoming') {
+      try {
+        const res = await fetch(`${this.apiBase}/api/friends/accept`, {
+          method: 'POST',
+          headers: this.authHeaders(),
+          body: JSON.stringify({ requesterId: targetUserId })
+        });
+        const d = await res.json();
+        this.showToast(d.message);
+        this.checkFriendshipStatus(targetUserId);
+      } catch (e) {
+        this.showToast('Failed to accept request.');
+      }
+    } else if (st === 'friends') {
+      if (confirm('Remove this person from your friends list?')) {
+        try {
+          const res = await fetch(`${this.apiBase}/api/friends/${targetUserId}`, {
+            method: 'DELETE',
+            headers: this.authHeaders()
+          });
+          const d = await res.json();
+          this.showToast(d.message);
+          this.checkFriendshipStatus(targetUserId);
+        } catch (e) {
+          this.showToast('Failed to remove friend.');
+        }
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------------
+  // PHASE 8: AUDIO / VIDEO CALLS (LiveKit, Friends Only)
+  // ------------------------------------------------------------------------
+  async initiateCall(targetUserId, targetName) {
+    if (!this.currentUser) {
+      this.showToast('Please sign in to make calls.');
+      return;
+    }
+
+    const modal = document.getElementById('call-modal');
+    const titleEl = document.getElementById('call-title');
+    const statusEl = document.getElementById('call-status-text');
+    const avatarEl = document.getElementById('call-user-avatar');
+    if (modal) modal.classList.add('active');
+    if (titleEl) titleEl.textContent = `Call with ${targetName}`;
+    if (statusEl) statusEl.textContent = 'Connecting...';
+    if (avatarEl) avatarEl.textContent = (targetName || 'RD').substring(0, 2).toUpperCase();
+
+    this.callDurationSec = 0;
+    this.isMuted = false;
+    this.isVideoEnabled = false;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/calls/token`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ targetUserId })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        if (statusEl) statusEl.textContent = data.message;
+        setTimeout(() => { if (modal) modal.classList.remove('active'); }, 2500);
+        return;
+      }
+
+      this.currentCallData = data;
+      if (statusEl) statusEl.textContent = 'Connected (Audio-only)';
+
+      // 40 second missed-call timeout if target does not answer
+      this.callMissedTimer = setTimeout(async () => {
+        if (statusEl && statusEl.textContent === 'Connecting...') {
+          statusEl.textContent = 'No answer. Call missed.';
+          await fetch(`${this.apiBase}/api/calls/missed`, {
+            method: 'POST',
+            headers: this.authHeaders(),
+            body: JSON.stringify({ targetUserId, room: data.room })
+          }).catch(() => {});
+          setTimeout(() => this.endCall(), 2000);
+        }
+      }, 40000);
+
+      // Start call timer
+      if (this.callTimer) clearInterval(this.callTimer);
+      const durEl = document.getElementById('call-duration-text');
+      this.callTimer = setInterval(() => {
+        this.callDurationSec++;
+        const mins = String(Math.floor(this.callDurationSec / 60)).padStart(2, '0');
+        const secs = String(this.callDurationSec % 60).padStart(2, '0');
+        if (durEl) durEl.textContent = `${mins}:${secs}`;
+      }, 1000);
+
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'Call failed to connect.';
+      setTimeout(() => { if (modal) modal.classList.remove('active'); }, 2000);
+    }
+  }
+
+  endCall() {
+    if (this.callMissedTimer) clearTimeout(this.callMissedTimer);
+    if (this.callTimer) clearInterval(this.callTimer);
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(t => t.stop());
+      this.localStream = null;
+    }
+    const modal = document.getElementById('call-modal');
+    if (modal) modal.classList.remove('active');
+    const vidContainer = document.getElementById('call-video-container');
+    if (vidContainer) vidContainer.style.display = 'none';
+    this.showToast('Call ended.');
+  }
+
+  async toggleCallVideo() {
+    const vidContainer = document.getElementById('call-video-container');
+    const videoEl = document.getElementById('call-local-video');
+    const btn = document.getElementById('btn-call-video');
+
+    if (this.isVideoEnabled) {
+      if (this.localStream) {
+        this.localStream.getVideoTracks().forEach(t => t.stop());
+      }
+      this.isVideoEnabled = false;
+      if (vidContainer) vidContainer.style.display = 'none';
+      if (btn) btn.textContent = '📷 Camera';
+    } else {
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          this.localStream = stream;
+          if (videoEl) videoEl.srcObject = stream;
+          if (vidContainer) vidContainer.style.display = 'block';
+          this.isVideoEnabled = true;
+          if (btn) btn.textContent = '📷 Camera Off';
+        } else {
+          this.showToast('Camera not available on this device.');
+        }
+      } catch (e) {
+        this.showToast('Unable to access camera.');
+      }
+    }
+  }
+
+  toggleCallMute() {
+    const btn = document.getElementById('btn-call-mute');
+    this.isMuted = !this.isMuted;
+    if (btn) {
+      btn.textContent = this.isMuted ? '🔇 Unmute' : '🎤 Mute';
+    }
+    this.showToast(this.isMuted ? 'Microphone muted.' : 'Microphone unmuted.');
+  }
+
+  // ------------------------------------------------------------------------
+  // PHASE 10: GROUPED SEARCH DROPDOWN (Essays, Writers, Topics)
+  // ------------------------------------------------------------------------
+  async executeGroupedSearch(query) {
+    const dropdown = document.getElementById('search-results-dropdown');
+    if (!dropdown) return;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/search?q=${encodeURIComponent(query)}`, { headers: this.authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.success) return;
+
+      const { essays, writers, topics } = data;
+      const total = essays.length + writers.length + topics.length;
+
+      if (total === 0) {
+        dropdown.innerHTML = `
+          <div style="padding:1rem 0.5rem; text-align:center; color:var(--ink-muted); font-size:0.85rem;">
+            No matching essays, writers, or topics found.
+          </div>
+        `;
+        dropdown.style.display = 'block';
+        return;
+      }
+
+      let html = '';
+
+      if (essays.length > 0) {
+        html += `<div class="search-group-header">Essays (${essays.length})</div>`;
+        html += essays.map(e => `
+          <div class="search-result-item" onclick="window.readoraApp.openFullArticle('${esc(e.id)}'); document.getElementById('search-results-dropdown').style.display='none';">
+            <span class="search-item-title">${esc(e.title)}</span>
+            <span class="search-item-meta">${esc(e.author)} · ${esc(e.category)} · ${esc(e.readTime)}</span>
+          </div>
+        `).join('');
+      }
+
+      if (writers.length > 0) {
+        html += `<div class="search-group-header">Writers (${writers.length})</div>`;
+        html += writers.map(w => `
+          <a class="search-result-item" href="${profileLink(w.handle)}" onclick="document.getElementById('search-results-dropdown').style.display='none';">
+            <span class="search-item-title">${esc(w.name)} <span style="font-size:0.8rem; color:var(--ink-muted);">${esc(w.handle)}</span></span>
+            <span class="search-item-meta">${esc(w.readers)} · ${esc(w.bio || 'Author on Readora')}</span>
+          </a>
+        `).join('');
+      }
+
+      if (topics.length > 0) {
+        html += `<div class="search-group-header">Topics (${topics.length})</div>`;
+        html += topics.map(tp => `
+          <div class="search-result-item" onclick="window.readoraApp.filterByTopic('${esc(tp.name)}'); document.getElementById('search-results-dropdown').style.display='none';">
+            <span class="search-item-title">${esc(tp.name)}</span>
+            <span class="search-item-meta">${formatIndianNumber(tp.count)} essays published</span>
+          </div>
+        `).join('');
+      }
+
+      dropdown.innerHTML = html;
+      dropdown.style.display = 'block';
+
+    } catch (e) {
+      console.error('Grouped search error:', e);
     }
   }
 }

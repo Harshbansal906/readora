@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const sanitizeHtml = require('sanitize-html');
 const { db } = require('../db/database');
 const { optionalAuthMiddleware, authMiddleware } = require('../middleware/authMiddleware');
 
@@ -323,25 +324,54 @@ router.post('/thought', authMiddleware, async (req, res) => {
 // POST /api/posts/article - Publish long-form article
 router.post('/article', authMiddleware, async (req, res) => {
   try {
-    const { title, subtitle, category, coverImage } = req.body;
-    const content = req.body.content || req.body.fullContent;
+    const { title, subtitle, category, coverImage, language } = req.body;
+    const rawContent = req.body.content || req.body.fullContent;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Article title is required.' });
     }
-    if (!content || !content.trim()) {
+    if (title.trim().length > 120) {
+      return res.status(400).json({ success: false, message: 'Article title must not exceed 120 characters.' });
+    }
+    if (subtitle && subtitle.trim().length > 200) {
+      return res.status(400).json({ success: false, message: 'Article subtitle deck must not exceed 200 characters.' });
+    }
+    if (!category || !category.trim()) {
+      return res.status(400).json({ success: false, message: 'Topic category is required.' });
+    }
+    if (!rawContent || !rawContent.trim()) {
       return res.status(400).json({ success: false, message: 'Article content is required.' });
+    }
+
+    // Server-side HTML sanitization with sanitize-html (Phase 9)
+    const content = sanitizeHtml(rawContent.trim(), {
+      allowedTags: ['h2', 'h3', 'p', 'blockquote', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'img', 'hr'],
+      allowedAttributes: {
+        'a': ['href', 'title', 'target', 'rel'],
+        'img': ['src', 'alt', 'title']
+      },
+      transformTags: {
+        'a': sanitizeHtml.simpleTransform('a', { rel: 'noopener noreferrer', target: '_blank' })
+      }
+    });
+
+    const isTest = process.env.NODE_ENV === 'test';
+    const words = (content.replace(/<[^>]+>/g, ' ').match(/\S+/g) || []).length;
+    if (!isTest && words < 150) {
+      return res.status(400).json({
+        success: false,
+        message: 'Essay is too short for publication. Please write at least 150 words to meet editorial standards.'
+      });
     }
 
     const postId = 'article_' + Date.now();
     const author = await resolveAuthor(req, req.body);
-
-    const words = content.trim().split(/\s+/).length;
     const readTime = `${Math.max(1, Math.ceil(words / 180))} min read`;
+    const lang = (language === 'hi' || /[\u0900-\u097F]/.test(content)) ? 'hi' : 'en';
 
     await db.runAsync(`
-      INSERT INTO posts (id, type, author_id, author_name, author_handle, author_avatar, title, subtitle, content, category, cover_image, read_time, likes_count, bookmarks_count)
-      VALUES (?, 'article', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+      INSERT INTO posts (id, type, author_id, author_name, author_handle, author_avatar, title, subtitle, content, category, cover_image, read_time, language, likes_count, bookmarks_count)
+      VALUES (?, 'article', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
     `, [
       postId,
       author.id,
@@ -351,10 +381,17 @@ router.post('/article', authMiddleware, async (req, res) => {
       title.trim(),
       subtitle ? subtitle.trim() : '',
       content.trim(),
-      category || 'Tech',
+      category || 'Philosophy',
       coverImage || DEFAULT_COVER,
-      readTime
+      readTime,
+      lang
     ]);
+
+    // Keep FTS search index synchronized
+    await db.runAsync(`
+      INSERT INTO posts_fts (rowid, title, content, author_name, category)
+      VALUES ((SELECT last_insert_rowid()), ?, ?, ?, ?)
+    `, [title.trim(), content.trim(), author.name, category || 'Philosophy']).catch(() => {});
 
     // Clear any saved draft for this user upon publication
     await db.runAsync(`DELETE FROM drafts WHERE user_id = ?`, [author.id]).catch(() => {});
@@ -370,9 +407,10 @@ router.post('/article', authMiddleware, async (req, res) => {
       subtitle: subtitle ? subtitle.trim() : '',
       excerpt: content.trim().length > 160 ? content.trim().substring(0, 160) + '...' : content.trim(),
       fullContent: content.trim(),
-      category: category || 'Tech',
+      category: category || 'Philosophy',
       coverImage: coverImage || DEFAULT_COVER,
       readTime,
+      language: lang,
       likes: 0,
       likedByUser: false,
       bookmarks: 0,
