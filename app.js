@@ -108,6 +108,23 @@ function formatIndianDate(utcDateStr) {
   }
 }
 
+function formatMessageTimeIST(utcDateStr) {
+  if (!utcDateStr) return '';
+  const clean = String(utcDateStr).replace(' ', 'T') + (String(utcDateStr).includes('Z') ? '' : 'Z');
+  const d = new Date(clean);
+  if (isNaN(d.getTime())) return '';
+  try {
+    return d.toLocaleTimeString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch (e) {
+    return d.toLocaleTimeString();
+  }
+}
+
 function formatIndianNumber(num) {
   if (num === null || num === undefined || isNaN(num)) return '0';
   const locale = currentLang === 'hi' ? 'hi-IN' : 'en-IN';
@@ -372,6 +389,7 @@ class ReadoraApp {
     const deferWork = () => {
       this.syncWithBackend();
       this.initNotifications();
+      this.initMessagesBadge();
     };
     if (typeof requestIdleCallback !== 'undefined') {
       requestIdleCallback(deferWork, { timeout: 1500 });
@@ -380,6 +398,16 @@ class ReadoraApp {
     }
     loadTranslations().then(() => {
       if (currentLang === 'hi') this.render();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.pollNotifications();
+        this.pollMessagesBadge();
+        if (this.activeChatConvId) {
+          this.pollActiveChat(this.activeChatConvId);
+        }
+      }
     });
 
     window.addEventListener('hashchange', () => this.handleRoute());
@@ -734,9 +762,10 @@ class ReadoraApp {
     const hash = rawHash.replace(/\/$/, '');
     const m = /^#\/(u|profile)\/(.+)$/.exec(hash) || /^#(u|profile)\/(.+)$/.exec(hash);
     const artM = /^#\/(article|post|essay)\/(.+)$/.exec(hash) || /^#(article|post|essay)\/(.+)$/.exec(hash);
+    const msgM = /^#\/(messages|message)(?:\/(.+))?$/.exec(hash) || /^#(messages|message)(?:\/(.+))?$/.exec(hash);
 
     // Hide all full views
-    ['feed-view', 'explore-view', 'saved-view', 'dashboard-view', 'settings-view', 'profile-view'].forEach(id => {
+    ['feed-view', 'explore-view', 'saved-view', 'dashboard-view', 'settings-view', 'profile-view', 'messages-view'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -747,6 +776,11 @@ class ReadoraApp {
     const notifModal = document.getElementById('notifications-modal');
     if (hash !== '#/notifications' && hash !== '#notifications' && notifModal) notifModal.classList.remove('active');
 
+    // Stop active conversation polling if not inside an active conversation
+    if (!msgM || !msgM[2]) {
+      this.stopActiveChatPolling();
+    }
+
     if (artM) {
       const postId = decodeURIComponent(artM[2]);
       this.openFullArticle(postId);
@@ -755,6 +789,11 @@ class ReadoraApp {
     } else if (m) {
       const handle = decodeURIComponent(m[2]);
       this.renderProfileView(handle);
+    } else if (msgM) {
+      const convId = msgM[2] ? decodeURIComponent(msgM[2]) : null;
+      const msgView = document.getElementById('messages-view');
+      if (msgView) msgView.style.display = 'block';
+      this.renderMessagesView(convId);
     } else if (hash === '#/explore' || hash === '#explore') {
       const exp = document.getElementById('explore-view');
       if (exp) exp.style.display = 'block';
@@ -791,11 +830,15 @@ class ReadoraApp {
     const explore = document.getElementById('nav-explore-btn');
     const saved = document.getElementById('nav-saved-btn');
     const settings = document.getElementById('nav-settings-btn');
+    const messages = document.getElementById('nav-messages-btn');
+    const mobMessages = document.getElementById('mob-nav-messages');
 
     if (home) home.classList.toggle('active', !hash || hash === '#/' || hash === '#' || hash === '#home' || hash === '#/write' || hash === '#/notifications');
     if (explore) explore.classList.toggle('active', hash === '#/explore' || hash === '#explore');
     if (saved) saved.classList.toggle('active', hash === '#/saved' || hash === '#saved');
     if (settings) settings.classList.toggle('active', hash === '#/settings' || hash === '#settings');
+    if (messages) messages.classList.toggle('active', /^#\/?(messages|message)/.test(hash));
+    if (mobMessages) mobMessages.classList.toggle('active', /^#\/?(messages|message)/.test(hash));
   }
 
   // ------------------------------------------------------------------------
@@ -1576,6 +1619,10 @@ class ReadoraApp {
                         onclick="window.readoraApp.initiateCall('${esc(authorId)}', '${esc(name)}')">
                   📞 Call
                 </button>
+                <button type="button" id="btn-profile-message" class="btn-icon-quiet" style="font-size:0.85rem; padding:0.4rem 0.8rem; border:1px solid var(--rule); display:none;"
+                        onclick="window.readoraApp.openDirectChatWithUser('${esc(authorId)}')">
+                  💬 ${esc(t('message_friend_btn', 'Message'))}
+                </button>
                 <button type="button" class="btn-icon-quiet" style="font-size:0.8rem; color:var(--ink-muted); padding:0.4rem 0.6rem;"
                         title="Block this user" onclick="window.readoraApp.blockUserFromProfile('${esc(authorId)}')">
                   Block
@@ -2002,24 +2049,29 @@ class ReadoraApp {
         const data = await res.json();
         const friendBtn = document.getElementById('btn-profile-friend');
         const callBtn = document.getElementById('btn-profile-call');
+        const msgBtn = document.getElementById('btn-profile-message');
         if (friendBtn) {
           this.currentFriendStatus = data.status;
           if (data.status === 'friends') {
             friendBtn.textContent = 'Friends ✓';
             friendBtn.style.color = 'var(--ink)';
             if (callBtn) callBtn.style.display = 'inline-block';
+            if (msgBtn) msgBtn.style.display = 'inline-block';
           } else if (data.status === 'pending_outgoing') {
             friendBtn.textContent = 'Request Sent (Cancel)';
             friendBtn.style.color = 'var(--ink-muted)';
             if (callBtn) callBtn.style.display = 'none';
+            if (msgBtn) msgBtn.style.display = 'none';
           } else if (data.status === 'pending_incoming') {
             friendBtn.textContent = 'Accept Request';
             friendBtn.style.color = 'var(--accent)';
             if (callBtn) callBtn.style.display = 'none';
+            if (msgBtn) msgBtn.style.display = 'none';
           } else {
             friendBtn.textContent = 'Add Friend';
             friendBtn.style.color = 'var(--ink)';
             if (callBtn) callBtn.style.display = 'none';
+            if (msgBtn) msgBtn.style.display = 'none';
           }
         }
       }
@@ -2272,6 +2324,421 @@ class ReadoraApp {
 
     } catch (e) {
       console.error('Grouped search error:', e);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // PRIVATE DIRECT MESSAGING SYSTEM
+  // --------------------------------------------------------------------------
+  initMessagesBadge() {
+    if (!this.currentUser) return;
+    this.pollMessagesBadge();
+    if (this.msgBadgePollTimer) clearInterval(this.msgBadgePollTimer);
+    this.msgBadgePollTimer = setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        this.pollMessagesBadge();
+      }
+    }, 30000);
+  }
+
+  async pollMessagesBadge() {
+    if (!this.currentUser) return;
+    try {
+      const res = await fetch(`${this.apiBase}/api/messages/unread-count`, { headers: this.authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const badge = document.getElementById('msg-badge');
+        const mobBadge = document.getElementById('mob-msg-badge');
+        const count = data.count || 0;
+        if (badge) {
+          if (count > 0) {
+            badge.style.display = 'inline-block';
+            badge.textContent = count > 99 ? '99+' : count;
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+        if (mobBadge) {
+          if (count > 0) {
+            mobBadge.style.display = 'inline-block';
+            mobBadge.textContent = count > 99 ? '99+' : count;
+          } else {
+            mobBadge.style.display = 'none';
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  startActiveChatPolling(convId) {
+    this.stopActiveChatPolling();
+    this.activeChatConvId = convId;
+    this.chatPollInterval = setInterval(() => {
+      if (document.visibilityState !== 'hidden' && this.activeChatConvId === convId) {
+        this.pollActiveChat(convId);
+      }
+    }, 5000);
+  }
+
+  stopActiveChatPolling() {
+    if (this.chatPollInterval) {
+      clearInterval(this.chatPollInterval);
+      this.chatPollInterval = null;
+    }
+    this.activeChatConvId = null;
+  }
+
+  async renderMessagesView(convId) {
+    const msgView = document.getElementById('messages-view');
+    if (!msgView) return;
+
+    if (!this.currentUser) {
+      this.stopActiveChatPolling();
+      msgView.innerHTML = `
+        <div class="editorial-empty-state" style="padding: 3rem 1rem;">
+          <h3 class="empty-state-title">${esc(t('nav_messages', 'Direct Messages'))}</h3>
+          <p class="empty-state-text">Please sign in to read and send messages.</p>
+          <a href="login.html" class="empty-state-action" style="display:inline-block; margin-top:1rem; text-decoration:none;">Log In to Readora →</a>
+        </div>
+      `;
+      return;
+    }
+
+    if (convId) {
+      await this.renderConversationChat(convId);
+    } else {
+      this.stopActiveChatPolling();
+      await this.renderConversationList();
+    }
+  }
+
+  async renderConversationList() {
+    const msgView = document.getElementById('messages-view');
+    if (!msgView) return;
+
+    msgView.innerHTML = `
+      <div style="padding-bottom:1.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--rule);">
+        <h2 style="font-family:var(--font-serif); font-size:2rem; font-weight:500; margin-bottom:0.4rem;">
+          ${esc(t('messages_title', 'Direct Messages'))}
+        </h2>
+        <p style="color:var(--ink-muted); font-size:0.95rem;">
+          Private discussions between accepted friends.
+        </p>
+      </div>
+      <div id="conversations-list-container">
+        <p style="color:var(--ink-muted); font-size:0.9rem;">${esc(t('loading', 'Loading...'))}</p>
+      </div>
+    `;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/conversations`, { headers: this.authHeaders() });
+      const data = await res.json();
+      const container = document.getElementById('conversations-list-container');
+      if (!container) return;
+
+      if (!data.success || !Array.isArray(data.conversations) || data.conversations.length === 0) {
+        container.innerHTML = `
+          <div class="editorial-empty-state" style="padding: 3rem 1rem;">
+            <p class="empty-state-text">${esc(t('messages_empty', 'You have not started any conversations yet. Add friends to begin.'))}</p>
+            <a href="#/explore" class="empty-state-action" style="display:inline-block; margin-top:1rem; text-decoration:none;">Explore Writers →</a>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="conversation-list">
+          ${data.conversations.map(c => {
+            const u = c.otherUser || { name: 'Deleted user', handle: '@deleted' };
+            const initials = (u.name || 'CR').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const avatarHtml = u.avatar_url
+              ? `<img src="${esc(u.avatar_url)}" alt="${esc(u.name)}" style="width:44px; height:44px; border-radius:var(--radius-sm); object-fit:cover; border:1px solid var(--rule);" />`
+              : `<div class="user-monogram" style="width:44px; height:44px; font-size:1rem; border-radius:var(--radius-sm); border:1px solid var(--rule); display:flex; align-items:center; justify-content:center; background:var(--bg-paper-subtle); color:var(--accent); font-family:var(--font-serif);">${esc(initials)}</div>`;
+            const unreadBadge = c.unreadCount > 0
+              ? `<span class="conversation-unread-badge">${c.unreadCount}</span>`
+              : '';
+            const previewText = c.preview || 'No messages yet';
+            const timeStr = c.last_message_at ? formatIndianDate(c.last_message_at) : '';
+
+            return `
+              <div class="conversation-card ${c.unreadCount > 0 ? 'unread' : ''}" onclick="window.location.hash='#/messages/${esc(c.id)}'">
+                ${avatarHtml}
+                <div class="conversation-card-body">
+                  <div class="conversation-card-header">
+                    <span class="conversation-card-name">${esc(u.name)}</span>
+                    <span class="conversation-card-time">${esc(timeStr)}</span>
+                  </div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+                    <span class="conversation-card-preview">${esc(previewText)}</span>
+                    ${unreadBadge}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } catch (e) {
+      const container = document.getElementById('conversations-list-container');
+      if (container) {
+        container.innerHTML = `<p style="color:var(--accent); font-size:0.9rem;">Failed to load conversations.</p>`;
+      }
+    }
+  }
+
+  async renderConversationChat(convId) {
+    const msgView = document.getElementById('messages-view');
+    if (!msgView) return;
+
+    msgView.innerHTML = `
+      <div id="active-chat-wrapper" class="chat-container">
+        <div class="chat-header">
+          <div class="chat-header-user">
+            <a href="#/messages" class="btn-icon-quiet" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; font-size:1.1rem; width:32px; height:32px;" title="${esc(t('conversation_back', 'Back to Conversations'))}">
+              ←
+            </a>
+            <div id="chat-header-user-info" style="display:flex; align-items:center; gap:0.6rem;">
+              <span style="font-size:0.9rem; color:var(--ink-muted);">${esc(t('loading', 'Loading...'))}</span>
+            </div>
+          </div>
+        </div>
+        <div id="chat-readonly-banner" style="display:none;" class="chat-banner-readonly">
+          ${esc(t('conversation_readonly_banner', 'This conversation is read-only because you are no longer friends.'))}
+        </div>
+        <div id="chat-messages-stream" class="chat-stream">
+          <p style="color:var(--ink-muted); font-size:0.9rem; text-align:center;">${esc(t('loading', 'Loading messages...'))}</p>
+        </div>
+        <div id="chat-composer-wrap" class="chat-composer-wrap">
+          <textarea id="chat-message-input" class="chat-composer-area" maxlength="2000" placeholder="${esc(t('message_placeholder', 'Write a message... (Shift+Enter for newline)'))}"></textarea>
+          <div class="chat-composer-footer">
+            <span id="chat-char-counter" class="chat-char-count">2000 ${esc(t('chars_remaining', 'characters remaining'))}</span>
+            <button type="button" id="btn-send-message" class="btn-write-primary" style="padding:0.45rem 1.1rem; font-size:0.85rem;">
+              ${esc(t('send_btn', 'Send'))}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Fetch initial messages and conversation status
+    await this.fetchAndRenderMessages(convId, true);
+
+    // Bind composer events
+    const textarea = document.getElementById('chat-message-input');
+    const sendBtn = document.getElementById('btn-send-message');
+    const charCounter = document.getElementById('chat-char-counter');
+
+    if (textarea) {
+      textarea.addEventListener('input', () => {
+        const remaining = 2000 - textarea.value.length;
+        if (charCounter) {
+          charCounter.textContent = `${remaining} ${t('chars_remaining', 'characters remaining')}`;
+        }
+      });
+
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.sendMessage(convId);
+        }
+      });
+    }
+
+    if (sendBtn) {
+      sendBtn.addEventListener('click', () => this.sendMessage(convId));
+    }
+
+    // Start 5-second polling for open conversation
+    this.startActiveChatPolling(convId);
+
+    // Mark as read immediately on open
+    this.markConversationAsRead(convId);
+  }
+
+  async fetchAndRenderMessages(convId, isInitialLoad = false) {
+    try {
+      const res = await fetch(`${this.apiBase}/api/conversations/${encodeURIComponent(convId)}/messages`, {
+        headers: this.authHeaders()
+      });
+      if (!res.ok) {
+        if (res.status === 404) {
+          const stream = document.getElementById('chat-messages-stream');
+          if (stream) {
+            stream.innerHTML = `<div class="editorial-empty-state"><p class="empty-state-text">${esc(t('conversation_blocked_banner', 'This conversation is unavailable due to privacy settings.'))}</p></div>`;
+          }
+          const composer = document.getElementById('chat-composer-wrap');
+          if (composer) composer.style.display = 'none';
+        }
+        return;
+      }
+
+      const data = await res.json();
+      if (!data.success) return;
+
+      const otherUser = data.otherUser || { name: 'Deleted user', handle: '@deleted' };
+      const headerInfo = document.getElementById('chat-header-user-info');
+      if (headerInfo) {
+        const initials = (otherUser.name || 'CR').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        headerInfo.innerHTML = `
+          <div class="user-monogram" style="width:32px; height:32px; font-size:0.85rem; border-radius:var(--radius-sm); border:1px solid var(--rule); display:flex; align-items:center; justify-content:center; background:var(--bg-paper); color:var(--accent); font-family:var(--font-serif);">${esc(initials)}</div>
+          <div>
+            <span style="font-weight:500; font-size:0.92rem; color:var(--ink);">${esc(otherUser.name)}</span>
+            <span style="font-size:0.75rem; color:var(--ink-muted); margin-left:0.35rem;">${data.isReadOnly ? '(Former friend)' : '· Friend'}</span>
+          </div>
+        `;
+      }
+
+      // Read-only banner & composer toggle
+      const roBanner = document.getElementById('chat-readonly-banner');
+      const composer = document.getElementById('chat-composer-wrap');
+      if (roBanner) roBanner.style.display = data.isReadOnly ? 'block' : 'none';
+      if (composer) composer.style.display = data.isReadOnly ? 'none' : 'block';
+
+      // Render messages
+      const stream = document.getElementById('chat-messages-stream');
+      if (!stream) return;
+
+      if (!data.messages || data.messages.length === 0) {
+        stream.innerHTML = `<p style="color:var(--ink-muted); font-size:0.85rem; text-align:center; margin:auto 0;">No messages yet. Send a note to say hello.</p>`;
+        return;
+      }
+
+      const msgHtml = data.messages.map(m => {
+        const isSent = m.is_mine;
+        const rowClass = isSent ? 'sent' : 'received';
+        const bubbleClass = m.is_deleted ? 'deleted' : (isSent ? 'sent' : 'received');
+        const displayText = m.is_deleted ? esc(t('deleted_message', 'This message was deleted.')) : m.body;
+        const timeIST = formatMessageTimeIST(m.created_at);
+        const deleteAction = (isSent && !m.is_deleted)
+          ? `<button type="button" class="chat-delete-btn" title="Delete message" onclick="window.readoraApp.deleteMessage('${esc(m.id)}', '${esc(convId)}')">✕ ${esc(t('delete_message_btn', 'Delete'))}</button>`
+          : '';
+
+        return `
+          <div class="chat-message-row ${rowClass}" id="chat-msg-${esc(m.id)}">
+            <div class="chat-bubble ${bubbleClass}">
+              ${displayText}
+            </div>
+            <div class="chat-meta">
+              <span>${esc(timeIST)}</span>
+              ${deleteAction}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Check if user is scrolled near bottom before replacing
+      const isScrolledToBottom = stream.scrollHeight - stream.clientHeight <= stream.scrollTop + 50;
+      stream.innerHTML = msgHtml;
+
+      if (isInitialLoad || isScrolledToBottom) {
+        stream.scrollTop = stream.scrollHeight;
+      }
+    } catch (err) {
+      console.error('Fetch messages error:', err);
+    }
+  }
+
+  async pollActiveChat(convId) {
+    if (this.activeChatConvId !== convId) return;
+    await this.fetchAndRenderMessages(convId, false);
+    await this.markConversationAsRead(convId);
+  }
+
+  async sendMessage(convId) {
+    const input = document.getElementById('chat-message-input');
+    const sendBtn = document.getElementById('btn-send-message');
+    if (!input || !sendBtn) return;
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    if (text.length > 2000) {
+      this.showToast('Message exceeds 2000 characters limit.');
+      return;
+    }
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = t('sending_btn', 'Sending...');
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/conversations/${encodeURIComponent(convId)}/messages`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ body: text })
+      });
+
+      const data = await res.json();
+      if (res.status === 429) {
+        this.showToast(t('too_many_messages_err', 'Too many messages. Please slow down.'));
+      } else if (res.status === 403) {
+        this.showToast(data.message || t('must_be_friends_err', 'You must be friends to send messages.'));
+      } else if (data.success) {
+        input.value = '';
+        const charCounter = document.getElementById('chat-char-counter');
+        if (charCounter) charCounter.textContent = `2000 ${t('chars_remaining', 'characters remaining')}`;
+        await this.fetchAndRenderMessages(convId, true);
+      } else {
+        this.showToast(data.message || 'Failed to send message.');
+      }
+    } catch (e) {
+      this.showToast('Failed to send message. Please check connection.');
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = t('send_btn', 'Send');
+      input.focus();
+    }
+  }
+
+  async deleteMessage(msgId, convId) {
+    const confirmPrompt = t('confirm_delete_msg', 'Delete this message for everyone?');
+    if (!confirm(confirmPrompt)) return;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/messages/${encodeURIComponent(msgId)}`, {
+        method: 'DELETE',
+        headers: this.authHeaders()
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        this.showToast('Message deleted.');
+        await this.fetchAndRenderMessages(convId, false);
+      } else {
+        this.showToast(data.message || 'Unable to delete message.');
+      }
+    } catch (e) {
+      this.showToast('Failed to delete message.');
+    }
+  }
+
+  async markConversationAsRead(convId) {
+    try {
+      await fetch(`${this.apiBase}/api/conversations/${encodeURIComponent(convId)}/read`, {
+        method: 'POST',
+        headers: this.authHeaders()
+      });
+      this.pollMessagesBadge();
+    } catch (e) {}
+  }
+
+  async openDirectChatWithUser(targetUserId) {
+    if (!this.currentUser) {
+      this.showToast('Please sign in to message friends.');
+      return;
+    }
+    try {
+      const res = await fetch(`${this.apiBase}/api/conversations/${encodeURIComponent(targetUserId)}`, {
+        method: 'POST',
+        headers: this.authHeaders()
+      });
+      const data = await res.json();
+      if (data.success && data.conversation) {
+        window.location.hash = `#/messages/${data.conversation.id}`;
+      } else {
+        this.showToast(data.message || 'Unable to start conversation.');
+      }
+    } catch (e) {
+      this.showToast('Failed to open conversation.');
     }
   }
 }

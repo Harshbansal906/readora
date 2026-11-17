@@ -307,6 +307,33 @@ async function initPostgres() {
       CHECK (blocker_id != blocked_id)
     )
   `);
+
+  // Direct Messages (Conversations & Messages)
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id VARCHAR(64) PRIMARY KEY,
+      user_low_id VARCHAR(64) NOT NULL,
+      user_high_id VARCHAR(64) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      last_message_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT unq_conversations_pair UNIQUE(user_low_id, user_high_id)
+    )
+  `);
+  await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_conversations_user_low ON conversations(user_low_id)`);
+  await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_conversations_user_high ON conversations(user_high_id)`);
+
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id VARCHAR(64) PRIMARY KEY,
+      conversation_id VARCHAR(64) NOT NULL,
+      sender_id VARCHAR(64) NOT NULL,
+      body TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      read_at TIMESTAMP WITH TIME ZONE,
+      deleted_at TIMESTAMP WITH TIME ZONE
+    )
+  `);
+  await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_messages_conv_created ON messages(conversation_id, created_at)`);
 }
 
 // SQLite Table Initialization
@@ -511,6 +538,35 @@ async function initSqlite() {
     )
   `);
   await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id)`);
+
+  // Direct Messages (Phase: Conversations & Messages)
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      user_low_id TEXT NOT NULL,
+      user_high_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_low_id, user_high_id)
+    )
+  `);
+  await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_conversations_user_low ON conversations(user_low_id)`);
+  await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_conversations_user_high ON conversations(user_high_id)`);
+
+  await db.runAsync(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      read_at DATETIME,
+      deleted_at DATETIME,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id),
+      FOREIGN KEY (sender_id) REFERENCES users(id)
+    )
+  `);
+  await db.runAsync(`CREATE INDEX IF NOT EXISTS idx_messages_conv_created ON messages(conversation_id, created_at)`);
 
   // FTS5 Virtual Table for Fast Search (Phase 10)
   try {

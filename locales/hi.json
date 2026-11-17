@@ -91,6 +91,25 @@
   "today": "आज",
   "this_week": "इस सप्ताह",
   "earlier": "पहले",
-  "mark_all_read": "सभी को पढ़ा हुआ चिह्नित करें"
+  "mark_all_read": "सभी को पढ़ा हुआ चिह्नित करें",
+  "nav_messages": "संदेश",
+  "messages_title": "निजी संदेश",
+  "messages_empty": "आपने अभी तक कोई बातचीत शुरू नहीं की है। संदेश भेजने के लिए मित्र जोड़ें।",
+  "messages_no_selected": "पढ़ना और लिखना शुरू करने के लिए कोई बातचीत चुनें।",
+  "conversation_readonly_banner": "यह बातचीत केवल पढ़ने के लिए है क्योंकि आप अब मित्र नहीं हैं।",
+  "conversation_blocked_banner": "गोपनीयता सेटिंग्स के कारण यह बातचीत उपलब्ध नहीं है।",
+  "message_placeholder": "संदेश लिखें... (नई पंक्ति के लिए Shift+Enter)",
+  "send_btn": "भेजें",
+  "sending_btn": "भेजा जा रहा है...",
+  "deleted_message": "यह संदेश हटा दिया गया था।",
+  "deleted_user": "हटाया गया उपयोगकर्ता",
+  "message_friend_btn": "संदेश",
+  "delete_message_btn": "हटाएं",
+  "confirm_delete_msg": "क्या आप इस संदेश को हटाना चाहते हैं?",
+  "chars_remaining": "वर्ण शेष",
+  "too_many_messages_err": "बहुत अधिक संदेश। कृपया कुछ समय प्रतीक्षा करें।",
+  "must_be_friends_err": "संदेश भेजने के लिए आपको मित्र होना आवश्यक है।",
+  "conversation_back": "बातचीत पर वापस जाएं",
+  "messages_unread_badge": "अपठित संदेश"
 }
 

@@ -24,3 +24,7 @@ lighthouse-report.json
 Thumbs.db
 .vscode/
 .idea/
+
+# Uploaded media assets
+uploads/*
+!uploads/.gitkeep

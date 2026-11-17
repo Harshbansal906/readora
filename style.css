@@ -1998,13 +1998,253 @@ img {
 .explore-view,
 .saved-view,
 .profile-view,
-.dashboard-view {
+.dashboard-view,
+.messages-view {
   width: 100%;
   max-width: 760px;
   min-height: 50vh;
   padding: 0.5rem 0 3rem 0;
   color: var(--ink);
   animation: fadeInView 0.2s ease-in-out;
+}
+
+/* --------------------------------------------------------------------------
+   MESSAGING / DIRECT CHAT SYSTEM
+   -------------------------------------------------------------------------- */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-paper);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  min-height: 560px;
+  overflow: hidden;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-paper-subtle);
+}
+
+.chat-header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.chat-stream {
+  flex: 1;
+  padding: 1.25rem;
+  overflow-y: auto;
+  max-height: 480px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: var(--bg-paper);
+}
+
+.chat-message-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+  position: relative;
+}
+
+.chat-message-row.sent {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.chat-message-row.received {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.chat-bubble {
+  padding: 0.65rem 0.95rem;
+  border-radius: 2px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  word-break: break-word;
+  white-space: pre-wrap;
+  position: relative;
+}
+
+.chat-bubble.sent {
+  background: var(--bg-paper-subtle);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+
+.chat-bubble.received {
+  background: var(--bg-paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+
+.chat-bubble.deleted {
+  font-style: italic;
+  color: var(--ink-muted);
+  border-style: dashed;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+
+.chat-delete-btn {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 0.72rem;
+  opacity: 0.6;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.chat-delete-btn:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.chat-banner-readonly {
+  padding: 0.65rem 1.25rem;
+  background: var(--bg-paper-subtle);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-align: center;
+  font-style: italic;
+}
+
+.chat-composer-wrap {
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid var(--rule);
+  background: var(--bg-paper);
+}
+
+.chat-composer-area {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--bg-paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 60px;
+  max-height: 160px;
+}
+
+.chat-composer-area:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.chat-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+}
+
+.chat-char-count {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--bg-paper);
+}
+
+.conversation-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.95rem 1.2rem;
+  border-bottom: 1px solid var(--rule);
+  text-decoration: none;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.conversation-card:last-child {
+  border-bottom: none;
+}
+
+.conversation-card:hover {
+  background: var(--bg-paper-subtle);
+}
+
+.conversation-card.unread {
+  background: var(--bg-paper-subtle);
+  border-left: 3px solid var(--accent);
+}
+
+.conversation-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.conversation-card-name {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-card-time {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.conversation-card-preview {
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-unread-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
 }
 
 @keyframes fadeInView {

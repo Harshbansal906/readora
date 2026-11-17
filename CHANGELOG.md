@@ -4,6 +4,35 @@ All notable changes, bug fixes, and security enhancements to READORA are documen
 
 ---
 
+## [1.1.0] - 2026-11-17
+
+### Feature: Private Direct Messages Between Accepted Friends
+- **Database Schema & Migrations (`scripts/migrate_messages.js`):**
+  - Added `conversations` table (`id`, `user_low_id`, `user_high_id`, `created_at`, `last_message_at`, `UNIQUE(user_low_id, user_high_id)`).
+  - Added `messages` table (`id`, `conversation_id`, `sender_id`, `body`, `created_at`, `read_at`, `deleted_at`).
+  - Added indexes `idx_conversations_user_low`, `idx_conversations_user_high`, and `idx_messages_conv_created`.
+  - Migration is 100% idempotent and tested safely without data loss.
+- **Backend Rules & Security Hardening (`routes/conversations.js`, `routes/messages.js`):**
+  - Mutual friend verification: Only accepted friends can open a conversation or send messages (`403` for non-friends).
+  - Blocking enforcement: If either party blocks the other, conversation is completely hidden (`GET /api/conversations` filters out blocked pairs, `GET /api/conversations/:id/messages` returns `404`). Unblocking restores history.
+  - Unfriending read-only mode: When friendship is removed, conversation becomes read-only (readable, but sending returns `403` with a translated explanation).
+  - Outsider privacy: Non-members receive `404` to avoid leaking conversation existence.
+  - Rate limiting: Sliding-window limiter restricts message sending to 60 messages/min/user (`429`).
+  - Plain text sanitization: Server strips all HTML (`<[^>]*>/g`), validates length $\le 2000$ characters, and rejects whitespace-only messages (`400`).
+  - Soft deletion: Senders can soft-delete their own messages (`deleted_at`), rendering as "This message was deleted." to both parties; foreign deletion attempts return `403`.
+  - Notification throttling: Dispatches at most one `message_received` notification per conversation per hour.
+- **Frontend & Editorial UI (`index.html`, `app.js`, `style.css`):**
+  - Added Messages badge and navigation link to desktop header and mobile bottom bar.
+  - Built editorial 2-column/split layout matching warm paper palette (`#F6F3EE` / `#161513`), hairline borders, serif headings, and tabular numerals.
+  - Implemented 5s active conversation polling and 30s unread count polling with automatic pause when `document.visibilityState === 'hidden'`.
+  - Added dynamic "Message" action button to friend profile view.
+- **Internationalization (`locales/en.json`, `locales/hi.json`):**
+  - Added 18 new localized string keys in English and Hindi Devanagari.
+- **Automated Verification (`test/test_messages_suite.js`):**
+  - 12 comprehensive automated test cases validating friends exchange, non-friend rejection, blocking visibility, unfriending read-only, soft deletion, rate limiting, and unread counters (12/12 passed).
+
+---
+
 ## [1.0.0] - 2026-11-17
 
 ### Step 1: Root Cause Diagnosis & Router Fixes
@@ -64,3 +93,4 @@ All notable changes, bug fixes, and security enhancements to READORA are documen
 - **Secrets Audit:** Verified that `.env` is ignored by `.gitignore` and was never committed to any commit in git history.
 - **HTTP-Only Cookies & CSRF:** Added `cookie-parser` to `server.js` and set `httpOnly: true`, `secure: production`, `sameSite: 'lax'` cookie flags on login and signup alongside stateless `Authorization: Bearer` support.
 - **Rate Limiting:** Active across `/api/auth` (15 attempts / 15 min), `/api/auth/verify-otp` (6 attempts / 15 min), `/api/friends/request` (20 / day), `/api/users/:id/follow` (100 / hr), and `/api/calls/token` (10 / 10 min).
+

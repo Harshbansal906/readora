@@ -91,6 +91,25 @@
   "today": "Today",
   "this_week": "This week",
   "earlier": "Earlier",
-  "mark_all_read": "Mark all as read"
+  "mark_all_read": "Mark all as read",
+  "nav_messages": "Messages",
+  "messages_title": "Direct Messages",
+  "messages_empty": "You have not started any conversations yet. Add friends to begin.",
+  "messages_no_selected": "Select a conversation to start reading and writing.",
+  "conversation_readonly_banner": "This conversation is read-only because you are no longer friends.",
+  "conversation_blocked_banner": "This conversation is unavailable due to privacy settings.",
+  "message_placeholder": "Write a message... (Shift+Enter for newline)",
+  "send_btn": "Send",
+  "sending_btn": "Sending...",
+  "deleted_message": "This message was deleted.",
+  "deleted_user": "Deleted user",
+  "message_friend_btn": "Message",
+  "delete_message_btn": "Delete",
+  "confirm_delete_msg": "Delete this message for everyone?",
+  "chars_remaining": "characters remaining",
+  "too_many_messages_err": "Too many messages. Please slow down.",
+  "must_be_friends_err": "You must be friends to send messages.",
+  "conversation_back": "Back to Conversations",
+  "messages_unread_badge": "unread messages"
 }
 

@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test/test_runner.js && node test/test_phase_suite.js",
+    "test": "node test/test_runner.js && node test/test_phase_suite.js && node test/test_messages_suite.js",
     "test:phases": "node test/test_phase_suite.js",
+    "test:messages": "node test/test_messages_suite.js",
     "seed": "node scripts/seed.js",
     "db:migrate": "node scripts/migrate_sqlite_to_pg.js"
   },

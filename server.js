@@ -20,6 +20,8 @@ const friendsRoutes = require('./routes/friends');
 const notificationsRoutes = require('./routes/notifications');
 const callsRoutes = require('./routes/calls');
 const searchRoutes = require('./routes/search');
+const conversationsRoutes = require('./routes/conversations');
+const messagesRoutes = require('./routes/messages');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -90,6 +92,8 @@ app.use('/api/calls', callsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/conversations', conversationsRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // Enhanced Production Health check endpoint (serves both /health and /api/health)
 app.get(['/health', '/api/health'], async (req, res) => {
