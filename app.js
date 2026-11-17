@@ -1093,12 +1093,12 @@ class ReadoraApp {
       return true;
     });
 
-    // Populate Lead Essay (first post if on All filter without search query)
+    // Populate Lead Essay (first long-form essay with title if on All filter without search query)
     let leadPost = null;
     if (this.currentFilter === 'all' && !this.activeSearchQuery && filtered.length > 0) {
-      leadPost = filtered[0];
-      this.currentLeadId = leadPost.id;
-      if (this.leadContainer) {
+      leadPost = filtered.find(p => (p.type === 'article' || !p.type) && p.title) || filtered[0];
+      this.currentLeadId = leadPost ? leadPost.id : null;
+      if (this.leadContainer && leadPost) {
         this.leadContainer.style.display = 'block';
         this.renderLeadEssay(leadPost);
       }

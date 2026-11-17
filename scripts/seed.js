@@ -748,8 +748,9 @@ async function seed() {
       essay.language || 'en'
     ]);
 
-    // Also populate FTS5 index if table exists
+    // Also populate FTS5 index if table exists (idempotent)
     try {
+      await db.runAsync(`DELETE FROM posts_fts WHERE id = ?`, [essay.id]);
       await db.runAsync(`
         INSERT INTO posts_fts (id, title, subtitle, content, category, author_name)
         VALUES (?, ?, ?, ?, ?, ?)
