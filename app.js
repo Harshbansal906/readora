@@ -20,15 +20,26 @@ const translations = { en: {}, hi: {} };
 
 async function loadTranslations() {
   try {
+    const cachedEn = sessionStorage.getItem('readora_i18n_en');
+    const cachedHi = sessionStorage.getItem('readora_i18n_hi');
+    if (cachedEn && cachedHi) {
+      translations.en = JSON.parse(cachedEn);
+      translations.hi = JSON.parse(cachedHi);
+      return;
+    }
     const [enRes, hiRes] = await Promise.all([
       fetch('/locales/en.json'),
       fetch('/locales/hi.json')
     ]);
-    if (enRes.ok) translations.en = await enRes.json();
-    if (hiRes.ok) translations.hi = await hiRes.json();
-  } catch (e) {
-    // Offline / fallback
-  }
+    if (enRes.ok) {
+      translations.en = await enRes.json();
+      try { sessionStorage.setItem('readora_i18n_en', JSON.stringify(translations.en)); } catch (e) {}
+    }
+    if (hiRes.ok) {
+      translations.hi = await hiRes.json();
+      try { sessionStorage.setItem('readora_i18n_hi', JSON.stringify(translations.hi)); } catch (e) {}
+    }
+  } catch (e) {}
 }
 
 function t(key, fallback = '') {
@@ -349,16 +360,27 @@ class ReadoraApp {
     this.init();
   }
 
-  async init() {
-    await loadTranslations();
+  init() {
     document.documentElement.setAttribute('lang', currentLang);
     this.initTheme();
     this.initTabFromUrl();
     this.bindEvents();
     this.render();
     this.handleRoute();
-    this.syncWithBackend();
-    this.initNotifications();
+
+    // Defer network sync to idle callback to keep main thread completely unblocked
+    const deferWork = () => {
+      this.syncWithBackend();
+      this.initNotifications();
+    };
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(deferWork, { timeout: 1500 });
+    } else {
+      setTimeout(deferWork, 120);
+    }
+    loadTranslations().then(() => {
+      if (currentLang === 'hi') this.render();
+    });
 
     window.addEventListener('hashchange', () => this.handleRoute());
     window.addEventListener('popstate', () => this.handlePopState());
@@ -811,7 +833,7 @@ class ReadoraApp {
 
     const hasCustomCover = lead.coverImage && safeUrl(lead.coverImage);
     const coverHtml = hasCustomCover
-      ? `<div class="lead-essay-visual"><img src="${esc(lead.coverImage)}" style="width:100%; max-height:360px; object-fit:cover; border:1px solid var(--rule);" alt="Essay Cover" /></div>`
+      ? `<div class="lead-essay-visual"><img src="${esc(lead.coverImage)}" width="800" height="450" style="width:100%; height:100%; max-height:360px; aspect-ratio:16/9; object-fit:cover; border:1px solid var(--rule);" alt="Essay Cover" fetchpriority="high" /></div>`
       : `<div class="lead-essay-visual">${this.renderTypographicCover(lead.title, lead.author, lead.category, true)}</div>`;
 
     const formattedDate = formatIndianDate(lead.createdAt || lead.timestamp);
@@ -850,7 +872,7 @@ class ReadoraApp {
   renderPostCard(post) {
     const hasCustomCover = post.coverImage && safeUrl(post.coverImage);
     const thumbHtml = hasCustomCover
-      ? `<img src="${esc(post.coverImage)}" class="essay-card-img-thumb" alt="Thumb" loading="lazy" />`
+      ? `<img src="${esc(post.coverImage)}" class="essay-card-img-thumb" width="120" height="90" style="aspect-ratio:4/3;" alt="Thumb" loading="lazy" />`
       : this.renderTypographicCover(post.title, post.author, post.category, false);
 
     const isBookmarked = post.bookmarkedByUser;

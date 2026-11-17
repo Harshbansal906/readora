@@ -8,12 +8,18 @@ if (isProd && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'readora_su
 }
 
 function authMiddleware(req, res, next) {
+  let token = null;
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+
+  if (!token) {
     return res.status(401).json({ success: false, message: 'Authentication required. No token provided.' });
   }
 
-  const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
@@ -25,9 +31,15 @@ function authMiddleware(req, res, next) {
 
 // Optional Auth (passes user if token exists, but doesn't block if guest)
 function optionalAuthMiddleware(req, res, next) {
+  let token = null;
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
+    token = authHeader.split(' ')[1];
+  } else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+
+  if (token) {
     try {
       req.user = jwt.verify(token, JWT_SECRET);
     } catch (err) {

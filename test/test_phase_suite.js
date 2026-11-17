@@ -205,6 +205,10 @@ async function runPhasesSuite() {
 
   // 5. Friendship lifecycle
   await test('5. Friendship Lifecycle (Request, Pending Status, Acceptance)', async () => {
+    // Self-friend request rejected with 400
+    const selfReq = await request('POST', '/api/friends/request', { targetUserId: 'usr_a' }, { Authorization: `Bearer ${tokenA}` });
+    assert.strictEqual(selfReq.status, 400);
+
     // Initial status: none
     const st1 = await request('GET', '/api/friends/status/usr_b', null, { Authorization: `Bearer ${tokenA}` });
     assert.strictEqual(st1.body.status, 'none');
@@ -235,6 +239,10 @@ async function runPhasesSuite() {
 
   // 6. LiveKit Friends-Only Calls
   await test('6. LiveKit Friends-Only Audio/Video Calls (Permission Checks)', async () => {
+    // Self-call rejected with 400
+    const selfCall = await request('POST', '/api/calls/token', { targetUserId: 'usr_a' }, { Authorization: `Bearer ${tokenA}` });
+    assert.strictEqual(selfCall.status, 400);
+
     // User A and User C are NOT friends -> Call token request must fail with 403
     const nonFriendCall = await request('POST', '/api/calls/token', { targetUserId: 'usr_c' }, { Authorization: `Bearer ${tokenA}` });
     assert.strictEqual(nonFriendCall.status, 403);
@@ -258,11 +266,15 @@ async function runPhasesSuite() {
     const stA = await request('GET', '/api/friends/status/usr_b', null, { Authorization: `Bearer ${tokenA}` });
     assert.strictEqual(stA.body.status, 'blocked');
 
+    // Blocked user cannot send friend request (403)
+    const blockedFriendReq = await request('POST', '/api/friends/request', { targetUserId: 'usr_b' }, { Authorization: `Bearer ${tokenA}` });
+    assert.strictEqual(blockedFriendReq.status, 403);
+
     // Calls between them must now return 403
     const callRes = await request('POST', '/api/calls/token', { targetUserId: 'usr_b' }, { Authorization: `Bearer ${tokenA}` });
     assert.strictEqual(callRes.status, 403);
 
-    // Follow between them must be severed
+    // Follow between them must be severed & blocked (403)
     const folRes = await request('POST', '/api/users/usr_b/follow', null, { Authorization: `Bearer ${tokenA}` });
     assert.strictEqual(folRes.status, 403);
 

@@ -543,6 +543,13 @@ router.post('/login', authLimiter, async (req, res) => {
       { expiresIn: '30d' }
     );
 
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: IS_PROD,
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
+
     res.json({
       success: true,
       message: 'Welcome back to Readora!',
@@ -560,6 +567,16 @@ router.post('/login', authLimiter, async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({ success: false, message: 'Internal server error during login.' });
   }
+});
+
+// POST /api/auth/logout - Clear HTTP-only session cookie
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: IS_PROD,
+    sameSite: 'lax'
+  });
+  res.json({ success: true, message: 'Logged out successfully.' });
 });
 
 // GET /api/auth/google/config - Expose Google OAuth Client ID for frontend GSI
@@ -640,6 +657,13 @@ router.post('/google', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '30d' }
     );
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: IS_PROD,
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
 
     res.json({
       success: true,

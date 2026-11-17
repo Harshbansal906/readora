@@ -477,9 +477,14 @@ img {
    LEAD ESSAY PRESENTATION
    -------------------------------------------------------------------------- */
 .lead-essay-article {
+  min-height: 280px;
   padding-bottom: 2rem;
   margin-bottom: 2rem;
   border-bottom: 1px solid var(--rule);
+}
+
+.essay-feed-stream {
+  min-height: 400px;
 }
 
 .lead-essay-body {
@@ -536,6 +541,9 @@ img {
 /* Typographic Cover Box (Flat paper tile with accent rule, no stock images) */
 .lead-essay-visual {
   width: 100%;
+  aspect-ratio: 16/9;
+  min-height: 220px;
+  overflow: hidden;
   margin-bottom: 1.25rem;
 }
 

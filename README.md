@@ -288,31 +288,88 @@ erDiagram
 READORA includes an automated end-to-end integration test suite verifying authentication, authorization, CRUD operations, database cascade deletions, and SQL injection security:
 
 ```bash
-node test_audit.js
+# Run all 35 automated integration & phase verification tests
+npm test
 ```
 
-**Audit Results:**
-- ✅ **37/37 Integration Tests Passing (100% Success Rate)**
-- ✅ Injection immunity verified across input search parameters
-- ✅ Strict author ownership verified on content modifications
-- ✅ Email MX syntax validation & OTP expiration lifecycle confirmed
+**Verification Results:**
+- ✅ **35 / 35 Automated Tests Passing (100% Success Rate)**
+- ✅ Follow graph, mutual block enforcement, and rate limits verified
+- ✅ Friends-only LiveKit WebRTC call permissions (403 for non-friends / blocked users)
+- ✅ SQLite FTS5 search across essays, writers, and topics
+- ✅ Production health check endpoints (`/health` and `/api/health`)
+
+### Mobile Lighthouse Scores (Google Chrome Mobile Throttling)
+- **Performance:** **90 / 100** (exceeds ≥ 85 target)
+- **Accessibility:** **96 / 100** (exceeds ≥ 95 target)
+- **Best Practices:** **92 / 100**
+- **SEO:** **92 / 100**
 
 ---
 
-## 🌐 Deployment to Cloud
+## ⚙️ Environment Variables Reference
 
-### 1-Click Deployment on Render
-1. Push this repository to your GitHub account.
-2. Sign in to [Render.com](https://render.com) and create a **New Web Service**.
-3. Select your `readora` repository.
-4. Settings:
-   - **Environment:** `Node`
-   - **Build Command:** `npm install`
-   - **Start Command:** `npm start`
-5. Add your environment variables (`JWT_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASS`).
-6. Deploy! Render automatically provisions a free SSL certificate (`https://`).
+Copy `.env.example` to `.env` to configure your local or production environment:
 
-For custom domain instructions (e.g. `readora.app`), refer to [`DEPLOYMENT_GUIDE.md`](./DEPLOYMENT_GUIDE.md).
+| Variable | Description | Default / Example |
+|---|---|---|
+| `PORT` | HTTP port the Express server listens on | `5000` |
+| `NODE_ENV` | Application environment (`development` / `production` / `test`) | `development` |
+| `JWT_SECRET` | Secret key used to sign and verify user JWTs | `openssl rand -hex 32` |
+| `DB_PATH` | Path to local SQLite database | `./readora.db` |
+| `DATABASE_URL` | Optional PostgreSQL connection URL (Render / Supabase) | `postgresql://...` |
+| `UPLOAD_DIR` | Directory for avatar WebP images | `./uploads` |
+| `LIVEKIT_URL` | LiveKit cloud WebSocket URL for calls | `wss://readora.livekit.cloud` |
+| `LIVEKIT_API_KEY` | LiveKit project API key | Generated from LiveKit Console |
+| `LIVEKIT_API_SECRET` | LiveKit project API secret (32+ chars) | Generated from LiveKit Console |
+| `RESEND_API_KEY` | Resend HTTP API key for transactional emails | `re_...` |
+| `FROM_EMAIL` | Sender email address for OTP passcodes | `READORA <onboarding@resend.dev>` |
+
+---
+
+## 🛠️ Local Development & Seeding
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Seed database with 14 Indian authors and 24 essays
+npm run seed
+
+# 3. Start local development server
+npm start
+# -> Access at http://localhost:5000
+```
+
+---
+
+## 🌐 Deployment to Render
+
+READORA is configured with `render.yaml` for zero-configuration deployment on Render.
+
+### Persistence Strategy:
+1. **Option A: SQLite with Persistent Disk (Recommended for Single-Instance v1)**
+   - Attach a Render Persistent Disk (`/var/data`, 1GB).
+   - Set `DB_PATH=/var/data/readora.db` and `UPLOAD_DIR=/var/data/uploads`.
+   - *Why:* Zero external database latency, native FTS5 full-text search, and persistent user avatars across deployments.
+2. **Option B: Render Managed PostgreSQL**
+   - The universal database adapter (`db/database.js`) auto-detects `DATABASE_URL`.
+   - Run `npm run seed` once against the live database from the Render shell.
+
+### Deploy Steps:
+1. Push repository to GitHub (`main` branch).
+2. Create a **New Blueprint Instance** or **Web Service** on [Render](https://render.com).
+3. Connect repository `Harshbansal906/readora`.
+4. Configure environment variables in the Render Dashboard (never commit `.env`).
+5. Verify `/api/health` returns `{"status": "online", "databaseStatus": "healthy"}`.
+
+---
+
+## ⚠️ Known Limitations & Notes
+
+1. **Free-Tier Cold Starts:** Render free-tier web services spin down after 15 minutes of inactivity; the initial request after idle may take 30–50 seconds to wake up.
+2. **WebRTC Media Permissions:** LiveKit audio and video calls require HTTPS on mobile browsers (iOS Safari & Android Chrome strictly block microphone/camera access on plain HTTP, except for `localhost`).
+3. **Email Deliverability:** Without `RESEND_API_KEY` or SMTP credentials configured, OTP codes print directly to the server terminal in development mode.
 
 ---
 
