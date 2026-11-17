@@ -582,7 +582,25 @@ class ReadoraApp {
         if (notifModal) notifModal.classList.remove('active');
         const callModal = document.getElementById('call-modal');
         if (callModal) callModal.classList.remove('active');
+        const curHash = window.location.hash || '';
+        if (/^#\/?(write|notifications|article|essay|post)/i.test(curHash)) {
+          window.location.hash = '#/';
+        }
       });
+    });
+
+    // Close modals on escape key
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const anyModal = document.querySelector('.modal-scrim.active');
+        if (anyModal) {
+          document.querySelectorAll('.modal-scrim.active').forEach(m => m.classList.remove('active'));
+          const curHash = window.location.hash || '';
+          if (/^#\/?(write|notifications|article|essay|post)/i.test(curHash)) {
+            window.location.hash = '#/';
+          }
+        }
+      }
     });
 
     // Formatting toolbar buttons in editor
@@ -701,6 +719,12 @@ class ReadoraApp {
       if (el) el.style.display = 'none';
     });
 
+    // Close reader & write & notif modals if not navigating to them
+    if (!artM && this.readerModal) this.readerModal.classList.remove('active');
+    if (hash !== '#/write' && hash !== '#write' && this.writeModal) this.writeModal.classList.remove('active');
+    const notifModal = document.getElementById('notifications-modal');
+    if (hash !== '#/notifications' && hash !== '#notifications' && notifModal) notifModal.classList.remove('active');
+
     if (artM) {
       const postId = decodeURIComponent(artM[2]);
       this.openFullArticle(postId);
@@ -721,6 +745,17 @@ class ReadoraApp {
       const sett = document.getElementById('settings-view');
       if (sett) sett.style.display = 'block';
       this.renderSettings();
+    } else if (hash === '#/notifications' || hash === '#notifications') {
+      const feed = document.getElementById('feed-view');
+      if (feed) feed.style.display = 'block';
+      if (notifModal) {
+        notifModal.classList.add('active');
+        this.loadNotifications();
+      }
+    } else if (hash === '#/write' || hash === '#write') {
+      const feed = document.getElementById('feed-view');
+      if (feed) feed.style.display = 'block';
+      this.openWriteModal();
     } else {
       const feed = document.getElementById('feed-view');
       if (feed) feed.style.display = 'block';
@@ -735,7 +770,7 @@ class ReadoraApp {
     const saved = document.getElementById('nav-saved-btn');
     const settings = document.getElementById('nav-settings-btn');
 
-    if (home) home.classList.toggle('active', !hash || hash === '#/' || hash === '#' || hash === '#home');
+    if (home) home.classList.toggle('active', !hash || hash === '#/' || hash === '#' || hash === '#home' || hash === '#/write' || hash === '#/notifications');
     if (explore) explore.classList.toggle('active', hash === '#/explore' || hash === '#explore');
     if (saved) saved.classList.toggle('active', hash === '#/saved' || hash === '#saved');
     if (settings) settings.classList.toggle('active', hash === '#/settings' || hash === '#settings');
@@ -1108,8 +1143,22 @@ class ReadoraApp {
   // ------------------------------------------------------------------------
   // FULL ESSAY READER MODAL
   // ------------------------------------------------------------------------
-  openFullArticle(postId) {
-    const post = this.posts.find(p => String(p.id) === String(postId));
+  async openFullArticle(postId) {
+    let post = this.posts.find(p => String(p.id) === String(postId));
+    if (!post) {
+      try {
+        const res = await fetch(`${this.apiBase}/api/posts/single/${encodeURIComponent(postId)}`, {
+          headers: this.authHeaders()
+        });
+        if (res.ok) {
+          const d = await res.json();
+          if (d && d.success && d.post) {
+            post = d.post;
+            this.posts.unshift(post);
+          }
+        }
+      } catch (e) {}
+    }
     if (!post) return;
 
     if (!this.readerModal || !this.readerContainer) return;

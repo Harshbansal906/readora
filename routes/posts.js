@@ -211,15 +211,16 @@ router.get('/following', authMiddleware, async (req, res) => {
 // GET /api/posts/user/:handle or /api/posts/profile/:handle - Public creator profile
 router.get(['/user/:handle', '/profile/:handle'], optionalAuthMiddleware, async (req, res) => {
   try {
-    let handle = String(req.params.handle || '').trim().toLowerCase();
-    if (!handle) {
-      return res.status(400).json({ success: false, message: 'Username is required.' });
+    const rawParam = String(req.params.handle || '').trim();
+    if (!rawParam) {
+      return res.status(400).json({ success: false, message: 'Username or user ID is required.' });
     }
+    let handle = rawParam.toLowerCase();
     if (!handle.startsWith('@')) handle = '@' + handle;
 
     const user = await db.getAsync(
-      `SELECT id, name, handle, avatar, avatar_url, bio, created_at FROM users WHERE LOWER(handle) = ?`,
-      [handle]
+      `SELECT id, name, handle, avatar, avatar_url, bio, created_at FROM users WHERE LOWER(handle) = ? OR id = ? OR LOWER(handle) = ?`,
+      [handle, rawParam, '@' + rawParam.toLowerCase().replace(/^@/, '')]
     );
     if (!user) {
       return res.status(404).json({ success: false, message: 'Creator not found.' });
