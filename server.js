@@ -95,6 +95,53 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/messages', messagesRoutes);
 
+// CopilotKit AG-UI Antigravity Proxy Endpoint
+app.use(['/copilotkit', '/api/copilotkit'], async (req, res) => {
+  const targetHost = process.env.ANTIGRAVITY_AGENT_URL || 'http://localhost:8000/copilotkit';
+  const subPath = req.url === '/' ? '' : req.url;
+  const targetUrl = `${targetHost.replace(/\/$/, '')}${subPath}`;
+
+  try {
+    const fHeaders = { ...req.headers };
+    delete fHeaders.host;
+
+    const options = {
+      method: req.method,
+      headers: fHeaders
+    };
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
+      options.body = JSON.stringify(req.body);
+      fHeaders['content-type'] = 'application/json';
+    }
+
+    const response = await fetch(targetUrl, options);
+    res.status(response.status);
+    response.headers.forEach((v, k) => {
+      // Forward SSE streaming and JSON headers
+      res.setHeader(k, v);
+    });
+
+    if (response.headers.get('content-type')?.includes('text/event-stream')) {
+      const reader = response.body.getReader();
+      req.on('close', () => reader.cancel());
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+      res.end();
+    } else {
+      const data = await response.text();
+      res.send(data);
+    }
+  } catch (err) {
+    res.status(502).json({
+      error: 'Antigravity agent backend not reachable on port 8000.',
+      detail: 'Ensure agent_server.py is running via: py -3.12 -m uvicorn agent_server:app --port 8000'
+    });
+  }
+});
+
 // Enhanced Production Health check endpoint (serves both /health and /api/health)
 app.get(['/health', '/api/health'], async (req, res) => {
   let dbStatus = 'healthy';

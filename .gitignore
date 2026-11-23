@@ -25,6 +25,12 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
 # Uploaded media assets
 uploads/*
 !uploads/.gitkeep

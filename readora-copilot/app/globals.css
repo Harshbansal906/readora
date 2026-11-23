@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap');
+
+:root {
+  --bg-paper: #F6F3EE;
+  --bg-paper-subtle: #ECE8E1;
+  --ink: #1C1B19;
+  --ink-secondary: #4A4843;
+  --ink-muted: #787570;
+  --accent: #7A2E22;
+  --accent-hover: #5E231A;
+  --rule: #E2DDD5;
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  --copilot-kit-primary-color: #7A2E22;
+  --copilot-kit-contrast-color: #F6F3EE;
+  --copilot-kit-background-color: #F6F3EE;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* CopilotKit Theme Overrides to Match Readora Paper Aesthetic */
+.copilotKitSidebar,
+.copilotKitPopup,
+.copilotKitWindow {
+  font-family: var(--font-sans) !important;
+  border: 1px solid var(--rule) !important;
+  border-radius: 2px !important;
+  background-color: var(--bg-paper) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+}
+
+.copilotKitHeader {
+  background-color: var(--bg-paper-subtle) !important;
+  border-bottom: 1px solid var(--rule) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-serif) !important;
+}
+
+.copilotKitButton {
+  border-radius: 2px !important;
+  background-color: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 500 !important;
+}
+
+.copilotKitButton:hover {
+  background-color: var(--accent-hover) !important;
+}
+
+.copilotKitInput {
+  background-color: var(--bg-paper) !important;
+  border: 1px solid var(--rule) !important;
+  border-radius: 2px !important;
+  color: var(--ink) !important;
+}
+
+.copilotKitInput:focus {
+  border-color: var(--accent) !important;
+  outline: none !important;
+}
