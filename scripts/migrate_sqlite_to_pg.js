@@ -217,6 +217,57 @@ async function runMigration() {
       CREATE INDEX IF NOT EXISTS idx_article_views_post ON article_views(post_id);
     `);
 
+    // Friendships
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS friendships (
+        requester_id VARCHAR(64) NOT NULL,
+        addressee_id VARCHAR(64) NOT NULL,
+        status VARCHAR(32) NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (requester_id, addressee_id),
+        CHECK (requester_id != addressee_id)
+      );
+    `);
+
+    // Blocks
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS blocks (
+        blocker_id VARCHAR(64) NOT NULL,
+        blocked_id VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (blocker_id, blocked_id),
+        CHECK (blocker_id != blocked_id)
+      );
+    `);
+
+    // Conversations
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id VARCHAR(64) PRIMARY KEY,
+        user_low_id VARCHAR(64) NOT NULL,
+        user_high_id VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        last_message_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT unq_conversations_pair UNIQUE(user_low_id, user_high_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_conversations_user_low ON conversations(user_low_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_user_high ON conversations(user_high_id);
+    `);
+
+    // Messages
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id VARCHAR(64) PRIMARY KEY,
+        conversation_id VARCHAR(64) NOT NULL,
+        sender_id VARCHAR(64) NOT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        read_at TIMESTAMP WITH TIME ZONE,
+        deleted_at TIMESTAMP WITH TIME ZONE
+      );
+      CREATE INDEX IF NOT EXISTS idx_messages_conv_created ON messages(conversation_id, created_at);
+    `);
+
     console.log('✅ PostgreSQL schema successfully prepared.');
 
     // Helper to migrate table rows safely
@@ -230,7 +281,11 @@ async function runMigration() {
       { name: 'otps', conflict: 'ON CONFLICT (id) DO NOTHING' },
       { name: 'notifications', conflict: 'ON CONFLICT (id) DO NOTHING' },
       { name: 'drafts', conflict: 'ON CONFLICT (user_id) DO NOTHING' },
-      { name: 'article_views', conflict: 'ON CONFLICT (post_id, viewer_key) DO NOTHING' }
+      { name: 'article_views', conflict: 'ON CONFLICT (post_id, viewer_key) DO NOTHING' },
+      { name: 'friendships', conflict: 'ON CONFLICT (requester_id, addressee_id) DO NOTHING' },
+      { name: 'blocks', conflict: 'ON CONFLICT (blocker_id, blocked_id) DO NOTHING' },
+      { name: 'conversations', conflict: 'ON CONFLICT (id) DO NOTHING' },
+      { name: 'messages', conflict: 'ON CONFLICT (id) DO NOTHING' }
     ];
 
     console.log('\n📦 Transferring data records from SQLite to PostgreSQL...');
